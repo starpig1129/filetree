@@ -1,0 +1,234 @@
+{% extends "base.html" %} {% block title %}🌳 FileTree 檔案樹{% endblock %} {%
+block content %}
+<div id="root"></div>
+
+<script>
+  window.__PAGE__ = 'landing';
+  window.__INITIAL_DATA__ = {
+      users: {{ users | tojson if users else [] }}
+  };
+</script>
+{% endblock %} {% endblock %} {% block extra_scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const uploadForm = document.getElementById("uploadForm");
+    const urlInput = document.getElementById("url_input");
+    const fileInput = document.getElementById("file_input");
+    const dropZone = document.getElementById("dropZone");
+    const fileInputEl = document.getElementById("file");
+    const fileList = document.getElementById("fileList");
+
+    let selectedFiles = [];
+
+    // 上傳類型切換
+    document.querySelectorAll('input[name="upload_type"]').forEach((radio) => {
+      radio.addEventListener("change", function () {
+        if (this.value === "url") {
+          urlInput.classList.remove("d-none");
+          fileInput.classList.add("d-none");
+        } else {
+          urlInput.classList.add("d-none");
+          fileInput.classList.remove("d-none");
+        }
+      });
+    });
+
+    // 拖放區域事件
+    dropZone.addEventListener("click", () => fileInputEl.click());
+
+    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, () => {
+        dropZone.classList.add("drag-over");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, () => {
+        dropZone.classList.remove("drag-over");
+      });
+    });
+
+    dropZone.addEventListener("drop", handleDrop);
+    fileInputEl.addEventListener("change", handleFileSelect);
+
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      handleFiles(dt.files);
+    }
+
+    function handleFileSelect(e) {
+      handleFiles(e.target.files);
+    }
+
+    function handleFiles(files) {
+      selectedFiles = Array.from(files);
+      updateFileList();
+    }
+
+    function updateFileList() {
+      fileList.innerHTML = "";
+
+      if (selectedFiles.length === 0) return;
+
+      selectedFiles.forEach((file, index) => {
+        const div = document.createElement("div");
+        div.className =
+          "file-item d-flex align-items-center justify-content-between p-2 mb-2 rounded";
+        div.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <span class="me-2">🌰</span>
+                    <div>
+                        <div class="small fw-medium">${file.name}</div>
+                        <div class="text-muted" style="font-size: 0.75rem">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+        fileList.appendChild(div);
+      });
+    }
+
+    window.removeFile = function (index) {
+      selectedFiles.splice(index, 1);
+      updateFileList();
+    };
+
+    // 表單提交
+    uploadForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const uploadType = document.querySelector(
+        'input[name="upload_type"]:checked',
+      ).value;
+      const password = document.getElementById("password").value;
+
+      if (!password) {
+        Swal.fire("錯誤", "請輸入密碼", "error");
+        return;
+      }
+
+      if (uploadType === "url") {
+        const url = document.getElementById("url").value;
+        if (!url) {
+          Swal.fire("錯誤", "請輸入網址", "error");
+          return;
+        }
+        uploadUrl(url, password);
+      } else {
+        if (selectedFiles.length === 0) {
+          Swal.fire("錯誤", "請選擇檔案", "error");
+          return;
+        }
+        uploadFiles(selectedFiles, password);
+      }
+    });
+
+    function uploadUrl(url, password) {
+      Swal.fire({
+        title: "種植中...",
+        text: "正在儲存網址",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      fetch("/api/upload_url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url, password }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            Swal.fire({
+              icon: "success",
+              title: "種植成功！",
+              text: "網址已儲存到你的樹屋",
+              confirmButtonText: "前往查看",
+            }).then(() => {
+              if (data.redirect) {
+                window.location.href = data.redirect;
+              }
+            });
+          } else {
+            Swal.fire("錯誤", data.message, "error");
+          }
+        })
+        .catch((error) => {
+          Swal.fire("錯誤", "無法連接伺服器", "error");
+        });
+    }
+
+    function uploadFiles(files, password) {
+      const formData = new FormData();
+      formData.append("password", password);
+      files.forEach((file) => {
+        formData.append("files[]", file);
+      });
+
+      Swal.fire({
+        title: "種植中...",
+        html: `
+                <div class="progress" style="height: 25px;">
+                    <div id="uploadProgress" class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%">0%</div>
+                </div>
+            `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/api/upload", true);
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              const progressBar = document.getElementById("uploadProgress");
+              progressBar.style.width = percent + "%";
+              progressBar.textContent = percent + "%";
+            }
+          };
+
+          xhr.onload = () => {
+            const response = JSON.parse(xhr.responseText);
+            if (xhr.status === 200 && response.success) {
+              Swal.fire({
+                icon: "success",
+                title: "種植成功！",
+                text: `已上傳 ${response.uploaded_files.length} 個檔案`,
+                confirmButtonText: "前往查看",
+              }).then(() => {
+                if (response.redirect) {
+                  window.location.href = response.redirect;
+                }
+              });
+            } else {
+              Swal.fire("錯誤", response.message, "error");
+            }
+          };
+
+          xhr.onerror = () => {
+            Swal.fire("錯誤", "上傳失敗，請檢查網路連線", "error");
+          };
+
+          xhr.send(formData);
+        },
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+# --- Frontend (Vite/React) ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.nvmrc
+
+# --- Backend (Python/Flask) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Databases & Assets ---
+*.db
+*.sqlite3
+uploads/
+temp/
+static/dist/
+
+# --- OS & Editors ---
+.DS_Store
+.idea/
+.vscode/ (not: !.vscode/extensions.json)
+*.swp
+*.swo
+
+# --- Agentic ---
+.agent/
