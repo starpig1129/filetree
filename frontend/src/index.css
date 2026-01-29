@@ -150,4 +150,18 @@
   .focus-ring {
     @apply outline-none ring-2 ring-quantum-cyan/50 ring-offset-2 ring-offset-space-black transition-all;
   }
+
+  .max-w-10xl {
+    max-width: 160rem;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-white/5;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-quantum-cyan/20 rounded-full;
+  }
 }

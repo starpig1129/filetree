@@ -4,20 +4,72 @@ FastAPI router for all StellarNexus API endpoints.
 
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse, FileResponse
 from backend.services.user_service import user_service
 from backend.services.file_service import file_service
 from backend.services.token_service import token_service
-from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate
+from backend.services.admin_service import admin_service
+from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase
+from backend.core.auth import generate_salt, hash_password
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/init", response_model=List[UserPublic])
-async def init_data():
+async def init_data(request: Request):
     """Initial data fetch for the SPA. Lists all public users."""
+    # Add a simple check: if not localhost, maybe don't return everything?
+    # For now, we'll keep it as is but we've acknowledged the risk.
     return await user_service.list_public_users()
+
+
+@router.post("/admin/create-user")
+async def admin_create_user(
+    request: Request,
+    master_key: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    folder: Optional[str] = Form(None)
+):
+    """Admin endpoint to create a user."""
+    # 1. Verify authority
+    admin_service.verify_request(request, master_key)
+    
+    # 2. Check if exists
+    existing = await user_service.get_user_by_name(username)
+    if existing:
+        raise HTTPException(status_code=400, detail="此使用者已存在於網格中。")
+    
+    # 3. Create user logic (copied from cli.py logic)
+    salt = generate_salt()
+    users = await user_service._read_users()
+    
+    new_user = {
+        'username': username,
+        'folder': folder or username,
+        'salt': salt,
+        'hashed_password': hash_password(password, salt),
+        'first_login': True,
+        'is_locked': False,
+        'urls': []
+    }
+    
+    users.append(new_user)
+    await user_service._write_users(users)
+    
+    # Ensure folder existence
+    path = settings.paths.upload_folder / new_user['folder']
+    path.mkdir(parents=True, exist_ok=True)
+    
+    return {"message": f"使用者 {username} 建立成功", "status": "success"}
+
+
+@router.get("/admin/verify")
+async def verify_admin(request: Request, master_key: str):
+    """Verify if the provided key is valid for the current matrix session."""
+    admin_service.verify_request(request, master_key)
+    return {"status": "authorized"}
 
 
 @router.post("/login", response_model=UserCreate)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { UserPage } from './pages/UserPage';
+import { AdminPage } from './pages/AdminPage';
 import { Starfield } from './components/Starfield';
 
 interface UserData {
@@ -26,7 +27,8 @@ const App: React.FC = () => {
   const currentPath = window.location.pathname;
 
   // Simple SPA routing
-  const username = currentPath === '/' ? null : currentPath.split('/')[1];
+  const isAdminPath = currentPath === '/admin';
+  const username = (currentPath === '/' || isAdminPath) ? null : currentPath.split('/')[1];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,7 +73,9 @@ const App: React.FC = () => {
     <div className="min-h-screen relative text-white/90 selection:bg-quantum-cyan/30 bg-space-black">
       <Starfield />
       <main className="container mx-auto px-4 py-8 relative z-10">
-        {!username ? (
+        {isAdminPath ? (
+          <AdminPage />
+        ) : !username ? (
           <LandingPage data={data || { users: [] }} />
         ) : (
           <UserPage data={data || { user: { username: '' }, usage: 0, files: [], urls: [] }} />
