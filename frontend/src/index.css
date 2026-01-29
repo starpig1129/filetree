@@ -18,7 +18,7 @@
 
 @layer base {
   body {
-    @apply bg-gradient-to-b from-forest-midnight to-forest-moss text-white/90 min-h-screen font-interface;
+    @apply bg-linear-to-b from-forest-midnight to-forest-moss text-white/90 min-h-screen font-interface;
   }
 
   h1,

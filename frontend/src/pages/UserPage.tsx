@@ -50,6 +50,31 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     );
   };
 
+  const handleDelete = async (filename: string) => {
+    if (!confirm(`確定要移除「${filename}」嗎？`)) return;
+    try {
+      const res = await fetch(`/api/files/${data.user?.username}/${filename}`, { method: 'DELETE' });
+      if (res.ok) window.location.reload();
+      else alert('移除失敗');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleShare = async (filename: string) => {
+    try {
+      const res = await fetch(`/api/share/${data.user?.username}/${filename}`, { method: 'POST' });
+      const result = await res.json();
+      if (res.ok) {
+        const shareUrl = `${window.location.origin}/api/download-shared/${result.token}`;
+        navigator.clipboard.writeText(shareUrl);
+        alert('分享連結已複製到剪貼簿！');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const getLifecycleColor = (file: FileItem) => {
     if (file.expired) return 'text-red-400';
     if (file.remaining_days < 5) return 'text-accent-amber';
@@ -87,7 +112,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       >
         <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-accent-mint to-transparent opacity-20" />
         <h1 className="text-4xl md:text-5xl font-heading mb-4">
-          {data.user.username} 的臨時樹屋
+          {data.user?.username} 的臨時樹屋
         </h1>
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full text-xs text-white/40">
           <Info className="w-4 h-4" />
@@ -123,7 +148,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           <AnimatePresence>
-            {data.files.map((file, idx) => {
+            {data.files?.map((file, idx) => {
               const Icon = getFileIcon(file.name);
               const isSelected = selectedFiles.includes(file.name);
               
@@ -133,7 +158,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  onClick={() => toggleSelect(file.name)}
                   className={cn(
                     "glass-card p-6 group cursor-pointer border-transparent transition-all hover:bg-white/5",
                     isSelected && "border-accent-mint/50 bg-accent-mint/5"
@@ -141,7 +165,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 >
                   <div className="relative aspect-square flex items-center justify-center bg-white/5 rounded-2xl mb-6 overflow-hidden">
                     <Icon className="w-16 h-16 text-white/10 group-hover:text-accent-mint/40 transition-colors" />
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-4 right-4" onClick={(e) => { e.stopPropagation(); toggleSelect(file.name); }}>
                       {isSelected ? <CheckSquare className="w-5 h-5 text-accent-mint" /> : <Square className="w-5 h-5 text-white/10 group-hover:text-white/30" />}
                     </div>
                   </div>
@@ -159,8 +183,9 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                         {file.expired ? '已枯萎' : `剩餘 ${file.remaining_days} 天`}
                       </div>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="p-2 hover:text-accent-mint cursor-pointer" title="分享"><Share2 className="w-4 h-4" /></button>
-                        <button className="p-2 hover:text-accent-mint cursor-pointer" title="下載"><Download className="w-4 h-4" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleShare(file.name); }} className="p-2 hover:text-accent-mint cursor-pointer" title="分享"><Share2 className="w-4 h-4" /></button>
+                        <a href={`/api/download/${data.user?.username}/${file.name}`} className="p-2 hover:text-accent-mint cursor-pointer" title="下載"><Download className="w-4 h-4" /></a>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }} className="p-2 hover:text-red-400 cursor-pointer" title="移除"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                   </div>
@@ -181,7 +206,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {data.urls.map((url, idx) => (
+          {data.urls?.map((url, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, x: -20 }}
