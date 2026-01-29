@@ -36,7 +36,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         else alert(result.detail || '初始化失敗');
       } else if (file) {
         const body = new FormData();
-        body.append('files[]', file);
+        body.append('files', file);
         body.append('password', formData.password);
         
         const res = await fetch('/api/upload', {

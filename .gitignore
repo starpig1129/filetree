@@ -36,6 +36,7 @@ wheels/
 uploads/
 temp/
 static/dist/
+data
 
 # --- OS & Editors ---
 .DS_Store

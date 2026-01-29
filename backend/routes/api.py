@@ -12,6 +12,7 @@ from backend.services.token_service import token_service
 from backend.services.admin_service import admin_service
 from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase
 from backend.core.auth import generate_salt, hash_password
+from backend.config import settings
 
 router = APIRouter(prefix="/api")
 
