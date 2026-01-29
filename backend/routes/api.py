@@ -1,5 +1,5 @@
 """
-FastAPI router for all FileTree API endpoints.
+FastAPI router for all StellarNexus API endpoints.
 """
 
 from datetime import datetime
@@ -55,7 +55,7 @@ async def upload_files(
         uploaded.append(unique_name)
 
     return {
-        "message": "檔案上傳成功",
+        "message": "實體核心載入成功",
         "uploaded_files": uploaded,
         "redirect": f"/{user.username}"
     }
@@ -77,7 +77,7 @@ async def upload_url(
     # Store as dicts back to JSON
     await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
     
-    return {"message": "網址儲存成功", "redirect": f"/{user.username}"}
+    return {"message": "神經連結建立成功", "redirect": f"/{user.username}"}
 
 
 @router.delete("/files/{username}/{filename}")

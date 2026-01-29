@@ -1,5 +1,5 @@
 """
-Main FastAPI entry point for the FileTree application.
+Main FastAPI entry point for the StellarNexus application.
 """
 
 import os
@@ -11,9 +11,9 @@ from backend.config import settings
 from backend.routes.api import router as api_router
 
 app = FastAPI(
-    title="FileTree API",
-    description="Modernized FileTree backend with FastAPI",
-    version="2.0.0"
+    title="StellarNexus API",
+    description="High-performance Galactic Neural Matrix backend with FastAPI",
+    version="2.1.0"
 )
 
 # Enable CORS for development
