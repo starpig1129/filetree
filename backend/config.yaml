@@ -1,0 +1,27 @@
+# FileTree Configuration (FastAPI)
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 5168
+  debug: true
+
+# Directory settings (Relative to project root or absolute)
+paths:
+  # Base directory for user uploads
+  upload_folder: "data/uploads"
+  # User metadata storage
+  user_info_file: "data/user_info.json"
+  # Frontend static build directory
+  static_dir: "static/dist"
+
+# Security settings
+security:
+  secret_key: "CHANGE_ME_IN_PRODUCTION_ENV_VAR"
+  share_token_expiry_hours: 24
+
+# Business logic constraints
+logic:
+  file_retention_days: 30
+  max_url_records: 30
+  max_content_length: null # null means no limit

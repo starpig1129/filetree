@@ -9,7 +9,8 @@ import { cn } from '../lib/utils';
 
 interface FileItem {
   name: string;
-  size: string;
+  size: number;
+  size_bytes: number;
   expired: boolean;
   remaining_days: number;
   remaining_hours: number;
@@ -22,10 +23,11 @@ interface UrlItem {
 
 interface UserPageProps {
   data: {
-    user: { username: string };
-    usage: number;
-    files: FileItem[];
-    urls: UrlItem[];
+    user?: { username: string };
+    usage?: number;
+    files?: FileItem[];
+    urls?: UrlItem[];
+    error?: string;
   };
 }
 

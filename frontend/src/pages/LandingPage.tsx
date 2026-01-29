@@ -5,7 +5,8 @@ import { cn } from '../lib/utils';
 
 interface LandingPageProps {
   data: {
-    users: Array<{ username: string; folder: string }>;
+    users?: Array<{ username: string; folder: string }>;
+    error?: string;
   };
 }
 
