@@ -71,7 +71,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           className="text-center space-y-4"
         >
           <div className="flex items-center justify-center gap-6">
-            <h1 className="text-6xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-linear-to-r from-white via-quantum-cyan to-neural-violet animate-neural-flow bg-size-[200%_auto]">
+            <h1 className="text-6xl md:text-8xl font-bold tracking-tighter animate-stellar-text">
               StellarNexus
             </h1>
             <Orbit className="w-16 h-16 text-quantum-cyan animate-spin-slow" />
@@ -94,7 +94,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                 數據初始化站
                 <Activity className="w-6 h-6 text-neural-violet animate-pulse" />
               </h2>
-              <p className="text-stellar-white/40 text-sm italic">在這裡上傳您的數位核心節點...</p>
+              <p className="text-stellar-dim text-sm italic font-medium">在這裡上傳您的數位核心節點...</p>
             </div>
 
             {/* Selector */}
@@ -102,8 +102,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
               <button 
                 onClick={() => setUploadType('url')}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-4 rounded-xl transition-all duration-300 cursor-pointer",
-                  uploadType === 'url' ? "bg-white/10 text-quantum-cyan shadow-inner border border-white/10" : "text-white/40 hover:text-white/60"
+                  "flex-1 flex items-center justify-center gap-2 py-4 rounded-xl transition-all duration-300 cursor-pointer font-bold tracking-wide",
+                  uploadType === 'url' ? "bg-white/10 text-quantum-cyan shadow-inner border border-white/10" : "text-stellar-dim hover:text-white border border-transparent"
                 )}
               >
                 <Link2 className="w-5 h-5 shrink-0" aria-hidden="true" />
@@ -113,8 +113,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                 onClick={() => setUploadType('file')}
                 aria-pressed={uploadType === 'file'}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-4 rounded-xl transition-all duration-300 cursor-pointer focus-ring",
-                  uploadType === 'file' ? "bg-white/10 text-quantum-cyan shadow-inner border border-white/10" : "text-white/40 hover:text-white/60"
+                  "flex-1 flex items-center justify-center gap-2 py-4 rounded-xl transition-all duration-300 cursor-pointer font-bold tracking-wide focus-ring",
+                  uploadType === 'file' ? "bg-white/10 text-quantum-cyan shadow-inner border border-white/10" : "text-stellar-dim hover:text-white border border-transparent"
                 )}
               >
                 <FileUp className="w-5 h-5 shrink-0" aria-hidden="true" />
@@ -123,57 +123,59 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={uploadType}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {uploadType === 'url' ? (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-quantum-cyan/60 ml-2 uppercase tracking-widest">Entry Link</label>
-                      <input 
-                        type="url" 
-                        id="url-input"
-                        required
-                        aria-label="網絡連結 (URL)"
-                        value={formData.content}
-                        onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                        placeholder="輸入要同步的網址或協議數據..."
-                        className="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 outline-none focus-ring transition-all text-stellar-white placeholder:text-white/10"
-                      />
-                    </div>
-                  ) : (
-                    <div 
-                      onClick={() => document.getElementById('file-input')?.click()}
-                      className="w-full h-48 rounded-2xl border border-dashed border-white/10 bg-white/5 flex flex-col items-center justify-center space-y-4 cursor-pointer hover:border-quantum-cyan/40 hover:bg-quantum-cyan/5 transition-all group/drop focus-ring"
-                      role="button"
-                      aria-label="點擊或拖曳上傳檔案"
-                    >
-                      <input 
-                        id="file-input"
-                        type="file" 
-                        className="hidden" 
-                        aria-hidden="true"
-                        onChange={(e) => setFile(e.target.files?.[0] || null)}
-                      />
-                      <FileUp className="w-12 h-12 text-white/10 group-hover/drop:text-quantum-cyan/60 group-hover/drop:scale-110 transition-all" aria-hidden="true" />
-                      <div className="text-center">
-                        <p className="text-white/40 font-medium">
-                          {file ? file.name : '將核心數據拖曳至此'}
-                        </p>
-                        <p className="text-white/20 text-xs text-balance px-4">支持各種星際網絡協議檔案</p>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="min-h-40 flex flex-col justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={uploadType}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {uploadType === 'url' ? (
+                      <div className="space-y-3">
+                        <label className="text-sm font-bold text-stellar-label ml-2 uppercase tracking-[0.2em] drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">Entry Link</label>
+                        <input 
+                          type="url" 
+                          id="url-input"
+                          required
+                          aria-label="網絡連結 (URL)"
+                          value={formData.content}
+                          onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                          placeholder="輸入要同步的網址或協議數據..."
+                          className="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-5 outline-none focus-ring transition-all text-white font-medium placeholder:text-white/30 text-lg shadow-inner"
+                        />
                       </div>
-                    </div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
+                    ) : (
+                      <div 
+                        onClick={() => document.getElementById('file-input')?.click()}
+                        className="w-full h-40 rounded-2xl border-2 border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center space-y-4 cursor-pointer hover:border-quantum-cyan/60 hover:bg-quantum-cyan/10 transition-all group/drop focus-ring"
+                        role="button"
+                        aria-label="點擊或拖曳上傳檔案"
+                      >
+                        <input 
+                          id="file-input"
+                          type="file" 
+                          className="hidden" 
+                          aria-hidden="true"
+                          onChange={(e) => setFile(e.target.files?.[0] || null)}
+                        />
+                        <FileUp className="w-10 h-10 text-white/30 group-hover/drop:text-quantum-cyan transition-all" aria-hidden="true" />
+                        <div className="text-center">
+                          <p className="text-white font-bold group-hover/drop:text-quantum-cyan transition-colors">
+                            {file ? file.name : '將核心數據拖曳至此'}
+                          </p>
+                          <p className="text-white/40 text-[10px] uppercase tracking-widest px-4">支持各種星際網絡協議檔案</p>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
               
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-neural-violet/60 ml-2 uppercase tracking-widest">Access Key</label>
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-stellar-label ml-2 uppercase tracking-[0.2em] drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">Access Key</label>
                 <div className="relative">
                   <input 
                     type="password" 
@@ -183,9 +185,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                     value={formData.password}
                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                     placeholder="輸入您的觀測站訪問授權..."
-                    className="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 outline-none focus-ring transition-all text-stellar-white placeholder:text-white/10"
+                    className="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-5 outline-none focus-ring transition-all text-white font-medium placeholder:text-white/30 text-lg shadow-inner"
                   />
-                  <ShieldCheck className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-white/10" aria-hidden="true" />
+                  <ShieldCheck className="absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 text-white/40" aria-hidden="true" />
                 </div>
               </div>
 
@@ -193,12 +195,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                 type="submit"
                 disabled={isSyncing}
                 aria-busy={isSyncing}
-                className="btn-stellar w-full flex items-center justify-center gap-3 py-5 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus-ring"
+                className="btn-stellar w-full flex items-center justify-center gap-4 py-6 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus-ring shadow-[0_0_30px_rgba(34,211,238,0.2)] bg-quantum-cyan/10 border-quantum-cyan/30"
               >
-                <span className="tracking-widest uppercase font-bold text-sm">
+                <span className="tracking-[0.4em] uppercase font-black text-white text-base">
                   {isSyncing ? '同步中...' : '發射至網格'}
                 </span>
-                <Zap className={cn("w-5 h-5 text-quantum-cyan animate-pulse", isSyncing && "animate-spin")} />
+                <Zap className={cn("w-6 h-6 text-quantum-cyan drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]", isSyncing && "animate-spin")} />
               </button>
             </form>
           </div>

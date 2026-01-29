@@ -2,15 +2,17 @@
 
 @theme {
   /* Galactic Neural Matrix - Design Tokens */
-  --color-space-black: hsl(240, 20%, 3%);
-  --color-space-deep: hsl(240, 25%, 2%);
+  --color-space-black: hsl(240, 30%, 4%);
+  --color-space-deep: hsl(240, 35%, 2%);
 
   --color-quantum-cyan: hsl(185, 80%, 55%);
   --color-neural-violet: hsl(270, 70%, 65%);
-  --color-stellar-white: hsl(0, 0%, 95%);
+  --color-stellar-white: hsl(0, 0%, 100%);
+  --color-stellar-dim: hsl(240, 5%, 92%);
+  --color-stellar-label: hsl(185, 100%, 75%);
 
-  --color-glass-base: hsla(240, 20%, 10%, 0.4);
-  --color-glass-border: hsla(185, 80%, 55%, 0.15);
+  --color-glass-base: hsla(240, 40%, 2%, 0.92);
+  --color-glass-border: hsla(185, 80%, 55%, 0.4);
 
   --font-heading: "Inter", system-ui, sans-serif;
   --font-interface: "Outfit", sans-serif;
@@ -33,23 +35,44 @@
   }
 
   @keyframes neuralFlow {
-    from {
+    0% {
       background-position: 0% 50%;
     }
-    to {
-      background-position: 100% 50%;
+    100% {
+      background-position: 200% 50%;
     }
   }
 }
 
 @layer base {
   body {
-    @apply bg-space-black text-stellar-white min-h-screen font-interface selection:bg-quantum-cyan/30;
-    background-image: radial-gradient(
-      circle at 50% 50%,
-      hsla(270, 70%, 20%, 0.1) 0%,
-      transparent 70%
-    );
+    @apply bg-space-black text-stellar-white min-h-screen font-interface selection:bg-quantum-cyan/30 overflow-x-hidden;
+    background-color: #020205;
+    background-image:
+      /* Deep space texture */
+      radial-gradient(
+        circle at 20% 30%,
+        hsla(270, 70%, 15%, 0.15) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 80% 70%,
+        hsla(185, 80%, 15%, 0.12) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 50% 20%,
+        hsla(300, 60%, 10%, 0.1) 0%,
+        transparent 50%
+      ),
+      /* Main cosmic base */
+        radial-gradient(ellipse at center, #080a1a 0%, #020205 100%);
+    background-attachment: fixed;
+    &::before {
+      content: "";
+      @apply fixed inset-0 -z-30 opacity-20 pointer-events-none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
   }
 
   h1,
@@ -71,19 +94,40 @@
     @apply relative overflow-hidden bg-white/5 border border-white/10 hover:border-quantum-cyan/50 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)];
   }
 
+  .animate-stellar-text {
+    background: linear-gradient(
+      90deg,
+      #fff 0%,
+      var(--color-quantum-cyan) 25%,
+      var(--color-neural-violet) 50%,
+      var(--color-quantum-cyan) 75%,
+      #fff 100%
+    );
+    background-size: 200% auto;
+    animation: neuralFlow 8s linear infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    will-change: background-position;
+  }
+
   .neural-border {
     @apply relative border border-transparent bg-clip-padding;
+    will-change: background-position;
     &::after {
       content: "";
-      @apply absolute -inset-px -z-10 rounded-[inherit] opacity-30;
+      @apply absolute -inset-px -z-10 rounded-[inherit] opacity-60;
       background: linear-gradient(
         90deg,
         var(--color-quantum-cyan),
         var(--color-neural-violet),
+        var(--color-quantum-cyan),
+        var(--color-neural-violet),
         var(--color-quantum-cyan)
       );
-      background-size: 200% auto;
-      animation: neuralFlow 5s linear infinite;
+      background-size: 200% 100%;
+      animation: neuralFlow 12s linear infinite;
+      backface-visibility: hidden;
     }
   }
 }
