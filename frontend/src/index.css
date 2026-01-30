@@ -127,9 +127,17 @@
       );
       background-size: 200% 100%;
       animation: neuralFlow 12s linear infinite;
+    }
     position: relative;
-    background: linear-gradient(var(--color-space-black), var(--color-space-black)) padding-box,
-                linear-gradient(to bottom right, rgba(34, 211, 238, 0.3), rgba(139, 92, 246, 0.3)) border-box;
+    background:
+      linear-gradient(var(--color-space-black), var(--color-space-black))
+        padding-box,
+      linear-gradient(
+          to bottom right,
+          rgba(34, 211, 238, 0.3),
+          rgba(139, 92, 246, 0.3)
+        )
+        border-box;
     border: 1px solid transparent;
   }
 }
@@ -186,8 +194,85 @@
 }
 
 /* Fix for horizontal overflow on some mobile browsers */
-html, body {
+html,
+body {
   overflow-x: hidden;
   width: 100%;
   position: relative;
+}
+
+/* Uppy Customization - Glassmorphism Theme */
+:root {
+  --uppy-Color-text: #ffffff;
+  --uppy-Color-background: transparent;
+  --uppy-Dashboard-bg: transparent;
+  --uppy-Dashboard-inner-bg: transparent;
+  --uppy-Dashboard-browse-color: var(--color-quantum-cyan);
+}
+
+.uppy-Dashboard-inner {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.uppy-Dashboard-Item-progressIndicator button {
+  display: none !important;
+}
+
+[data-uppy-theme="dark"] .uppy-Dashboard-inner {
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.uppy-Dashboard-AddFiles {
+  border: 1px dashed rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1rem !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  transition: all 0.3s ease;
+}
+
+.uppy-Dashboard-AddFiles:hover {
+  border-color: var(--color-quantum-cyan) !important;
+  background: rgba(34, 211, 238, 0.05) !important;
+}
+
+.uppy-Dashboard-AddFiles-title {
+  font-family: var(--font-interface) !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.uppy-Dashboard-browse {
+  color: var(--color-quantum-cyan) !important;
+  font-weight: 700 !important;
+}
+
+.uppy-StatusBar {
+  background-color: transparent !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.uppy-StatusBar-content {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.uppy-Dashboard-Item {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.uppy-Dashboard-Item-name {
+  color: white !important;
+  font-family: var(--font-interface) !important;
+}
+
+.uppy-Dashboard-Item-status {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Hide the powered by footer if desired, or style it */
+.uppy-Dashboard-poweredBy {
+  opacity: 0.3 !important;
 }

@@ -12,8 +12,11 @@ from backend.services.user_service import UserService
 from backend.core.auth import generate_salt, hash_password
 from backend.config import settings
 
+import functools
+
 # Create a sync wrapper for the CLI
 def async_command(f):
+    @functools.wraps(f)
     def wrapper(*args, **kwargs):
         return asyncio.run(f(*args, **kwargs))
     return wrapper

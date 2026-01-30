@@ -12,6 +12,8 @@ paths:
   upload_folder: "data/uploads"
   # User metadata storage
   user_info_file: "data/user_info.json"
+  # Tus temporary upload storage
+  tus_temp_folder: "data/tus_temp"
   # Frontend static build directory
   static_dir: "static/dist"
 

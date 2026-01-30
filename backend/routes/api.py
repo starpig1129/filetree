@@ -10,6 +10,7 @@ from backend.services.user_service import user_service
 from backend.services.file_service import file_service
 from backend.services.token_service import token_service
 from backend.services.admin_service import admin_service
+from backend.services.tus_service import tus_service
 from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, ToggleLockRequest
 from backend.core.auth import generate_salt, hash_password, verify_password
 from backend.config import settings
@@ -163,6 +164,118 @@ async def upload_files(
         "uploaded_files": uploaded,
         "redirect": f"/{user.username}"
     }
+
+
+@router.post("/upload/tus")
+async def tus_create(request: Request):
+    """Tus Creation-Defer-Length extension endpoint."""
+    length = int(request.headers.get("Upload-Length", 0))
+    metadata_str = request.headers.get("Upload-Metadata", "")
+    
+    # Generate a unique ID (could be more robust)
+    import uuid
+    upload_id = str(uuid.uuid4())
+    
+    try:
+        await tus_service.create_upload(upload_id, length, metadata_str)
+    except PermissionError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # We expect password in metadata for initial auth
+    # For now, we'll return the location
+    host = request.headers.get("Host", "localhost:5168")
+    scheme = request.headers.get("X-Forwarded-Proto", "http")
+    location = f"{scheme}://{host}/api/upload/tus/{upload_id}"
+    
+    return JSONResponse(
+        content={},
+        status_code=201,
+        headers={
+            "Location": location,
+            "Tus-Resumable": "1.0.0",
+            "Access-Control-Expose-Headers": "Location, Tus-Resumable"
+        }
+    )
+
+
+@router.head("/upload/tus/{upload_id}")
+async def tus_head(upload_id: str):
+    """Tus Core HEAD endpoint."""
+    info = await tus_service.get_upload_info(upload_id)
+    if not info:
+        raise HTTPException(status_code=404)
+    
+    return JSONResponse(
+        content={},
+        headers={
+            "Upload-Offset": str(info['offset']),
+            "Upload-Length": str(info['length']),
+            "Tus-Resumable": "1.0.0",
+            "Access-Control-Expose-Headers": "Upload-Offset, Upload-Length, Tus-Resumable"
+        }
+    )
+
+
+@router.patch("/upload/tus/{upload_id}")
+async def tus_patch(upload_id: str, request: Request):
+    """Tus Core PATCH endpoint."""
+    offset = int(request.headers.get("Upload-Offset", 0))
+    content_type = request.headers.get("Content-Type", "")
+    
+    if content_type != "application/offset+octet-stream":
+        raise HTTPException(status_code=415)
+    
+    chunk = await request.body()
+    
+    try:
+        new_offset = await tus_service.patch_upload(upload_id, offset, chunk)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    
+    # Check if complete
+    info = await tus_service.get_upload_info(upload_id)
+    if info and info['offset'] == info['length']:
+        # Authenticate and finalize
+        # Password should be in metadata
+        password = info['metadata'].get('password')
+        if not password:
+            raise HTTPException(status_code=401, detail="Missing password in metadata")
+            
+        user = await user_service.get_user_by_password(password)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid password")
+            
+        filename = await tus_service.finalize_upload(upload_id, file_service._get_user_folder(user.folder))
+        # Optional: log or trigger redirect logic
+        
+    return JSONResponse(
+        content={},
+        headers={
+            "Upload-Offset": str(new_offset),
+            "Tus-Resumable": "1.0.0",
+            "Access-Control-Expose-Headers": "Upload-Offset, Tus-Resumable"
+        }
+    )
+
+
+@router.options("/upload/tus")
+@router.options("/upload/tus/{upload_id}")
+async def tus_options():
+    """Tus Core OPTIONS endpoint."""
+    return JSONResponse(
+        content={},
+        headers={
+            "Tus-Resumable": "1.0.0",
+            "Tus-Version": "1.0.0",
+            "Tus-Max-Size": "10737418240", # 10GB
+            "Tus-Extension": "creation,creation-with-upload",
+            "Access-Control-Allow-Methods": "POST, GET, HEAD, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Tus-Resumable, Upload-Length, Upload-Metadata, Upload-Offset, Content-Type",
+            "Access-Control-Expose-Headers": "Tus-Resumable, Tus-Version, Tus-Max-Size, Tus-Extension, Location, Upload-Offset, Upload-Length"
+        }
+    )
 
 
 @router.post("/upload_url")

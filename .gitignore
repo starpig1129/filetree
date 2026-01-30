@@ -38,6 +38,11 @@ temp/
 static/dist/
 data
 
+# --- Binaries & Installers ---
+*.deb
+*.exe
+*.dmg
+
 # --- OS & Editors ---
 .DS_Store
 .idea/

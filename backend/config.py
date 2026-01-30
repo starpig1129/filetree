@@ -23,6 +23,7 @@ class PathConfig(BaseModel):
     """Path-specific settings."""
     upload_folder: Path = Path("data/uploads")
     user_info_file: Path = Path("data/user_info.json")
+    tus_temp_folder: Path = Path("data/tus_temp")
     static_dir: Path = Path("static/dist")
 
 
@@ -80,3 +81,4 @@ settings = Config.load()
 # Ensure directories exist
 settings.paths.upload_folder.mkdir(parents=True, exist_ok=True)
 settings.paths.user_info_file.parent.mkdir(parents=True, exist_ok=True)
+settings.paths.tus_temp_folder.mkdir(parents=True, exist_ok=True)
