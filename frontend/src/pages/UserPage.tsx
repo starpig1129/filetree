@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   File, FileText, Image as ImageIcon, Music, Video, 
   ExternalLink, Download, Share2, Trash2, 
-  ChevronLeft, Lock, Unlock, CheckSquare, Square,
-  Cpu, Zap, Activity, ShieldCheck, Orbit
+  ChevronLeft,  Lock, Unlock, CheckSquare, Square,
+  Cpu, Zap, Activity, ShieldCheck, Orbit, QrCode, X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Starfield } from '../components/Starfield';
@@ -45,6 +45,7 @@ const getFileIcon = (filename: string) => {
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isLocked, setIsLocked] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   const toggleSelect = (name: string) => {
     setSelectedFiles(prev => 
@@ -265,16 +266,74 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               </div>
               <div className="flex gap-2">
                 <button 
+                   onClick={() => setQrUrl(url.url)}
+                   aria-label={`顯示 ${url.url} 的 QR Code`}
+                   className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                 >
+                   <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                 </button>
+                <a 
+                  href={url.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   aria-label={`開啟連結 ${url.url}`}
-                  className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 focus-ring shadow-lg"
+                  className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 shadow-lg"
                 >
                   <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
-                </button>
+                </a>
               </div>
             </motion.div>
           ))}
         </div>
       </section>
+
+      {/* QR Code Modal */}
+      <AnimatePresence>
+        {qrUrl && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setQrUrl(null)}
+              className="absolute inset-0 bg-space-black/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="glass-card p-8 w-full max-w-sm relative z-10 text-center space-y-6 border-quantum-cyan/20"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-quantum-cyan">神經傳輸模組：QR_GATEWAY</span>
+                <button onClick={() => setQrUrl(null)} className="text-white/40 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-4 bg-white rounded-3xl shadow-[0_0_30px_rgba(34,211,238,0.2)] inline-block">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`}
+                  alt="Neural QR Link"
+                  className="w-48 h-48 sm:w-64 sm:h-64"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-white font-bold tracking-tight truncate text-sm px-4">{qrUrl}</p>
+                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest">掃描以跨維度傳輸</p>
+              </div>
+
+              <button 
+                onClick={() => setQrUrl(null)}
+                className="btn-stellar w-full py-3 bg-quantum-cyan/10 border-quantum-cyan/30 text-quantum-cyan uppercase text-xs font-black tracking-widest"
+              >
+                關閉傳輸窗
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
