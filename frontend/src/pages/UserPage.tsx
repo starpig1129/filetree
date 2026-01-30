@@ -45,11 +45,30 @@ const getFileIcon = (filename: string) => {
 };
 
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
+  const [dashboardData, setDashboardData] = useState(data);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
+  const [token, setToken] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+
+  // Sync props to local state if they change (e.g. navigation)
+  React.useEffect(() => {
+    setDashboardData(data);
+  }, [data]);
+
+  const refreshDashboard = async (authToken: string) => {
+    try {
+      const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}`);
+      if (res.ok) {
+        const newData = await res.json();
+        setDashboardData(newData);
+      }
+    } catch (err) {
+      console.error("Failed to refresh dashboard:", err);
+    }
+  };
 
   const toggleSelect = (name: string) => {
     setSelectedFiles(prev => 
@@ -65,8 +84,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         body: JSON.stringify({ password: pwd })
       });
       if (res.ok) {
+        const result = await res.json();
         setIsAuthenticated(true);
         setPassword(pwd);
+        if (result.token) {
+            setToken(result.token);
+            // Refresh data with token to see hidden files
+            await refreshDashboard(result.token);
+        }
         setShowAuthModal(false);
       } else {
         alert("密鑰驗證失敗，權限遭到拒絕。");
@@ -105,7 +130,10 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const handleDelete = async (filename: string) => {
     if (!confirm(`確定要移除「${filename}」嗎？`)) return;
     try {
-      const res = await fetch(`/api/files/${data.user?.username}/${filename}`, { method: 'DELETE' });
+      let url = `/api/files/${data.user?.username}/${filename}`;
+      if (token) url += `?token=${token}`;
+      
+      const res = await fetch(url, { method: 'DELETE' });
       if (res.ok) window.location.reload();
       else alert('移除失敗');
     } catch (err) {
@@ -115,7 +143,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
   const handleShare = async (filename: string) => {
     try {
-      const res = await fetch(`/api/share/${data.user?.username}/${filename}`, { method: 'POST' });
+      const body = new FormData();
+      if (token) body.append('token', token);
+      
+      const res = await fetch(`/api/share/${data.user?.username}/${filename}`, { 
+        method: 'POST',
+        body: token ? body : undefined
+      });
       const result = await res.json();
       if (res.ok) {
         const shareUrl = `${window.location.origin}/api/download-shared/${result.token}`;
@@ -151,7 +185,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         <div className="flex items-center gap-3">
           <div className="px-4 sm:px-5 py-2 glass-card flex items-center gap-2 sm:gap-3 text-[clamp(0.5rem,0.75vw,0.7rem)] tracking-widest uppercase font-black text-stellar-white/60 shadow-lg">
             <Activity className="w-4 h-4 text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
-            已使用空間：{data.usage} MB
+            已使用空間：{dashboardData.usage} MB
           </div>
           <button 
             onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
@@ -176,7 +210,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         <div className="flex flex-col md:flex-row items-center justify-center gap-[clamp(0.5rem,1.5vw,1.25rem)] mb-[clamp(0.75rem,1.5vh,1.5rem)]">
           <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20 hidden md:block" />
           <h1 className="text-[clamp(1.5rem,4.5vw,3.5rem)] font-bold tracking-tight text-white/90 leading-tight">
-            {data.user?.username} <span className="text-quantum-cyan/80">個人目錄</span>
+            {dashboardData.user?.username} <span className="text-quantum-cyan/80">個人目錄</span>
           </h1>
           <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20" />
         </div>
@@ -220,7 +254,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-[clamp(0.75rem,1.5vw,1.5rem)]">
           <AnimatePresence>
-            {data.files?.map((file, idx) => {
+            {dashboardData.files?.map((file, idx) => {
               const Icon = getFileIcon(file.name);
               const isSelected = selectedFiles.includes(file.name);
               const isLocked = file.is_locked && !isAuthenticated;
@@ -284,7 +318,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                             <Share2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
                             <a 
-                            href={`/api/download/${data.user?.username}/${file.name}`} 
+                            href={`/api/download/${data.user?.username}/${file.name}${token ? `?token=${token}` : ''}`} 
                             aria-label={`下載 ${file.name}`}
                             className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
@@ -319,7 +353,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)]">
-          {data.urls?.map((url, idx) => {
+          {dashboardData.urls?.map((url, idx) => {
             const isLocked = url.is_locked && !isAuthenticated;
             return (
               <motion.div

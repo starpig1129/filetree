@@ -9,14 +9,15 @@ from pydantic import BaseModel
 
 
 class TokenInfo(BaseModel):
-    """Metadata for a sharing token."""
+    """Metadata for a sharing or access token."""
     username: str
-    filename: str
+    filename: Optional[str] = None  # None for full access tokens
     expiry: datetime
+    token_type: str = "share" # 'share' or 'access'
 
 
 class TokenService:
-    """Service for generating and validating share tokens."""
+    """Service for generating and validating tokens."""
 
     def __init__(self, expiry_hours: int = 24):
         """Initialize the service.
@@ -28,7 +29,7 @@ class TokenService:
         self.tokens: Dict[str, TokenInfo] = {}
 
     def create_token(self, username: str, filename: str) -> str:
-        """Create a new sharing token.
+        """Create a new sharing token for a specific file.
 
         Args:
             username: The owner of the file.
@@ -42,7 +43,27 @@ class TokenService:
         self.tokens[token] = TokenInfo(
             username=username,
             filename=filename,
-            expiry=expiry
+            expiry=expiry,
+            token_type="share"
+        )
+        self._cleanup()
+        return token
+
+    def create_access_token(self, username: str) -> str:
+        """Create a general access token for a user session.
+
+        Args:
+            username: The user to authorize.
+
+        Returns:
+            A unique token string.
+        """
+        token = secrets.token_urlsafe(32)
+        expiry = datetime.now() + timedelta(hours=self.expiry_hours)
+        self.tokens[token] = TokenInfo(
+            username=username,
+            expiry=expiry,
+            token_type="access"
         )
         self._cleanup()
         return token

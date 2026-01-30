@@ -298,12 +298,26 @@ async def upload_url(
 
 
 @router.delete("/files/{username}/{filename}")
-async def delete_file(username: str, filename: str):
-    """Delete a file."""
+async def delete_file(
+    username: str, 
+    filename: str, 
+    token: Optional[str] = None
+):
+    """Delete a file. Requires token if locked."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
+    # Check locks
+    is_locked = user.is_locked or filename in getattr(user, 'locked_files', [])
+    if is_locked:
+        if not token:
+             raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+        
+        info = token_service.validate_token(token)
+        if not info or info.username != username:
+            raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
+
     success = await file_service.delete_file(user.folder, filename)
     if not success:
         raise HTTPException(status_code=404, detail="檔案不存在")
@@ -312,8 +326,27 @@ async def delete_file(username: str, filename: str):
 
 
 @router.post("/share/{username}/{filename}")
-async def create_share(username: str, filename: str):
+async def create_share(
+    username: str, 
+    filename: str,
+    token: Optional[str] = Form(None)
+):
     """Generate a temporary sharing token for a file."""
+    # Check user existence
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+
+    # Check locks
+    is_locked = user.is_locked or filename in getattr(user, 'locked_files', [])
+    if is_locked:
+        if not token:
+             raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+        
+        info = token_service.validate_token(token)
+        if not info or info.username != username:
+            raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
+
     token = token_service.create_token(username, filename)
     return {
         "success": True,
@@ -339,12 +372,28 @@ async def download_shared(token: str):
 
 
 @router.get("/download/{username}/{filename}")
-async def download_direct(username: str, filename: str):
+async def download_direct(
+    username: str, 
+    filename: str,
+    token: Optional[str] = None
+):
     """Direct download for authenticated users (protected in real apps)."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
+    # Check locks
+    is_locked = user.is_locked or filename in getattr(user, 'locked_files', [])
+    if is_locked:
+        if not token:
+             raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+        
+        info = token_service.validate_token(token)
+        if not info or info.username != username:
+            # Allow share tokens too if they match filename
+            if not (info and info.token_type == 'share' and info.filename == filename and info.username == username):
+                raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
+
     folder = file_service._get_user_folder(user.folder)
     return FileResponse(path=folder / filename, filename=filename)
 
@@ -359,7 +408,14 @@ async def unlock_user(username: str, data: UnlockRequest):
     if not verify_password(data.password, user.salt, user.hashed_password):
         raise HTTPException(status_code=401, detail="密碼驗證失敗")
     
-    return {"status": "success", "authenticated": True}
+    # Generate access token
+    token = token_service.create_access_token(username)
+    
+    return {
+        "status": "success", 
+        "authenticated": True,
+        "token": token
+    }
 
 
 @router.post("/user/{username}/toggle-lock")
@@ -396,33 +452,65 @@ async def toggle_item_lock(username: str, data: ToggleLockRequest):
 
 
 @router.get("/user/{username}")
-async def get_user_dashboard(username: str, password: Optional[str] = None):
+async def get_user_dashboard(
+    username: str, 
+    password: Optional[str] = None,
+    token: Optional[str] = None
+):
     """Fetch full dashboard data for a user (files, usage, urls)."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
-    # Verify auth if password provided
+    # Check authentication
     is_authenticated = False
     if password:
         is_authenticated = verify_password(password, user.salt, user.hashed_password)
+    elif token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            is_authenticated = True
 
+    # Check lock status for privacy
+    # If locked and not authenticated, hide details
+    is_locked_account = user.is_locked
+    
+    # We load files anyway to calculate usage (which is usually public info? or hide it too?)
+    # Let's verify usage is safe to show? Usually yes. But filenames definitely no.
     files = await file_service.get_user_files(user.folder)
-    locked_files = getattr(user, 'locked_files', [])
+    
+    locked_files_list = getattr(user, 'locked_files', [])
     
     # Mark files as locked
     for f in files:
-        if f.name in locked_files:
+        if f.name in locked_files_list:
             f.is_locked = True
             
     # Calculate usage
     total_bytes = sum(f.size_bytes for f in files)
     usage_mb = round(total_bytes / (1024 * 1024), 2)
     
+    response_files = files
+    response_urls = user.urls
+
+    # FILTERING LOGIC
+    if not is_authenticated:
+        # 1. If account is locked, hide everything
+        if is_locked_account:
+            response_files = []
+            response_urls = []
+        else:
+            # 2. If account is open, hide only INDIVIDUALLY locked items
+            # Files: hide if name is in locked_files_list
+            response_files = [f for f in files if f.name not in locked_files_list]
+            
+            # URLs: hide if u.is_locked is true
+            response_urls = [u for u in user.urls if not getattr(u, 'is_locked', False)]
+    
     return {
-        "user": {"username": user.username},
+        "user": {"username": user.username, "is_locked": is_locked_account},
         "usage": usage_mb,
-        "files": files,
-        "urls": user.urls,
+        "files": response_files,
+        "urls": response_urls,
         "is_authenticated": is_authenticated
     }
