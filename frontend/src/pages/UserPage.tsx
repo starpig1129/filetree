@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   File, FileText, Image as ImageIcon, Music, Video, 
-  ExternalLink, Download, Share2, Trash2, 
+  ExternalLink, Download, Share2, Trash2, Eye,
   ChevronLeft,  Lock, Unlock, CheckSquare, Square,
   Cpu, Zap, Activity, ShieldCheck, Orbit, QrCode, X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Starfield } from '../components/Starfield';
+import { FilePreviewModal } from '../components/FilePreviewModal';
 
 interface FileItem {
   name: string;
@@ -44,6 +45,14 @@ const getFileIcon = (filename: string) => {
   return File;
 };
 
+const formatSize = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [dashboardData, setDashboardData] = useState(data);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -52,6 +61,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [token, setToken] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{name: string, size: string, url: string} | null>(null);
 
   // Sync props to local state if they change (e.g. navigation)
   React.useEffect(() => {
@@ -211,6 +221,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20 hidden md:block" />
           <h1 className="text-[clamp(1.5rem,4.5vw,3.5rem)] font-bold tracking-tight text-white/90 leading-tight">
             {dashboardData.user?.username} <span className="text-quantum-cyan/80">個人目錄</span>
+            <span className="text-[10px] opacity-10 ml-2 font-mono">v2.1.5-build</span>
           </h1>
           <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20" />
         </div>
@@ -265,19 +276,45 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  onClick={() => !isLocked && toggleSelect(file.name)}
                   className={cn(
                     "glass-card p-[clamp(1rem,1.5vw,1.25rem)] group cursor-pointer border-white/5 transition-all hover:bg-white/5 hover:border-quantum-cyan/20",
                     isSelected && "border-quantum-cyan/50 bg-quantum-cyan/5",
                     isLocked && "opacity-80"
                   )}
                 >
-                  <div className="relative aspect-square flex items-center justify-center bg-white/2 rounded-[clamp(1rem,1.5vw,1.5rem)] mb-[clamp(0.75rem,1vh,1.25rem)] overflow-hidden border border-white/5 group-hover:border-quantum-cyan/10 transition-colors">
-                    <Icon className={cn(
-                      "w-[clamp(2rem,5vw,3rem)] h-[clamp(2rem,5vw,3rem)] text-white/5 transition-all duration-500",
-                      !isLocked && "group-hover:text-quantum-cyan/30 group-hover:scale-110",
-                      isLocked && "blur-xl"
-                    )} />
+                  <div 
+                    onClick={(e) => { 
+                      if (!isLocked) {
+                        e.stopPropagation();
+                        setPreviewFile({
+                          name: file.name, 
+                          size: formatSize(file.size_bytes), 
+                          url: `/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+                        });
+                      }
+                    }}
+                    className="relative aspect-square flex items-center justify-center bg-white/2 rounded-[clamp(1rem,1.5vw,1.5rem)] mb-[clamp(0.75rem,1vh,1.25rem)] overflow-hidden border border-white/5 group-hover:border-quantum-cyan/10 transition-colors"
+                  >
+                    {/* Thumbnail Preview Logic - Using extension check for robustness */}
+                    {!isLocked && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(file.name.split('.').pop()?.toLowerCase() || '') ? (
+                      <img 
+                        src={`/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`}
+                        alt={file.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        loading="lazy"
+                        onError={(e) => {
+                          // Fallback to Icon if image fails to load
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Icon className={cn(
+                        "w-[clamp(2rem,5vw,3rem)] h-[clamp(2rem,5vw,3rem)] text-white/5 transition-all duration-500",
+                        !isLocked && "group-hover:text-quantum-cyan/30 group-hover:scale-110",
+                        isLocked && "blur-xl"
+                      )} />
+                    )}
+                    
                     <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-2">
                        {isAuthenticated && (
                            <button 
@@ -287,7 +324,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                             {file.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                            </button>
                        )}
-                       {!isLocked && (isSelected ? <CheckSquare className="w-4 h-4 text-quantum-cyan" /> : <Square className="w-4 h-4 text-white/5 group-hover:text-white/20 transition-colors" />)}
+                       {!isLocked && (
+                         <button 
+                           onClick={(e) => { e.stopPropagation(); toggleSelect(file.name); }}
+                           className="transition-transform active:scale-95"
+                         >
+                           {isSelected ? <CheckSquare className="w-4 h-4 text-quantum-cyan" /> : <Square className="w-4 h-4 text-white/5 group-hover:text-white/20 transition-colors" />}
+                         </button>
+                       )}
                        {isLocked && <Lock className="w-5 h-5 text-neural-violet/40 animate-pulse" />}
                     </div>
                   </div>
@@ -307,9 +351,20 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       <div className={cn("text-[clamp(0.45rem,0.55vw,0.5rem)] uppercase tracking-[0.2em] font-bold", getLifecycleColor(file))}>
                         {file.expired ? '已刪除' : `剩餘 ${file.remaining_days} 天`}
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
+                      <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
                         {!isLocked && (
                           <>
+                            <button 
+                            onClick={(e) => { e.stopPropagation(); setPreviewFile({
+                                name: file.name, 
+                                size: formatSize(file.size_bytes), 
+                                url: `/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+                            }); }} 
+                            aria-label={`預覽 ${file.name}`}
+                            className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            >
+                            <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            </button>
                             <button 
                             onClick={(e) => { e.stopPropagation(); handleShare(file.name); }} 
                             aria-label={`分享 ${file.name}`}
@@ -514,6 +569,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal 
+        isOpen={!!previewFile} 
+        onClose={() => setPreviewFile(null)} 
+        file={previewFile} 
+      />
     </div>
   );
 };
