@@ -16,8 +16,9 @@ interface UserData {
     remaining_days: number;
     remaining_hours: number;
     expired: boolean;
+    is_locked?: boolean;
   }>;
-  urls?: Array<{ url: string; created: string }>;
+  urls?: Array<{ url: string; created: string; is_locked?: boolean }>;
   error?: string;
 }
 

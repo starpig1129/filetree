@@ -10,8 +10,8 @@ from backend.services.user_service import user_service
 from backend.services.file_service import file_service
 from backend.services.token_service import token_service
 from backend.services.admin_service import admin_service
-from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase
-from backend.core.auth import generate_salt, hash_password
+from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, ToggleLockRequest
+from backend.core.auth import generate_salt, hash_password, verify_password
 from backend.config import settings
 
 router = APIRouter(prefix="/api")
@@ -236,14 +236,72 @@ async def download_direct(username: str, filename: str):
     return FileResponse(path=folder / filename, filename=filename)
 
 
+@router.post("/user/{username}/unlock")
+async def unlock_user(username: str, data: UnlockRequest):
+    """Verify password for unlocking the dashboard."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    
+    if not verify_password(data.password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼驗證失敗")
+    
+    return {"status": "success", "authenticated": True}
+
+
+@router.post("/user/{username}/toggle-lock")
+async def toggle_item_lock(username: str, data: ToggleLockRequest):
+    """Toggle lock status for a file or URL."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    
+    if not verify_password(data.password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼驗證失敗")
+    
+    users = await user_service._read_users()
+    for u in users:
+        if u['username'] == username:
+            if data.item_type == 'file':
+                locked_files = u.get('locked_files', [])
+                if data.is_locked:
+                    if data.item_id not in locked_files:
+                        locked_files.append(data.item_id)
+                else:
+                    locked_files = [f for f in locked_files if f != data.item_id]
+                u['locked_files'] = locked_files
+            elif data.item_type == 'url':
+                for url_rec in u.get('urls', []):
+                    if url_rec['url'] == data.item_id:
+                        url_rec['is_locked'] = data.is_locked
+                        break
+            
+            await user_service._write_users(users)
+            return {"status": "success", "message": "鎖定狀態已更新"}
+            
+    raise HTTPException(status_code=500, detail="寫入數據失敗")
+
+
 @router.get("/user/{username}")
-async def get_user_dashboard(username: str):
+async def get_user_dashboard(username: str, password: Optional[str] = None):
     """Fetch full dashboard data for a user (files, usage, urls)."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
+    # Verify auth if password provided
+    is_authenticated = False
+    if password:
+        is_authenticated = verify_password(password, user.salt, user.hashed_password)
+
     files = await file_service.get_user_files(user.folder)
+    locked_files = getattr(user, 'locked_files', [])
+    
+    # Mark files as locked
+    for f in files:
+        if f.name in locked_files:
+            f.is_locked = True
+            
     # Calculate usage
     total_bytes = sum(f.size_bytes for f in files)
     usage_mb = round(total_bytes / (1024 * 1024), 2)
@@ -252,5 +310,6 @@ async def get_user_dashboard(username: str):
         "user": {"username": user.username},
         "usage": usage_mb,
         "files": files,
-        "urls": user.urls
+        "urls": user.urls,
+        "is_authenticated": is_authenticated
     }

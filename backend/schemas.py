@@ -11,6 +11,7 @@ class URLRecord(BaseModel):
     """Schema for a URL record."""
     url: str
     created: datetime
+    is_locked: bool = False
 
 
 class UserBase(BaseModel):
@@ -26,6 +27,7 @@ class UserCreate(UserBase):
     salt: str
     hashed_password: str
     urls: List[URLRecord] = []
+    locked_files: List[str] = []
 
 
 class UserUpdate(BaseModel):
@@ -49,3 +51,17 @@ class FileInfo(BaseModel):
     remaining_hours: int
     remaining_minutes: int
     expired: bool
+    is_locked: bool = False
+
+
+class UnlockRequest(BaseModel):
+    """Schema for unlock request."""
+    password: str
+
+
+class ToggleLockRequest(BaseModel):
+    """Schema for toggling lock on an item."""
+    password: str
+    item_type: str  # 'file' or 'url'
+    item_id: str    # filename or url
+    is_locked: bool

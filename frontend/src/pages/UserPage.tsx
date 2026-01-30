@@ -16,11 +16,13 @@ interface FileItem {
   expired: boolean;
   remaining_days: number;
   remaining_hours: number;
+  is_locked?: boolean;
 }
 
 interface UrlItem {
   url: string;
   created: string;
+  is_locked?: boolean;
 }
 
 interface UserPageProps {
@@ -44,13 +46,60 @@ const getFileIcon = (filename: string) => {
 
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [isLocked, setIsLocked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   const toggleSelect = (name: string) => {
     setSelectedFiles(prev => 
       prev.includes(name) ? prev.filter(f => f !== name) : [...prev, name]
     );
+  };
+
+  const handleUnlock = async (pwd: string) => {
+    try {
+      const res = await fetch(`/api/user/${data.user?.username}/unlock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      });
+      if (res.ok) {
+        setIsAuthenticated(true);
+        setPassword(pwd);
+        setShowAuthModal(false);
+      } else {
+        alert("密鑰驗證失敗，權限遭到拒絕。");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleItemLock = async (type: 'file' | 'url', itemId: string, currentStatus: boolean) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/user/${data.user?.username}/toggle-lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password,
+          item_type: type,
+          item_id: itemId,
+          is_locked: !currentStatus
+        })
+      });
+      if (res.ok) {
+        window.location.reload(); // Quickest way to sync state
+      } else {
+        alert("更新鎖定狀態失敗。");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleDelete = async (filename: string) => {
@@ -105,11 +154,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             核心載荷：{data.usage} MB
           </div>
           <button 
-            onClick={() => setIsLocked(!isLocked)}
-            aria-label={isLocked ? "解鎖存取" : "鎖定存取"}
-            className="p-2 sm:p-2.5 glass-card hover:bg-white/5 text-neural-violet transition-all cursor-pointer border-white/5 focus-ring shadow-lg"
+            onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
+            aria-label={isAuthenticated ? "鎖定所有項目" : "全域解鎖觀測站"}
+            className={cn(
+                "p-2 sm:p-2.5 glass-card transition-all cursor-pointer border-white/5 focus-ring shadow-lg",
+                isAuthenticated ? "text-quantum-cyan hover:bg-quantum-cyan/10" : "text-neural-violet hover:bg-neural-violet/10"
+            )}
           >
-            {isLocked ? <Lock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" /> : <Unlock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />}
+            {isAuthenticated ? <Unlock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" /> : <Lock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />}
           </button>
         </div>
       </div>
@@ -171,6 +223,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             {data.files?.map((file, idx) => {
               const Icon = getFileIcon(file.name);
               const isSelected = selectedFiles.includes(file.name);
+              const isLocked = file.is_locked && !isAuthenticated;
               
               return (
                 <motion.div
@@ -178,22 +231,39 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
-                  onClick={() => toggleSelect(file.name)}
+                  onClick={() => !isLocked && toggleSelect(file.name)}
                   className={cn(
                     "glass-card p-[clamp(1rem,1.5vw,1.25rem)] group cursor-pointer border-white/5 transition-all hover:bg-white/5 hover:border-quantum-cyan/20",
-                    isSelected && "border-quantum-cyan/50 bg-quantum-cyan/5"
+                    isSelected && "border-quantum-cyan/50 bg-quantum-cyan/5",
+                    isLocked && "opacity-80"
                   )}
                 >
                   <div className="relative aspect-square flex items-center justify-center bg-white/2 rounded-[clamp(1rem,1.5vw,1.5rem)] mb-[clamp(0.75rem,1vh,1.25rem)] overflow-hidden border border-white/5 group-hover:border-quantum-cyan/10 transition-colors">
-                    <Icon className="w-[clamp(2rem,5vw,3rem)] h-[clamp(2rem,5vw,3rem)] text-white/5 group-hover:text-quantum-cyan/30 transition-all duration-500 group-hover:scale-110" />
-                    <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
-                      {isSelected ? <CheckSquare className="w-4 h-4 text-quantum-cyan" /> : <Square className="w-4 h-4 text-white/5 group-hover:text-white/20 transition-colors" />}
+                    <Icon className={cn(
+                      "w-[clamp(2rem,5vw,3rem)] h-[clamp(2rem,5vw,3rem)] text-white/5 transition-all duration-500",
+                      !isLocked && "group-hover:text-quantum-cyan/30 group-hover:scale-110",
+                      isLocked && "blur-xl"
+                    )} />
+                    <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-2">
+                       {isAuthenticated && (
+                           <button 
+                            onClick={(e) => { e.stopPropagation(); toggleItemLock('file', file.name, !!file.is_locked); }}
+                            className={cn("p-1 rounded-md transition-colors", file.is_locked ? "text-neural-violet bg-neural-violet/10" : "text-white/20 hover:text-white/40")}
+                           >
+                            {file.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                           </button>
+                       )}
+                       {!isLocked && (isSelected ? <CheckSquare className="w-4 h-4 text-quantum-cyan" /> : <Square className="w-4 h-4 text-white/5 group-hover:text-white/20 transition-colors" />)}
+                       {isLocked && <Lock className="w-5 h-5 text-neural-violet/40 animate-pulse" />}
                     </div>
                   </div>
 
                   <div className="space-y-[clamp(0.5rem,0.7vh,0.75rem)]">
                     <div className="space-y-0.5">
-                      <h3 className="font-semibold truncate text-[clamp(0.8rem,1vw,0.9rem)] text-white/80 tracking-tight" title={file.name}>
+                      <h3 className={cn(
+                        "font-semibold truncate text-[clamp(0.8rem,1vw,0.9rem)] text-white/80 tracking-tight",
+                        isLocked && "blur-sm select-none"
+                      )} title={file.name}>
                         {file.name}
                       </h3>
                       <p className="text-[clamp(0.5rem,0.65vw,0.6rem)] text-white/20 font-bold uppercase tracking-widest">{file.size} MB</p>
@@ -204,27 +274,31 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                         {file.expired ? '已解離' : `剩餘 ${file.remaining_days} 週期`}
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleShare(file.name); }} 
-                          aria-label={`分享 ${file.name}`}
-                          className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
-                        >
-                          <Share2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                        </button>
-                        <a 
-                          href={`/api/download/${data.user?.username}/${file.name}`} 
-                          aria-label={`下載 ${file.name}`}
-                          className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
-                        >
-                          <Download className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                        </a>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }} 
-                          aria-label={`移除 ${file.name}`}
-                          className="p-1.5 text-white/60 hover:text-red-400 transition-colors cursor-pointer rounded-md"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                        </button>
+                        {!isLocked && (
+                          <>
+                            <button 
+                            onClick={(e) => { e.stopPropagation(); handleShare(file.name); }} 
+                            aria-label={`分享 ${file.name}`}
+                            className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            >
+                            <Share2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            </button>
+                            <a 
+                            href={`/api/download/${data.user?.username}/${file.name}`} 
+                            aria-label={`下載 ${file.name}`}
+                            className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            >
+                            <Download className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            </a>
+                            <button 
+                            onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }} 
+                            aria-label={`移除 ${file.name}`}
+                            className="p-1.5 text-white/60 hover:text-red-400 transition-colors cursor-pointer rounded-md"
+                            >
+                            <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -245,52 +319,124 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)]">
-          {data.urls?.map((url, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              className="glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-white/5 transition-all border-white/5 hover:border-neural-violet/20"
-            >
-              <div className="flex-1 min-w-0 pr-4 space-y-0.5">
-                <a 
-                  href={url.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block font-semibold truncate text-neural-violet/70 hover:text-neural-violet transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]"
-                >
-                  {url.url}
-                </a>
-                <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
-              </div>
-              <div className="flex gap-2">
-                <button 
-                   onClick={() => setQrUrl(url.url)}
-                   aria-label={`顯示 ${url.url} 的 QR Code`}
-                   className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
-                 >
-                   <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
-                 </button>
-                <a 
-                  href={url.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`開啟連結 ${url.url}`}
-                  className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 shadow-lg"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
-                </a>
-              </div>
-            </motion.div>
-          ))}
+          {data.urls?.map((url, idx) => {
+            const isLocked = url.is_locked && !isAuthenticated;
+            return (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-white/5 transition-all border-white/5 hover:border-neural-violet/20"
+              >
+                <div className="flex-1 min-w-0 pr-4 space-y-0.5">
+                  <a 
+                    href={isLocked ? "#" : url.url} 
+                    target={isLocked ? "_self" : "_blank"} 
+                    rel="noopener noreferrer"
+                    onClick={(e) => isLocked && e.preventDefault()}
+                    className={cn(
+                        "block font-semibold truncate transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
+                        !isLocked && "text-neural-violet/70 hover:text-neural-violet",
+                        isLocked && "text-white/10 blur-sm cursor-not-allowed"
+                    )}
+                  >
+                    {url.url}
+                  </a>
+                  <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
+                </div>
+                <div className="flex gap-2">
+                  {isAuthenticated && (
+                     <button 
+                        onClick={() => toggleItemLock('url', url.url, !!url.is_locked)}
+                        className={cn("p-2 rounded-lg transition-all cursor-pointer border border-white/5", url.is_locked ? "text-neural-violet bg-neural-violet/10" : "text-white/10 hover:text-white/20")}
+                      >
+                        {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      </button>
+                  )}
+                  {!isLocked && (
+                    <>
+                      <button 
+                        onClick={() => setQrUrl(url.url)}
+                        aria-label={`顯示 ${url.url} 的 QR Code`}
+                        className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                      >
+                        <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                      </button>
+                      <a 
+                        href={url.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`開啟連結 ${url.url}`}
+                        className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                      </a>
+                    </>
+                  )}
+                  {isLocked && <Lock className="w-4 h-4 text-neural-violet/20" />}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </section>
+
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-120 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAuthModal(false)}
+              className="absolute inset-0 bg-space-black/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="glass-card p-8 w-full max-w-sm relative z-10 space-y-6 border-neural-violet/30"
+            >
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 bg-neural-violet/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-neural-violet/20">
+                  <ShieldCheck className="w-6 h-6 text-neural-violet animate-pulse" />
+                </div>
+                <h3 className="text-xl font-bold text-white tracking-tight">存取授權請求</h3>
+                <p className="text-white/30 text-[10px] uppercase font-black tracking-[0.2em]">輸入觀測站認證密鑰以解鎖矩陣</p>
+              </div>
+
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                const target = e.target as typeof e.target & {
+                  pwd: { value: string };
+                };
+                handleUnlock(target.pwd.value); 
+              }}>
+                <input 
+                  name="pwd"
+                  type="password" 
+                  autoFocus
+                  placeholder="授權密鑰..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 outline-none focus:border-neural-violet focus:bg-white/10 transition-all text-white text-center font-medium tracking-widest"
+                />
+                <button 
+                  type="submit"
+                  className="btn-stellar w-full mt-6 py-4 bg-neural-violet/20 border-neural-violet/40 text-neural-violet uppercase text-xs font-black tracking-[0.3em]"
+                >
+                  啟動協議驗證
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* QR Code Modal */}
       <AnimatePresence>
         {qrUrl && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
