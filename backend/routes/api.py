@@ -1,5 +1,5 @@
 """
-FastAPI router for all StellarNexus API endpoints.
+FastAPI router for all FileNexus API endpoints.
 """
 
 from datetime import datetime
@@ -40,7 +40,7 @@ async def admin_create_user(
     # 2. Check if exists
     existing = await user_service.get_user_by_name(username)
     if existing:
-        raise HTTPException(status_code=400, detail="此使用者已存在於網格中。")
+        raise HTTPException(status_code=400, detail="此使用者已存在。")
     
     # 3. Create user logic (copied from cli.py logic)
     salt = generate_salt()
@@ -68,7 +68,7 @@ async def admin_create_user(
 
 @router.get("/admin/verify")
 async def verify_admin(request: Request, master_key: str):
-    """Verify if the provided key is valid for the current matrix session."""
+    """Verify if the provided key is valid for the current session."""
     admin_service.verify_request(request, master_key)
     return {"status": "authorized"}
 
@@ -159,7 +159,7 @@ async def upload_files(
         uploaded.append(unique_name)
 
     return {
-        "message": "實體核心載入成功",
+        "message": "檔案上傳成功",
         "uploaded_files": uploaded,
         "redirect": f"/{user.username}"
     }
@@ -181,7 +181,7 @@ async def upload_url(
     # Store as dicts back to JSON
     await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
     
-    return {"message": "神經連結建立成功", "redirect": f"/{user.username}"}
+    return {"message": "連結建立成功", "redirect": f"/{user.username}"}
 
 
 @router.delete("/files/{username}/{filename}")

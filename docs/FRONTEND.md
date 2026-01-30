@@ -1,4 +1,4 @@
-# StellarNexus 前端介面說明
+# FileNexus 前端介面說明
 
 本文件說明前端 (React/Vite) 的介面開發與設計哲學。
 
@@ -7,14 +7,14 @@
 - **Vite**: 高性能開發建構工具。
 - **React 19**: 組件化開發框架。
 - **TailwindCSS**: 原子化樣式系統，用於快速建構現代化 UI。
-- **Framer Motion**: 強大的動畫庫，用於實現 StellarNexus 的「神經流 (Neural Flow)」視覺效果。
+- **Framer Motion**: 強大的動畫庫，用於實現流暢的視覺效果。
 - **Lucide React**: 向量圖示庫。
 
-## 2. 視覺設計 (StellarNexus Theme)
+## 2. 視覺設計 (FileNexus Theme)
 
-專案的核心設計理念是「宇宙中的神經連結」：
+專案的核心設計理念是「現代化極簡檔案中心」：
 - **配色**: 深色背景 (Cosmic Dark) 搭配精確設計的漸變色 (`indigo-500` -> `purple-600` -> `pink-500`)。
-- **背景**: 自定義的 `neuralFlow` 動畫，模擬宇宙塵埃與神經網路的流動感。
+- **背景**: 自定義的星空背景動畫，提供深邃且專業的流動感。
 - **組件**: 採用玻璃擬態 (Glassmorphism) 設計，提供輕盈且高級的質感。
 
 ## 3. 組件結構

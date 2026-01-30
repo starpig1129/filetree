@@ -1,5 +1,5 @@
 """
-Main FastAPI entry point for the StellarNexus application.
+Main FastAPI entry point for the FileNexus application.
 """
 
 import os
@@ -11,8 +11,8 @@ from backend.config import settings
 from backend.routes.api import router as api_router
 
 app = FastAPI(
-    title="StellarNexus API",
-    description="High-performance Galactic Neural Matrix backend with FastAPI",
+    title="FileNexus API",
+    description="High-performance file management backend with FastAPI",
     version="2.1.0"
 )
 

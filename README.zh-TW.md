@@ -1,6 +1,6 @@
-# StellarNexus - 全球神經矩陣系統
+# FileNexus - 高性能檔案管理系統
 
-StellarNexus 是一個基於 FastAPI 和 React/Vite 構建的高性能檔案管理與神經矩陣系統。本專案採用現代化的 Single Page Application (SPA) 架構，提供極致的視覺體驗與流暢的操作。
+FileNexus 是一個基於 FastAPI 和 React/Vite 構建的高性能檔案管理系統。本專案採用現代化的 Single Page Application (SPA) 架構，提供極致的視覺體驗與流暢的操作。
 
 ## 🚀 快速啟動
 
@@ -24,7 +24,7 @@ PYTHONPATH=. python3 backend/app.py
 ```
 
 ### 3. 前端設定 (Vite + React)
-前端提供基於 StellarNexus 主題的宇宙感視覺介面。
+前端提供基於 FileNexus 主題的簡潔現代化視覺介面。
 
 ```bash
 # 進入前端目錄

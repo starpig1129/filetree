@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* Galactic Neural Matrix - Design Tokens */
+  /* FileNexus Design System - Tokens */
   --color-space-black: hsl(240, 30%, 4%);
   --color-space-deep: hsl(240, 35%, 2%);
 

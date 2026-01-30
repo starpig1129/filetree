@@ -72,12 +72,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         >
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-6">
             <h1 className="text-[clamp(1.8rem,5vw,4rem)] font-bold tracking-tighter animate-stellar-text leading-tight">
-              StellarNexus
+              FileNexus
             </h1>
             <Orbit className="w-[clamp(1.8rem,4vw,3rem)] h-[clamp(1.8rem,4vw,3rem)] text-quantum-cyan animate-spin-slow opacity-60" />
           </div>
           <p className="text-quantum-cyan/40 tracking-[clamp(0.2em,2vw,0.6em)] font-light uppercase text-[clamp(0.55rem,1vw,0.75rem)] pl-2 sm:pl-4">
-            Galactic Neural Matrix 🌌
+            Modern File Management Hub 📁
           </p>
         </motion.div>
 
@@ -87,7 +87,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           <div className="hidden lg:flex lg:col-span-3 flex-col gap-4 opacity-20 pointer-events-none">
             <div className="flex items-center gap-3 pb-3 border-b border-white/5">
               <div className="w-1.5 h-1.5 rounded-full bg-white/20 animate-pulse" />
-              <h3 className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">Future Protocols</h3>
+              <h3 className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">功能預留</h3>
             </div>
             <div className="space-y-[clamp(0.75rem,2vh,1.5rem)]">
               <div className="h-12 rounded-xl border border-white/5 bg-white/2" />
@@ -109,10 +109,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   <div className="text-center space-y-1 mb-[clamp(1.25rem,2.5vh,2rem)]">
                     <h2 className="text-[clamp(1.1rem,2vw,1.5rem)] font-bold flex items-center justify-center gap-3 leading-tight">
                       <Cpu className="w-5 h-5 sm:w-7 sm:h-7 text-quantum-cyan shrink-0" />
-                      數據初始化樞紐
+                      資料上傳中心
                       <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-neural-violet animate-pulse shrink-0" />
                     </h2>
-                    <p className="text-white/30 text-[clamp(0.45rem,0.8vw,0.56rem)] uppercase tracking-[0.25em] font-bold">Galactic Synchronization Gateway</p>
+                    <p className="text-white/30 text-[clamp(0.45rem,0.8vw,0.56rem)] uppercase tracking-[0.25em] font-bold">File Synchronization Gateway</p>
                   </div>
 
                   {/* Selector & Form */}
@@ -148,14 +148,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                             exit={{ opacity: 0, scale: 0.98 }}
                             className="space-y-2"
                           >
-                            <label className="text-[9px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-50">數據源標記</label>
+                            <label className="text-[9px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-50">資料源</label>
                             {uploadType === 'url' ? (
                               <input 
                                 type="url" 
                                 required
                                 value={formData.content}
                                 onChange={(e) => setFormData(p => ({ ...p, content: e.target.value }))}
-                                placeholder="輸入同步網址或協議節點..."
+                                placeholder="輸入網址..."
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium shadow-inner"
                               />
                             ) : (
@@ -168,8 +168,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                                   <FileUp className="w-5 h-5 sm:w-6 sm:h-6 text-white/20 group-hover/drop:text-quantum-cyan transition-colors" />
                                 </div>
                                 <div className="text-center px-4">
-                                  <p className="text-white/80 font-bold tracking-tight text-xs sm:text-sm truncate max-w-50">{file ? file.name : '點擊或拖曳數據核心'}</p>
-                                  <p className="text-white/20 text-[8px] uppercase tracking-widest mt-0.5">支持任何星際編碼格式</p>
+                                  <p className="text-white/80 font-bold tracking-tight text-xs sm:text-sm truncate max-w-50">{file ? file.name : '點擊或拖曳檔案'}</p>
+                                  <p className="text-white/20 text-[8px] uppercase tracking-widest mt-0.5">支持任何檔案格式</p>
                                 </div>
                               </div>
                             )}
@@ -178,14 +178,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                       </div>
                       
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-50">訪問授權密鑰</label>
+                        <label className="text-[9px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-50">密碼</label>
                         <div className="relative">
                           <input 
                             type="password" 
                             required
                             value={formData.password}
                             onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
-                            placeholder="輸入觀測站認證密鑰..."
+                            placeholder="輸入解鎖密碼..."
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium shadow-inner"
                           />
                           <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-white/10" />
@@ -197,7 +197,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                         className="btn-stellar w-full flex items-center justify-center gap-3 py-4 sm:py-5 hover:scale-[1.01] active:scale-[0.99] shadow-lg bg-quantum-cyan/10 border-quantum-cyan/30"
                       >
                         <span className="tracking-[clamp(0.3em,1vw,0.6em)] uppercase font-black text-white text-xs sm:text-sm pl-2">
-                          {isSyncing ? '矩陣同步中...' : '發射數據至網格'}
+                          {isSyncing ? '資料處理中...' : '提交資料'}
                         </span>
                         <Zap className={cn("w-4 h-4 sm:w-5 sm:h-5 text-quantum-cyan", isSyncing && "animate-spin")} />
                       </button>
@@ -211,7 +211,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           {/* Right Column: Node List Sidebar - More compact titles and max-height */}
           <div className="lg:col-span-3 space-y-4 lg:sticky lg:top-4">
             <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <h3 className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">已偵測節點</h3>
+              <h3 className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em]">公開目錄</h3>
               <div className="px-2 py-0.5 bg-quantum-cyan/10 rounded-full border border-quantum-cyan/20 text-[8px] font-black text-quantum-cyan tracking-widest shrink-0">
                 {data.users?.length || 0} ACTIVE
               </div>
@@ -232,7 +232,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                       <Cpu className="w-3.5 h-3.5 text-quantum-cyan/30 group-hover/item:text-quantum-cyan transition-colors shrink-0" />
                       <div className="flex flex-col overflow-hidden">
                         <span className="text-[10px] font-bold text-white/60 group-hover/item:text-white transition-colors tracking-tight truncate">{user.username}</span>
-                        <span className="text-[7px] text-white/20 uppercase tracking-widest">Sector {idx.toString().padStart(3, '0')}</span>
+                        <span className="text-[7px] text-white/20 uppercase tracking-widest">Index {idx.toString().padStart(3, '0')}</span>
                       </div>
                     </div>
                     <Sparkles className="w-3.5 h-3.5 text-white/5 group-hover/item:text-quantum-cyan/30 transition-all shrink-0" />
@@ -249,7 +249,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
               href="/admin" 
               className="flex items-center justify-center gap-2.5 w-full py-3.5 glass-card bg-neural-violet/5 border-neural-violet/10 hover:bg-neural-violet/10 hover:border-neural-violet/30 transition-all group text-[8px] font-black text-neural-violet/50 hover:text-neural-violet uppercase tracking-[0.3em]"
             >
-              <ShieldCheck className="w-3.5 h-3.5 group-hover:animate-pulse" /> 指揮中心入口
+              <ShieldCheck className="w-3.5 h-3.5 group-hover:animate-pulse" /> 管理員登入
             </a>
           </div>
 

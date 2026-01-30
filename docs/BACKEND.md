@@ -1,4 +1,4 @@
-# StellarNexus 後端開發說明
+# FileNexus 後端開發說明
 
 本文件詳細說明後端 (FastAPI) 的實作細節。
 
@@ -50,8 +50,8 @@ backend/
 ## 4. 核心 API 端點
 
 - `GET /api/init`: 初始化 SPA 資料。
-- `POST /api/login`: 節點身份驗證。
+- `POST /api/login`: 使用者身份驗證。
 - `POST /api/upload`: 實體檔案上傳。
-- `POST /api/upload_url`: 建立神經連結 (URL)。
-- `POST /admin/create-user`: [ADMIN] 部署新節點。
-- `POST /admin/reset-password`: [ADMIN] 強制重設節點密鑰。
+- `POST /api/upload_url`: 建立連結 (URL)。
+- `POST /admin/create-user`: [ADMIN] 建立新使用者。
+- `POST /admin/reset-password`: [ADMIN] 強制重設使用者密碼。

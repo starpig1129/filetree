@@ -1,10 +1,10 @@
-# StellarNexus 系統架構設計
+# FileNexus 系統架構設計
 
-本文件說明 StellarNexus 系統的技術架構與資料流向。
+本文件說明 FileNexus 系統的技術架構與資料流向。
 
 ## 1. 架構概述
 
-StellarNexus 採用前後端分離的 **Pure SPA (Single Page Application)** 架構：
+FileNexus 採用前後端分離的 **Pure SPA (Single Page Application)** 架構：
 
 - **前端 (Frontend)**: 使用 React + Vite 構建，負責所有介面渲染與使用者互動。
 - **後端 (Backend)**: 使用 FastAPI 構建，提供 RESTful API 與檔案處理服務。
@@ -33,6 +33,6 @@ StellarNexus 採用前後端分離的 **Pure SPA (Single Page Application)** 架
 - `TokenService`: 處理分享連結的 Token 生成與驗證。
 
 ### 前端頁面層 (Pages)
-- `LandingPage`: 展現 StellarNexus 宇宙感品牌形象。
+- `LandingPage`: 展現 FileNexus 簡潔現代化品牌形象。
 - `Dashboard`: 核心檔案管理介面。
 - `LoginPage`: 驗證介面。

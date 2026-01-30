@@ -12,7 +12,7 @@ export const Starfield: React.FC = () => {
 
     let animationFrameId: number;
     
-    // Star colors inspired by StellarNexus theme
+    // Star colors inspired by theme
     const starColors = ['#fff', '#22d3ee', '#a855f7', '#818cf8', '#ffffff'];
     
     const stars: { x: number; y: number; size: number; speed: number; opacity: number; color: string }[] = [];

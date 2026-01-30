@@ -145,17 +145,17 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
         <a href="/" className="group flex items-center gap-2 text-white/40 hover:text-quantum-cyan transition-colors cursor-pointer text-[clamp(0.6rem,0.9vw,0.8rem)] font-bold tracking-widest uppercase">
           <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
-          回歸核心樞紐
+          返回首頁
         </a>
         
         <div className="flex items-center gap-3">
           <div className="px-4 sm:px-5 py-2 glass-card flex items-center gap-2 sm:gap-3 text-[clamp(0.5rem,0.75vw,0.7rem)] tracking-widest uppercase font-black text-stellar-white/60 shadow-lg">
             <Activity className="w-4 h-4 text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
-            核心載荷：{data.usage} MB
+            已使用空間：{data.usage} MB
           </div>
           <button 
             onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
-            aria-label={isAuthenticated ? "鎖定所有項目" : "全域解鎖觀測站"}
+            aria-label={isAuthenticated ? "鎖定目錄" : "解鎖目錄"}
             className={cn(
                 "p-2 sm:p-2.5 glass-card transition-all cursor-pointer border-white/5 focus-ring shadow-lg",
                 isAuthenticated ? "text-quantum-cyan hover:bg-quantum-cyan/10" : "text-neural-violet hover:bg-neural-violet/10"
@@ -176,13 +176,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         <div className="flex flex-col md:flex-row items-center justify-center gap-[clamp(0.5rem,1.5vw,1.25rem)] mb-[clamp(0.75rem,1.5vh,1.5rem)]">
           <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20 hidden md:block" />
           <h1 className="text-[clamp(1.5rem,4.5vw,3.5rem)] font-bold tracking-tight text-white/90 leading-tight">
-            {data.user?.username} <span className="text-quantum-cyan/80">觀測站</span>
+            {data.user?.username} <span className="text-quantum-cyan/80">個人目錄</span>
           </h1>
           <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20" />
         </div>
         <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2 bg-white/5 rounded-full text-[clamp(0.45rem,0.7vw,0.6rem)] text-white/30 tracking-widest uppercase font-bold border border-white/5">
           <ShieldCheck className="w-3.5 h-3.5 text-quantum-cyan shrink-0" />
-          實體核心將在 30 週期後解離。神經連結永遠保留。
+          檔案將在 30 天後自動刪除。連結永久保留。
         </div>
       </motion.div>
 
@@ -193,7 +193,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             <div className="p-2 sm:p-2.5 bg-quantum-cyan/5 rounded-xl border border-quantum-cyan/10 shrink-0">
               <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-quantum-cyan" />
             </div>
-            數據扇區
+            檔案列表
           </h2>
           {selectedFiles.length > 0 && (
              <motion.div 
@@ -271,7 +271,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
                     <div className="flex items-center justify-between pt-[clamp(0.5rem,0.7vh,0.75rem)] border-t border-white/5">
                       <div className={cn("text-[clamp(0.45rem,0.55vw,0.5rem)] uppercase tracking-[0.2em] font-bold", getLifecycleColor(file))}>
-                        {file.expired ? '已解離' : `剩餘 ${file.remaining_days} 週期`}
+                        {file.expired ? '已刪除' : `剩餘 ${file.remaining_days} 天`}
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
                         {!isLocked && (
@@ -315,7 +315,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           <div className="p-2 sm:p-2.5 bg-neural-violet/5 rounded-xl border border-neural-violet/10 shrink-0">
             <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-neural-violet" />
           </div>
-          神經連結
+          連結
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)]">
@@ -404,7 +404,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   <ShieldCheck className="w-6 h-6 text-neural-violet animate-pulse" />
                 </div>
                 <h3 className="text-xl font-bold text-white tracking-tight">存取授權請求</h3>
-                <p className="text-white/30 text-[10px] uppercase font-black tracking-[0.2em]">輸入觀測站認證密鑰以解鎖矩陣</p>
+                <p className="text-white/30 text-[10px] uppercase font-black tracking-[0.2em]">請輸入密碼解鎖目錄</p>
               </div>
 
               <form onSubmit={(e) => { 
@@ -425,7 +425,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   type="submit"
                   className="btn-stellar w-full mt-6 py-4 bg-neural-violet/20 border-neural-violet/40 text-neural-violet uppercase text-xs font-black tracking-[0.3em]"
                 >
-                  啟動協議驗證
+                  解鎖
                 </button>
               </form>
             </motion.div>
@@ -467,14 +467,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
               <div className="space-y-2">
                 <p className="text-white font-bold tracking-tight truncate text-sm px-4">{qrUrl}</p>
-                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest">掃描以跨維度傳輸</p>
+                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest">掃描以傳輸連結</p>
               </div>
 
               <button 
                 onClick={() => setQrUrl(null)}
                 className="btn-stellar w-full py-3 bg-quantum-cyan/10 border-quantum-cyan/30 text-quantum-cyan uppercase text-xs font-black tracking-widest"
               >
-                關閉傳輸窗
+                關閉視窗
               </button>
             </motion.div>
           </div>

@@ -45,12 +45,12 @@ const App: React.FC = () => {
             const userData = await res.json();
             setData(userData);
           } else {
-            setData({ error: '觀測站不存在' });
+            setData({ error: '目錄不存在' });
           }
         }
       } catch (err) {
         console.error('Fetch error:', err);
-        setData({ error: '數據連結中斷' });
+        setData({ error: '連線中斷' });
       } finally {
         setLoading(false);
       }
@@ -64,7 +64,7 @@ const App: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-space-black relative">
         <Starfield />
         <div className="relative z-10 text-quantum-cyan animate-pulse tracking-[0.4em] font-bold text-xs uppercase">
-          正在連結至星系網格... 🌌
+          正在載入系統...
         </div>
       </div>
     );
@@ -84,7 +84,7 @@ const App: React.FC = () => {
       </main>
       
       <footer className="text-center py-12 text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
-        Deep in the stellar matrix... 🌌
+        FileNexus - Secure File Bridge Hub
       </footer>
     </div>
   );

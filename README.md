@@ -1,4 +1,4 @@
-# StellarNexus - Global Neural Matrix System
+# FileNexus - High-Performance File Management System
 
 High-performance file management system built with FastAPI and React/Vite.
 
