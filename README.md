@@ -13,6 +13,3 @@ The primary documentation for this project is written in **Traditional Chinese**
 
 1. **Backend**: `cd backend && pip install -r requirements.txt && python3 app.py`
 2. **Frontend**: `cd frontend && npm install && npm run dev`
-
----
-*Created with academic rigor by the AGI & Robotics Research team at NTNU.*

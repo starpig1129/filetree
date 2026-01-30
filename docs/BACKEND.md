@@ -47,3 +47,11 @@ backend/
 - **回傳內容**: 統一使用 JSON 格式。
 - **錯誤處理**: 使用 FastAPI 的 `HTTPException` 並包含清晰的說明訊息。
 - **類型標記**: 所有函數均包含完整的 Python Type Hints。
+## 4. 核心 API 端點
+
+- `GET /api/init`: 初始化 SPA 資料。
+- `POST /api/login`: 節點身份驗證。
+- `POST /api/upload`: 實體檔案上傳。
+- `POST /api/upload_url`: 建立神經連結 (URL)。
+- `POST /admin/create-user`: [ADMIN] 部署新節點。
+- `POST /admin/reset-password`: [ADMIN] 強制重設節點密鑰。

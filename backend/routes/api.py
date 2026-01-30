@@ -73,6 +73,57 @@ async def verify_admin(request: Request, master_key: str):
     return {"status": "authorized"}
 
 
+@router.post("/admin/reset-password")
+async def admin_reset_password(
+    request: Request,
+    master_key: str = Form(...),
+    username: str = Form(...),
+    new_password: str = Form(...)
+):
+    """Admin endpoint to reset a user's password."""
+    # 1. Verify authority
+    admin_service.verify_request(request, master_key)
+    
+    # 2. Reset logic
+    success = await user_service.reset_password(username, new_password)
+    if not success:
+        raise HTTPException(status_code=404, detail="找不到該使用者。")
+    
+    return {"message": f"使用者 {username} 的密碼已更新", "status": "success"}
+
+
+@router.get("/admin/users", response_model=List[UserPublic])
+async def admin_list_users(request: Request, master_key: str):
+    """Admin endpoint to list all users with full public details."""
+    admin_service.verify_request(request, master_key)
+    return await user_service.list_public_users()
+
+
+@router.post("/admin/update-user")
+async def admin_update_user(
+    request: Request,
+    master_key: str = Form(...),
+    username: str = Form(...),
+    new_username: Optional[str] = Form(None),
+    is_locked: Optional[bool] = Form(None)
+):
+    """Admin endpoint to update user profile (rename, lock)."""
+    admin_service.verify_request(request, master_key)
+    
+    try:
+        success = await user_service.update_user_profile(
+            username, 
+            new_username=new_username, 
+            is_locked=is_locked
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="找不到該使用者。")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    return {"message": "使用者資料更新成功", "status": "success"}
+
+
 @router.post("/login", response_model=UserCreate)
 async def login(password: str = Form(...)):
     """Verify password and return the associated user."""

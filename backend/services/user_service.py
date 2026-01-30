@@ -8,7 +8,7 @@ from typing import List, Optional
 import aiofiles
 from backend.config import settings
 from backend.schemas import UserCreate, UserPublic
-from backend.core.auth import verify_password
+from backend.core.auth import verify_password, generate_salt, hash_password
 
 
 class UserService:
@@ -40,8 +40,16 @@ class UserService:
         Args:
             users: List of user dictionaries to save.
         """
-        async with aiofiles.open(self.data_path, mode='w', encoding='utf-8') as f:
-            await f.write(json.dumps(users, indent=4, ensure_ascii=False))
+        temp_path = self.data_path.with_suffix(".tmp")
+        try:
+            async with aiofiles.open(temp_path, mode='w', encoding='utf-8') as f:
+                await f.write(json.dumps(users, indent=4, ensure_ascii=False, default=str))
+            # Atomic rename
+            temp_path.replace(self.data_path)
+        except Exception as e:
+            if temp_path.exists():
+                temp_path.unlink()
+            raise e
 
     async def get_user_by_name(self, username: str) -> Optional[UserCreate]:
         """Fetch a user by their username.
@@ -86,20 +94,79 @@ class UserService:
         users = await self._read_users()
         return [UserPublic(**u) for u in users]
 
-    async def update_user(self, username: str, update_data: dict) -> bool:
-        """Update user data.
-
-        Args:
-            username: The user to update.
-            update_data: Dictionary of fields to update.
+    async def list_all_users(self) -> List[UserCreate]:
+        """List all users with full info (Admin usage).
 
         Returns:
-            True if user was found and updated, False otherwise.
+            A list of UserCreate models.
         """
         users = await self._read_users()
-        for i, user in enumerate(users):
+        return [UserCreate(**u) for u in users]
+
+    async def update_user_profile(self, old_username: str, new_username: Optional[str] = None, is_locked: Optional[bool] = None) -> bool:
+        """Advanced user update including renaming and folder sync.
+
+        Args:
+            old_username: Current username.
+            new_username: New username to set.
+            is_locked: Whether to lock the account.
+
+        Returns:
+            True if successful.
+        """
+        users = await self._read_users()
+        user_idx = -1
+        for i, u in enumerate(users):
+            if u['username'] == old_username:
+                user_idx = i
+                break
+        
+        if user_idx == -1:
+            return False
+
+        user = users[user_idx]
+        
+        # 1. Handle Rename
+        if new_username and new_username != old_username:
+            # Check collision
+            if any(u['username'] == new_username for u in users):
+                raise ValueError(f"節點代碼 {new_username} 已被佔用。")
+            
+            # Sync folder if it was named after the user
+            old_folder = user.get('folder', old_username)
+            if old_folder == old_username:
+                old_path = settings.paths.upload_folder / old_folder
+                new_path = settings.paths.upload_folder / new_username
+                if old_path.exists() and not new_path.exists():
+                    old_path.rename(new_path)
+                    user['folder'] = new_username
+            
+            user['username'] = new_username
+
+        # 2. Handle Lock
+        if is_locked is not None:
+            user['is_locked'] = is_locked
+
+        await self._write_users(users)
+        return True
+
+    async def reset_password(self, username: str, new_password: str) -> bool:
+        """Reset a user's password.
+
+        Args:
+            username: The user whose password to reset.
+            new_password: The new plain text password.
+
+        Returns:
+            True if successful, False if user not found.
+        """
+        users = await self._read_users()
+        for user in users:
             if user['username'] == username:
-                users[i].update(update_data)
+                salt = generate_salt()
+                user['salt'] = salt
+                user['hashed_password'] = hash_password(new_password, salt)
+                user['first_login'] = True
                 await self._write_users(users)
                 return True
         return False
