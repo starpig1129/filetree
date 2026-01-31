@@ -23,6 +23,7 @@ export const AdminPage: React.FC = () => {
     action: string;
     details: string;
     level: string;
+    ip?: string;
   }
 
   const [users, setUsers] = useState<User[]>([]);
@@ -146,7 +147,7 @@ export const AdminPage: React.FC = () => {
         const err = await res.json();
         setStatus({ type: 'error', msg: err.detail || '重新命名失敗。' });
       }
-    } catch (err) {
+    } catch {
       setStatus({ type: 'error', msg: '網路連線失敗。' });
     } finally {
       setIsSyncing(false);
@@ -176,7 +177,7 @@ export const AdminPage: React.FC = () => {
         const err = await res.json();
         setStatus({ type: 'error', msg: err.detail || '密鑰更新失敗。' });
       }
-    } catch (err) {
+    } catch {
       setStatus({ type: 'error', msg: '系統錯誤：密鑰流寫入中斷。' });
     } finally {
       setIsSyncing(false);
@@ -412,7 +413,7 @@ export const AdminPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02]">
+            <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/2">
               <div className="max-h-[clamp(15rem,40vh,30rem)] overflow-y-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-[#0A0A0F] z-20">
@@ -424,7 +425,7 @@ export const AdminPage: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {users.map((user) => (
-                      <tr key={user.username} className="group hover:bg-white/[0.03] transition-colors">
+                      <tr key={user.username} className="group hover:bg-white/3 transition-colors">
                         <td className="px-6 py-5">
                           {editingUser === user.username ? (
                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
@@ -542,13 +543,14 @@ export const AdminPage: React.FC = () => {
                         <tr className="border-b border-white/10">
                           <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">時間戳記</th>
                           <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">主體節點</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">來源 IP</th>
                           <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">執行動作</th>
                           <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">詳細紀錄</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5 font-mono">
                         {logs.length === 0 ? (
-                          <tr><td colSpan={4} className="px-6 py-20 text-center text-white/20 uppercase tracking-[0.3em] text-xs">尚無相關安全性日誌</td></tr>
+                          <tr><td colSpan={5} className="px-6 py-20 text-center text-white/20 uppercase tracking-[0.3em] text-xs">尚無相關安全性日誌</td></tr>
                         ) : logs.map((log, idx) => (
                           <tr key={idx} className="hover:bg-white/3 transition-colors text-[clamp(0.6rem,0.8vw,0.75rem)] whitespace-nowrap">
                             <td className="px-6 py-4 text-white/40">{new Date(log.timestamp).toLocaleString()}</td>
@@ -560,15 +562,18 @@ export const AdminPage: React.FC = () => {
                                 {log.username}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              <span className={cn(
-                                "font-black",
-                                log.level === 'ERROR' ? "text-red-400" : log.level === 'WARNING' ? "text-yellow-400" : "text-green-400"
-                              )}>
-                                {log.action}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-white/60 max-w-xs truncate" title={log.details}>{log.details}</td>
+                             <td className="px-6 py-4">
+                               <span className="text-white/30 font-mono text-[10px]">{log.ip || '---'}</span>
+                             </td>
+                             <td className="px-6 py-4">
+                               <span className={cn(
+                                 "font-black",
+                                 log.level === 'ERROR' ? "text-red-400" : log.level === 'WARNING' ? "text-yellow-400" : "text-green-400"
+                               )}>
+                                 {log.action}
+                               </span>
+                             </td>
+                             <td className="px-6 py-4 text-white/60 max-w-xs truncate" title={log.details}>{log.details}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -614,10 +619,19 @@ export const AdminPage: React.FC = () => {
             <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.4em] flex items-center gap-2 border-b border-white/5 pb-3">
               <Terminal className="w-4 h-4 text-quantum-cyan" /> 系統日誌
             </h3>
-            <div className="text-[10px] font-mono text-white/60 space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+            <div className="text-[10px] font-mono text-white/60 space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
               <div className="flex gap-2"><span className="text-quantum-cyan font-bold">[SYS]</span> <span>管理授權已確認</span></div>
               <div className="flex gap-2"><span className="text-green-400 font-bold">[OK]</span> <span>核心數據庫連線就緒</span></div>
               {users.length > 0 && <div className="flex gap-2 text-white/80"><span className="text-white/40 font-bold">[LOG]</span> <span>偵測到 {users.length} 個活躍數據節點</span></div>}
+              {logs.slice(0, 5).map((log, i) => (
+                <div key={i} className="flex gap-2 opacity-80 border-t border-white/5 pt-2 animate-in fade-in slide-in-from-right-2 duration-500">
+                  <span className={cn(
+                    "font-bold shrink-0",
+                    log.level === 'ERROR' ? "text-red-400" : log.level === 'WARNING' ? "text-yellow-400" : "text-green-400"
+                  )}>[{log.action.split('_')[0]}]</span>
+                  <span className="truncate" title={log.details}>{log.details}</span>
+                </div>
+              ))}
             </div>
           </motion.div>
         </div>

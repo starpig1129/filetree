@@ -23,10 +23,12 @@ class AuditService:
             return []
 
     async def _write_logs(self, logs: List[Dict[str, Any]]):
-        async with aiofiles.open(self.log_path, mode='w') as f:
+        temp_path = self.log_path + ".tmp"
+        async with aiofiles.open(temp_path, mode='w', encoding='utf-8') as f:
             await f.write(json.dumps(logs, indent=2, ensure_ascii=False))
+        os.replace(temp_path, self.log_path)
 
-    async def log_event(self, username: str, action: str, details: str, level: str = "INFO"):
+    async def log_event(self, username: str, action: str, details: str, level: str = "INFO", ip: str = None):
         """Record a new audit event.
         
         Args:
@@ -34,6 +36,7 @@ class AuditService:
             action: The action name (e.g., "LOGIN_SUCCESS", "FILE_DELETE").
             details: Human readable details.
             level: INFO, WARNING, ERROR.
+            ip: Source IP address.
         """
         logs = await self._read_logs()
         event = {
@@ -41,7 +44,8 @@ class AuditService:
             "username": username,
             "action": action,
             "details": details,
-            "level": level
+            "level": level,
+            "ip": ip
         }
         logs.insert(0, event)  # Newest first
         # Limit to last 1000 logs to prevent file bloating

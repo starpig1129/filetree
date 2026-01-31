@@ -27,6 +27,14 @@ audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, 
 event_service = EventService()
 
 
+def get_client_ip(request: Request) -> str:
+    """Detection of client IP, supporting proxies like cloudflared/nginx."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.get("/init", response_model=List[UserPublic])
 async def init_data(request: Request):
     """Initial data fetch for the SPA. Lists all public users."""
@@ -77,6 +85,7 @@ async def admin_create_user(
     path = settings.paths.upload_folder / new_user['folder']
     path.mkdir(parents=True, exist_ok=True)
     
+    await audit_service.log_event("admin", "USER_CREATE", f"Created user {username}", ip=get_client_ip(request))
     return {"message": f"使用者 {username} 建立成功", "status": "success"}
 
 
@@ -103,6 +112,7 @@ async def admin_reset_password(
     if not success:
         raise HTTPException(status_code=404, detail="找不到該使用者。")
     
+    await audit_service.log_event("admin", "USER_PASSWORD_RESET", f"Admin set new password for user: {username}", ip=get_client_ip(request))
     return {"message": f"使用者 {username} 的密碼已更新", "status": "success"}
 
 
@@ -135,7 +145,7 @@ async def admin_update_user(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-    await audit_service.log_event("admin", "USER_UPDATE", f"Admin updated user: {username}")
+    await audit_service.log_event("admin", "USER_UPDATE", f"Admin updated user: {username}", ip=get_client_ip(request))
     if new_username:
         await event_service.notify_user_update(new_username) # Notify new username
     else:
@@ -157,7 +167,7 @@ async def admin_reset_default_password(
     if not success:
         raise HTTPException(status_code=404, detail="找不到該使用者。")
     
-    await audit_service.log_event("admin", "USER_PASSWORD_RESET_DEFAULT", f"Admin reset password to default for user: {username}")
+    await audit_service.log_event("admin", "USER_PASSWORD_RESET_DEFAULT", f"Admin reset password to default for user: {username}", ip=get_client_ip(request))
     await event_service.notify_user_update(username)
     
     return {"message": f"使用者 {username} 的密碼已重設為預設值。"}
@@ -176,7 +186,7 @@ async def admin_delete_user(
     if not success:
         raise HTTPException(status_code=404, detail="找不到該使用者。")
     
-    await audit_service.log_event("admin", "USER_DELETE", f"Admin deleted user: {username}")
+    await audit_service.log_event("admin", "USER_DELETE", f"Admin deleted user: {username}", ip=get_client_ip(request))
     await event_service.notify_user_update(username) # Notify for deletion
     
     return {"message": f"使用者 {username} 及其數據已完全移除。"}
@@ -191,15 +201,16 @@ async def login(request: Request, password: str = Form(...)):
 
     user = await user_service.get_user_by_password(password)
     if not user:
-        await audit_service.log_event("system", "LOGIN_FAILURE", "Authentication failed for unknown user", level="WARNING")
+        await audit_service.log_event("system", "LOGIN_FAILURE", "Authentication failed for unknown user", level="WARNING", ip=get_client_ip(request))
         raise HTTPException(status_code=401, detail="密碼錯誤")
     
-    await audit_service.log_event(user.username, "LOGIN_SUCCESS", "User authenticated successfully")
+    await audit_service.log_event(user.username, "LOGIN_SUCCESS", "User authenticated successfully", ip=get_client_ip(request))
     return user
 
 
 @router.post("/user/change-password")
 async def change_password(
+    request: Request,
     username: str = Form(...),
     old_password: str = Form(...),
     new_password: str = Form(...)
@@ -218,11 +229,11 @@ async def change_password(
     if success:
         # Also ensure first_login is false
         await user_service.update_user(username, {"first_login": False})
-        await audit_service.log_event(username, "CHANGE_PASSWORD_SUCCESS", "User changed password successfully", level="INFO")
+        await audit_service.log_event(username, "CHANGE_PASSWORD_SUCCESS", "User changed password successfully", level="INFO", ip=get_client_ip(request))
         await event_service.notify_user_update(username)
         return {"message": "密碼更新成功", "status": "success"}
     
-    await audit_service.log_event(username, "CHANGE_PASSWORD_FAILURE", "Failed to update password due to internal error", level="ERROR")
+    await audit_service.log_event(username, "CHANGE_PASSWORD_FAILURE", "Failed to update password due to internal error", level="ERROR", ip=get_client_ip(request))
     raise HTTPException(status_code=500, detail="密碼更新失敗")
 
 
@@ -237,6 +248,7 @@ async def get_files(username: str):
 
 @router.post("/upload")
 async def upload_files(
+    request: Request,
     password: str = Form(...),
     files: List[UploadFile] = File(...)
 ):
@@ -251,7 +263,7 @@ async def upload_files(
         unique_name = await file_service.save_file(user.folder, file.filename, content)
         uploaded.append(unique_name)
 
-    await audit_service.log_event(user.username, "FILE_UPLOAD", f"Uploaded {len(uploaded)} files: {', '.join(uploaded)}")
+    await audit_service.log_event(user.username, "FILE_UPLOAD", f"Uploaded {len(uploaded)} files: {', '.join(uploaded)}", ip=get_client_ip(request))
     await event_service.notify_user_update(user.username)
     
     return {
@@ -277,10 +289,10 @@ async def tus_create(request: Request):
         # We don't log success here to avoid file spam for large files, 
         # but we'll log it in finalize.
     except PermissionError as e:
-        await audit_service.log_event("unknown", "TUS_CREATE_FAILURE", f"Auth failed: {str(e)}", level="WARNING")
+        await audit_service.log_event("unknown", "TUS_CREATE_FAILURE", f"Auth failed: {str(e)}", level="WARNING", ip=get_client_ip(request))
         raise HTTPException(status_code=401, detail=str(e))
     except ValueError as e:
-        await audit_service.log_event("unknown", "TUS_CREATE_FAILURE", f"Bad request: {str(e)}", level="WARNING")
+        await audit_service.log_event("unknown", "TUS_CREATE_FAILURE", f"Bad request: {str(e)}", level="WARNING", ip=get_client_ip(request))
         raise HTTPException(status_code=400, detail=str(e))
     
     # We expect password in metadata for initial auth
@@ -348,7 +360,7 @@ async def tus_patch(upload_id: str, request: Request):
             raise HTTPException(status_code=401, detail="Invalid password")
             
         filename = await tus_service.finalize_upload(upload_id, file_service._get_user_folder(user.folder))
-        await audit_service.log_event(user.username, "FILE_UPLOAD_TUS", f"Uploaded file via TUS: {filename}")
+        await audit_service.log_event(user.username, "FILE_UPLOAD_TUS", f"Uploaded file via TUS: {filename}", ip=get_client_ip(request))
         await event_service.notify_user_update(user.username)
         
     return JSONResponse(
@@ -381,6 +393,7 @@ async def tus_options():
 
 @router.post("/upload_url")
 async def upload_url(
+    request: Request,
     password: str = Form(...),
     url: str = Form(...)
 ):
@@ -395,7 +408,7 @@ async def upload_url(
     # Store as dicts back to JSON
     await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
     
-    await audit_service.log_event(user.username, "NOTE_CREATE", f"Created a secure note/link: {url}")
+    await audit_service.log_event(user.username, "NOTE_CREATE", f"Created a secure note/link: {url}", ip=get_client_ip(request))
     await event_service.notify_user_update(user.username)
     
     return {
@@ -405,20 +418,15 @@ async def upload_url(
     }
 
 
-@router.delete("/files/{username}/{filename}")
-async def delete_file(
-    username: str, 
-    filename: str, 
-    token: Optional[str] = None
-):
-    """Delete a file. Requires token if locked."""
+@router.post("/user/{username}/delete")
+async def delete_file(request: Request, username: str, filename: str = Form(...), token: Optional[str] = Form(None)):
+    """Delete a file from user's folder."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
-    # Check locks
-    is_locked = user.is_locked or filename in getattr(user, 'locked_files', [])
-    if is_locked:
+    # 資源鎖定檢查
+    if filename in getattr(user, 'locked_files', []):
         if not token:
              raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
         
@@ -430,7 +438,7 @@ async def delete_file(
     if not success:
         raise HTTPException(status_code=404, detail="檔案不存在")
     
-    await audit_service.log_event(username, "FILE_DELETE", f"Deleted file: {filename}")
+    await audit_service.log_event(username, "FILE_DELETE", f"Deleted file: {filename}", ip=get_client_ip(request))
     await event_service.notify_user_update(username)
     return {"message": "檔案已刪除"}
 
@@ -636,14 +644,14 @@ async def get_audit_logs(request: Request, master_key: str):
 
 
 @router.post("/user/{username}/batch-action")
-async def batch_action(username: str, req: BatchActionRequest):
+async def batch_action(request: Request, username: str, req: BatchActionRequest):
     """Perform batch operations on files or urls."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
     if not verify_password(req.password, user.salt, user.hashed_password):
-        await audit_service.log_event(username, "BATCH_AUTH_FAILURE", f"Failed batch auth for {req.action}", level="WARNING")
+        await audit_service.log_event(username, "BATCH_AUTH_FAILURE", f"Failed batch auth for {req.action}", level="WARNING", ip=get_client_ip(request))
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
     success_count = 0
@@ -683,7 +691,7 @@ async def batch_action(username: str, req: BatchActionRequest):
                     break
         await user_service.update_user(username, {"urls": [u.dict() for u in urls]})
 
-    await audit_service.log_event(username, f"BATCH_{req.action.upper()}", f"Successfully processed {success_count} {req.item_type}s")
+    await audit_service.log_event(username, f"BATCH_{req.action.upper()}", f"Successfully processed {success_count} {req.item_type}s", ip=get_client_ip(request))
     await event_service.notify_user_update(username)
     return {"message": f"成功處理 {success_count} 個項目。", "success_count": success_count}
 
