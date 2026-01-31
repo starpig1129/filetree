@@ -10,15 +10,32 @@ export const AdminPage: React.FC = () => {
   const [formData, setFormData] = useState({ username: '', password: '', folder: '' });
   const [status, setStatus] = useState<{ type: 'info' | 'error' | 'success', msg: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
+  interface User {
+    username: string;
+    folder: string;
+    is_locked: boolean;
+    first_login: boolean;
+  }
   
-  // Inline editing states
+  interface AuditLog {
+    timestamp: string;
+    username: string;
+    action: string;
+    details: string;
+    level: string;
+  }
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
+  
+  // Inline editing states (RESTORED)
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [resettingPwdUser, setResettingPwdUser] = useState<string | null>(null);
   const [newPwd, setNewPwd] = useState('');
 
-  const fetchUsers = async () => {
+  const fetchUsers = React.useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/users?master_key=${masterKey}`);
       if (res.ok) {
@@ -28,13 +45,30 @@ export const AdminPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch users:', err);
     }
-  };
+  }, [masterKey]);
+
+  const fetchLogs = React.useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/audit-logs?master_key=${masterKey}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch logs:', err);
+    }
+  }, [masterKey]);
 
   React.useEffect(() => {
     if (isAuthorized) {
       fetchUsers();
+      fetchLogs();
+      const interval = setInterval(() => {
+        fetchLogs();
+      }, 5000); // Auto-refresh logs every 5s
+      return () => clearInterval(interval);
     }
-  }, [isAuthorized]);
+  }, [isAuthorized, fetchUsers, fetchLogs]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,13 +371,37 @@ export const AdminPage: React.FC = () => {
             </AnimatePresence>
           </motion.div>
 
-          {/* User Node Directory List */}
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-card p-[clamp(1.25rem,3.5vw,3rem)] space-y-6"
-          >
+          {/* Tab Navigation */}
+          <div className="flex gap-4 mb-6">
+            <button 
+              onClick={() => setActiveTab('users')}
+              className={cn(
+                "px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all border",
+                activeTab === 'users' ? "bg-quantum-cyan/20 border-quantum-cyan/40 text-quantum-cyan shadow-lg shadow-quantum-cyan/10" : "bg-white/5 border-white/10 text-white/30 hover:text-white/60"
+              )}
+            >
+              使用者節點管理
+            </button>
+            <button 
+              onClick={() => setActiveTab('logs')}
+              className={cn(
+                "px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all border",
+                activeTab === 'logs' ? "bg-neural-violet/20 border-neural-violet/40 text-neural-violet shadow-lg shadow-neural-violet/10" : "bg-white/5 border-white/10 text-white/30 hover:text-white/60"
+              )}
+            >
+              系統審計日誌
+            </button>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {activeTab === 'users' ? (
+              <motion.div 
+                key="users-tab"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="glass-card p-[clamp(1.25rem,3.5vw,3rem)] space-y-6"
+              >
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-white tracking-tight">數據節點目錄</h3>
@@ -458,7 +516,68 @@ export const AdminPage: React.FC = () => {
                 </table>
               </div>
             </div>
-          </motion.div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="logs-tab"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="glass-card p-[clamp(1.25rem,3.5vw,3rem)] space-y-6 min-h-[50vh]"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-bold text-white tracking-tight">系統安全審計</h3>
+                    <p className="text-white/30 text-[10px] uppercase tracking-[0.3em] font-bold italic">SYSTEM SECURITY AUDIT STREAM</p>
+                  </div>
+                  <button onClick={fetchLogs} className="p-2 hover:bg-white/5 rounded-lg transition-colors group">
+                    <Activity className="w-5 h-5 text-neural-violet group-hover:rotate-180 transition-transform duration-500" />
+                  </button>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/2">
+                  <div className="max-h-[clamp(20rem,50vh,40rem)] overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-[#0A0A0F] z-20">
+                        <tr className="border-b border-white/10">
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">時間戳記</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">主體節點</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">執行動作</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">詳細紀錄</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 font-mono">
+                        {logs.length === 0 ? (
+                          <tr><td colSpan={4} className="px-6 py-20 text-center text-white/20 uppercase tracking-[0.3em] text-xs">尚無相關安全性日誌</td></tr>
+                        ) : logs.map((log, idx) => (
+                          <tr key={idx} className="hover:bg-white/3 transition-colors text-[clamp(0.6rem,0.8vw,0.75rem)] whitespace-nowrap">
+                            <td className="px-6 py-4 text-white/40">{new Date(log.timestamp).toLocaleString()}</td>
+                            <td className="px-6 py-4">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-sm font-bold",
+                                log.username === 'admin' ? "bg-quantum-cyan/10 text-quantum-cyan" : "bg-white/10 text-white/60"
+                              )}>
+                                {log.username}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={cn(
+                                "font-black",
+                                log.level === 'ERROR' ? "text-red-400" : log.level === 'WARNING' ? "text-yellow-400" : "text-green-400"
+                              )}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-white/60 max-w-xs truncate" title={log.details}>{log.details}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Sidebar Status */}

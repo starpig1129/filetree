@@ -57,7 +57,7 @@ const formatSize = (bytes: number) => {
 
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [dashboardData, setDashboardData] = useState(data);
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectedItems, setSelectedItems] = useState<{type: 'file' | 'url', id: string}[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
@@ -65,20 +65,9 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{name: string, size: string, url: string} | null>(null);
   const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
+  const [isBatchSyncing, setIsBatchSyncing] = useState(false);
 
-  // Sync props to local state if they change (e.g. navigation)
-  React.useEffect(() => {
-    setDashboardData(data);
-  }, [data]);
-
-  // Mandatory password change detection
-  React.useEffect(() => {
-    if (isAuthenticated && dashboardData.user?.first_login) {
-      setShowForcedPasswordChange(true);
-    }
-  }, [isAuthenticated, dashboardData.user?.first_login]);
-
-  const refreshDashboard = async (authToken: string) => {
+  const refreshDashboard = React.useCallback(async (authToken: string) => {
     try {
       const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}`);
       if (res.ok) {
@@ -88,12 +77,92 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     } catch (err) {
       console.error("Failed to refresh dashboard:", err);
     }
+  }, [data.user?.username]);
+
+  // Sync props to local state if they change (e.g. navigation)
+  React.useEffect(() => {
+    setDashboardData(data);
+  }, [data]);
+
+  // Real-time synchronization via WebSocket
+  React.useEffect(() => {
+    if (!dashboardData.user?.username) return;
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/${dashboardData.user.username}`;
+    let socket: WebSocket | null = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      if (event.data === "REFRESH") {
+        refreshDashboard(token || "");
+      }
+    };
+
+    socket.onclose = () => {
+      // Small delay before reconnecting
+      setTimeout(() => {
+         socket = new WebSocket(wsUrl);
+      }, 5000);
+    };
+
+    return () => {
+      if (socket) socket.close();
+    };
+  }, [dashboardData.user?.username, token, refreshDashboard]);
+
+  const toggleSelectItem = (type: 'file' | 'url', id: string) => {
+    setSelectedItems(prev => {
+      const exists = prev.find(i => i.type === type && i.id === id);
+      if (exists) {
+        return prev.filter(i => !(i.type === type && i.id === id));
+      } else {
+        return [...prev, { type, id }];
+      }
+    });
   };
 
-  const toggleSelect = (name: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(name) ? prev.filter(f => f !== name) : [...prev, name]
-    );
+  const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete') => {
+    if (selectedItems.length === 0) return;
+    if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+    }
+    
+    if (action === 'delete' && !confirm(`確定要批次刪除選中的 ${selectedItems.length} 個項目嗎？此操作不可恢復！`)) {
+        return;
+    }
+
+    setIsBatchSyncing(true);
+    try {
+      // Group by type for simpler API handling (or we can update API to handle mixed types)
+      // Our API currently handles one type at a time, so we'll do sequential or update it.
+      // Let's assume we do it by dominant type or sequential for now.
+      const files = selectedItems.filter(i => i.type === 'file').map(i => i.id);
+      const urls = selectedItems.filter(i => i.type === 'url').map(i => i.id);
+
+      const perform = async (type: 'file' | 'url', ids: string[]) => {
+        if (ids.length === 0) return;
+        return fetch(`/api/user/${dashboardData.user?.username}/batch-action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password,
+            item_type: type,
+            item_ids: ids,
+            action
+          })
+        });
+      };
+
+      await Promise.all([perform('file', files), perform('url', urls)]);
+      setSelectedItems([]);
+      await refreshDashboard(token || "");
+    } catch (err) {
+      console.error(err);
+      alert("批次操作失敗");
+    } finally {
+      setIsBatchSyncing(false);
+    }
   };
 
   const handleUnlock = async (pwd: string) => {
@@ -251,24 +320,36 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             </div>
             檔案列表
           </h2>
-          {selectedFiles.length > 0 && (
+          {selectedItems.length > 0 && (
              <motion.div 
-               initial={{ opacity: 0, scale: 0.9 }}
-               animate={{ opacity: 1, scale: 1 }}
-               className="flex items-center gap-2 shrink-0"
+               initial={{ opacity: 0, scale: 0.9, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               className="flex items-center gap-2 shrink-0 bg-white/5 p-1 rounded-xl border border-white/10"
              >
-               <span className="text-[clamp(0.45rem,0.65vw,0.55rem)] text-white/30 uppercase tracking-widest hidden sm:block">鎖定 {selectedFiles.length} 節點</span>
                <button 
-                 aria-label="備份選擇的節點"
-                 className="p-1.5 glass-card hover:bg-quantum-cyan/20 text-quantum-cyan cursor-pointer border-white/5"
+                 onClick={() => handleBatchAction('lock')}
+                 disabled={isBatchSyncing}
+                 className="p-2 hover:bg-neural-violet/20 text-neural-violet cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                 title="批次鎖定"
                >
-                 <Download className="w-4 h-4" aria-hidden="true" />
+                 <Lock className="w-4 h-4" />
                </button>
                <button 
-                 aria-label="移除選擇的節點"
-                 className="p-1.5 glass-card hover:bg-red-500/20 text-red-400 cursor-pointer border-white/5"
+                 onClick={() => handleBatchAction('unlock')}
+                 disabled={isBatchSyncing}
+                 className="p-2 hover:bg-quantum-cyan/20 text-quantum-cyan cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                 title="批次解鎖"
                >
-                 <Trash2 className="w-4 h-4" aria-hidden="true" />
+                 <Unlock className="w-4 h-4" />
+               </button>
+               <div className="w-px h-6 bg-white/10 mx-1" />
+               <button 
+                 onClick={() => handleBatchAction('delete')}
+                 disabled={isBatchSyncing}
+                 className="p-2 hover:bg-red-500/20 text-red-400 cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                 title="批次刪除"
+               >
+                 <Trash2 className="w-4 h-4" />
                </button>
              </motion.div>
           )}
@@ -278,7 +359,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           <AnimatePresence>
             {dashboardData.files?.map((file, idx) => {
               const Icon = getFileIcon(file.name);
-              const isSelected = selectedFiles.includes(file.name);
+              const isSelected = !!selectedItems.find(i => i.type === 'file' && i.id === file.name);
               const isLocked = file.is_locked && !isAuthenticated;
               
               return (
@@ -337,7 +418,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                        )}
                        {!isLocked && (
                          <button 
-                           onClick={(e) => { e.stopPropagation(); toggleSelect(file.name); }}
+                           onClick={(e) => { e.stopPropagation(); toggleSelectItem('file', file.name); }}
                            className="transition-transform active:scale-95"
                          >
                            {isSelected ? <CheckSquare className="w-4 h-4 text-quantum-cyan" /> : <Square className="w-4 h-4 text-white/5 group-hover:text-white/20 transition-colors" />}
@@ -427,9 +508,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-white/5 transition-all border-white/5 hover:border-neural-violet/20"
-              >
-                <div className="flex-1 min-w-0 pr-4 space-y-0.5">
+                 className={cn(
+                    "glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-white/5 transition-all border-white/5 hover:border-neural-violet/20",
+                    selectedItems.find(i => i.type === 'url' && i.id === url.url) && "border-neural-violet/50 bg-neural-violet/5"
+                 )}
+               >
+                 <div className="flex-1 min-w-0 pr-4 space-y-0.5">
                   {(() => {
                     const isActualUrl = url.url.startsWith('http://') || url.url.startsWith('https://') || url.url.startsWith('www.');
                     const displayUrl = isActualUrl ? url.url : (url.url.length > 50 ? url.url.substring(0, 50) + '...' : url.url);
@@ -464,13 +548,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
                 </div>
                 <div className="flex gap-2">
-                  {isAuthenticated && (
-                     <button 
-                        onClick={() => toggleItemLock('url', url.url, !!url.is_locked)}
-                        className={cn("p-2 rounded-lg transition-all cursor-pointer border border-white/5", url.is_locked ? "text-neural-violet bg-neural-violet/10" : "text-white/10 hover:text-white/20")}
-                      >
-                        {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                      </button>
+                   {isAuthenticated && (
+                     <div className="flex items-center gap-1">
+                        <button 
+                           onClick={() => toggleSelectItem('url', url.url)}
+                           className="p-2 text-white/10 hover:text-white/30 transition-colors"
+                        >
+                           {selectedItems.find(i => i.type === 'url' && i.id === url.url) ? <CheckSquare className="w-3.5 h-3.5 text-neural-violet" /> : <Square className="w-3.5 h-3.5" />}
+                        </button>
+                        <button 
+                            onClick={() => toggleItemLock('url', url.url, !!url.is_locked)}
+                            className={cn("p-2 rounded-lg transition-all cursor-pointer border border-white/5", url.is_locked ? "text-neural-violet bg-neural-violet/10" : "text-white/10 hover:text-white/20")}
+                        >
+                            {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                        </button>
+                     </div>
                   )}
                   {!isLocked && (
                     <>

@@ -65,3 +65,10 @@ class ToggleLockRequest(BaseModel):
     item_type: str  # 'file' or 'url'
     item_id: str    # filename or url
     is_locked: bool
+
+class BatchActionRequest(BaseModel):
+    """Schema for batch operations on files/urls."""
+    password: str
+    item_type: str  # 'file' or 'url'
+    item_ids: List[str]
+    action: str  # 'lock', 'unlock', 'delete'

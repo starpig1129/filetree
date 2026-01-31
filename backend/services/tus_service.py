@@ -45,11 +45,14 @@ class TusService:
         metadata = {}
         if metadata_str:
             for pair in metadata_str.split(','):
-                parts = pair.split(' ')
-                if len(parts) == 2:
+                parts = pair.strip().split(' ')
+                if len(parts) >= 2:
                     key = parts[0]
-                    value = base64.b64decode(parts[1]).decode('utf-8')
-                    metadata[key] = value
+                    try:
+                        value = base64.b64decode(parts[1]).decode('utf-8')
+                        metadata[key] = value
+                    except Exception:
+                        continue
 
         if not metadata:
             raise ValueError("Missing metadata")
