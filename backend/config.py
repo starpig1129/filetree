@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import Optional
 import yaml
 from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings, 
+    SettingsConfigDict, 
+    PydanticBaseSettingsSource
+)
+from typing import Optional, Tuple, Type
 
 
 class ServerConfig(BaseModel):
@@ -30,6 +35,7 @@ class PathConfig(BaseModel):
 class SecurityConfig(BaseModel):
     """Security-specific settings."""
     secret_key: str = "your-secret-key-change-in-production"
+    master_key: str = "pigstar"  # Default fallback, should be changed
     share_token_expiry_hours: int = 24
 
 
@@ -52,6 +58,23 @@ class Config(BaseSettings):
         env_file=".env",
         extra="ignore"
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """Reorder settings sources to prioritize environment variables over YAML."""
+        return (
+            env_settings,
+            dotenv_settings,
+            init_settings,  # YAML data passed via load() kwargs
+            file_secret_settings,
+        )
 
     @classmethod
     def load(cls, yaml_path: Optional[str] = None) -> "Config":

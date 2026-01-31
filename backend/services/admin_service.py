@@ -10,22 +10,12 @@ class AdminService:
     """Service handling high-level administrative logic."""
 
     def __init__(self, master_key: Optional[str] = None):
-        """Initialize with a master key.
-        
-        In production, this should be pulled from environment variables.
-        """
-        # Default fallback if not in config
-        self.master_key = master_key or "pigstar"
+        """Initialize with a master key."""
+        self.master_key = master_key or settings.security.master_key
 
     def verify_request(self, request: Request, provided_key: str) -> bool:
         """Verify if the request comes from localhost and has the correct master key.
-
-        Args:
-            request: The FastAPI request object.
-            provided_key: The master key provided by the user.
-
-        Raises:
-            HTTPException: If verification fails.
+... (rest of method remains the same)
         """
         # 1. IP Whitelisting (Localhost only)
         # Note: In some proxy setups, you might need to check X-Forwarded-For

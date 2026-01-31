@@ -6,6 +6,7 @@ import {
   ChevronLeft,  Lock, Unlock, CheckSquare, Square,
   Cpu, Zap, Activity, ShieldCheck, Orbit, QrCode, X
 } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { cn } from '../lib/utils';
 import { Starfield } from '../components/Starfield';
 import { FilePreviewModal } from '../components/FilePreviewModal';
@@ -546,11 +547,20 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 </button>
               </div>
               
-              <div className="p-4 bg-white rounded-3xl shadow-[0_0_30px_rgba(34,211,238,0.2)] inline-block">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`}
-                  alt="Neural QR Link"
-                  className="w-48 h-48 sm:w-64 sm:h-64"
+              <div className="p-6 bg-white rounded-3xl shadow-[0_0_30px_rgba(34,211,238,0.2)] inline-block">
+                <QRCodeCanvas 
+                  value={qrUrl} 
+                  size={250} 
+                  level="H"
+                  includeMargin={false}
+                  imageSettings={{
+                    src: "/favicon.svg",
+                    x: undefined,
+                    y: undefined,
+                    height: 40,
+                    width: 40,
+                    excavate: true,
+                  }}
                 />
               </div>
 

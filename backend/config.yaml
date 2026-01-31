@@ -17,11 +17,6 @@ paths:
   # Frontend static build directory
   static_dir: "static/dist"
 
-# Security settings
-security:
-  secret_key: "CHANGE_ME_IN_PRODUCTION_ENV_VAR"
-  share_token_expiry_hours: 24
-
 # Business logic constraints
 logic:
   file_retention_days: 30

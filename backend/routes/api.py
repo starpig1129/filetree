@@ -13,6 +13,7 @@ from backend.services.admin_service import admin_service
 from backend.services.tus_service import tus_service
 from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, ToggleLockRequest
 from backend.core.auth import generate_salt, hash_password, verify_password
+from backend.core.rate_limit import login_limiter, admin_limiter
 from backend.config import settings
 
 router = APIRouter(prefix="/api")
@@ -35,6 +36,10 @@ async def admin_create_user(
     folder: Optional[str] = Form(None)
 ):
     """Admin endpoint to create a user."""
+    # 0. Rate Limit
+    if not admin_limiter.is_allowed(request.client.host):
+        raise HTTPException(status_code=429, detail="請求太過頻繁，請稍後再試。")
+        
     # 1. Verify authority
     admin_service.verify_request(request, master_key)
     
@@ -126,8 +131,12 @@ async def admin_update_user(
 
 
 @router.post("/login", response_model=UserCreate)
-async def login(password: str = Form(...)):
+async def login(request: Request, password: str = Form(...)):
     """Verify password and return the associated user."""
+    # 0. Rate Limit
+    if not login_limiter.is_allowed(request.client.host):
+        raise HTTPException(status_code=429, detail="登入次數過多，請於一分鐘後再試。")
+
     user = await user_service.get_user_by_password(password)
     if not user:
         raise HTTPException(status_code=401, detail="密碼錯誤")

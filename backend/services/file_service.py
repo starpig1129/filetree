@@ -73,11 +73,13 @@ class FileService:
 
         Args:
             folder_name: The user's folder name.
-            filename: The name of the file to delete.
+            filename: The name of the file to delete (will be sanitized).
 
         Returns:
             True if deleted, False if not found.
         """
+        # Security: Prevent path traversal
+        filename = os.path.basename(filename)
         filepath = self._get_user_folder(folder_name) / filename
         if filepath.exists() and filepath.is_file():
             await aiofiles.os.remove(filepath)
@@ -89,12 +91,14 @@ class FileService:
 
         Args:
             folder_name: The user's folder.
-            filename: The original filename.
+            filename: The original filename (will be sanitized).
             content: The file content in bytes.
 
         Returns:
             The final unique filename.
         """
+        # Security: Prevent path traversal
+        filename = os.path.basename(filename)
         folder = self._get_user_folder(folder_name)
         name, ext = os.path.splitext(filename)
         counter = 1

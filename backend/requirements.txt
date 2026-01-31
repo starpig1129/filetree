@@ -6,3 +6,5 @@ pyyaml
 python-multipart
 aiofiles
 jinja2
+bcrypt
+bcrypt

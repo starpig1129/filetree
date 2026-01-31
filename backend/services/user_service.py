@@ -103,6 +103,24 @@ class UserService:
         users = await self._read_users()
         return [UserCreate(**u) for u in users]
 
+    async def update_user(self, username: str, update_data: dict) -> bool:
+        """Update specific fields for a user.
+
+        Args:
+            username: The user to update.
+            update_data: Dictionary of fields to update.
+
+        Returns:
+            True if successful, False if user not found.
+        """
+        users = await self._read_users()
+        for user in users:
+            if user['username'] == username:
+                user.update(update_data)
+                await self._write_users(users)
+                return True
+        return False
+
     async def update_user_profile(self, old_username: str, new_username: Optional[str] = None, is_locked: Optional[bool] = None) -> bool:
         """Advanced user update including renaming and folder sync.
 

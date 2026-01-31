@@ -144,7 +144,8 @@ class TusService:
             raise ValueError("Upload not found")
 
         filename = info['metadata'].get('filename', upload_id)
-        
+        # Security: Prevent path traversal
+        filename = os.path.basename(filename)
         # Ensure unique name in target folder
         name, ext = os.path.splitext(filename)
         counter = 1
