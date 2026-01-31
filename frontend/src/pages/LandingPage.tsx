@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link2, FileUp, Sparkles, Cpu, Orbit, Zap, Activity, ShieldCheck } from 'lucide-react';
+import { FileUp, Sparkles, Cpu, Orbit, Zap, Activity, ShieldCheck } from 'lucide-react';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { cn } from '../lib/utils';
 import { Starfield } from '../components/Starfield';
@@ -193,7 +193,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                           uploadType === 'url' ? "bg-white/10 text-quantum-cyan shadow-lg border border-white/10" : "text-white/20 hover:text-white/40"
                         )}
                       >
-                        <Link2 className="w-3.5 h-3.5" /> 網絡連結
+                        <Zap className="w-3.5 h-3.5" /> 加密筆記
                       </button>
                       <button 
                         onClick={() => setUploadType('file')}
@@ -218,13 +218,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                           >
                             <label className="text-[9px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-50">資料源</label>
                             {uploadType === 'url' ? (
-                               <input 
-                                 type="url" 
+                               <textarea 
                                  required
                                  value={formData.content}
                                  onChange={(e) => setFormData(p => ({ ...p, content: e.target.value }))}
-                                 placeholder="輸入網址..."
-                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium shadow-inner"
+                                 placeholder="輸入網址或任何想保存的文字資訊..."
+                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium shadow-inner min-h-[clamp(7rem,12vh,9rem)] resize-none"
                                />
                             ) : (
                                <div className="w-full rounded-xl overflow-hidden border border-white/10 bg-white/2">

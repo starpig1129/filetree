@@ -238,7 +238,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         </div>
         <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2 bg-white/5 rounded-full text-[clamp(0.45rem,0.7vw,0.6rem)] text-white/30 tracking-widest uppercase font-bold border border-white/5">
           <ShieldCheck className="w-3.5 h-3.5 text-quantum-cyan shrink-0" />
-          檔案將在 30 天後自動刪除。連結永久保留。
+          檔案 30 天後自動刪除，連結與筆記永久保留。
         </div>
       </motion.div>
 
@@ -415,7 +415,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           <div className="p-2 sm:p-2.5 bg-neural-violet/5 rounded-xl border border-neural-violet/10 shrink-0">
             <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-neural-violet" />
           </div>
-          連結
+          筆記 / 連結
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)]">
@@ -430,19 +430,37 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 className="glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-white/5 transition-all border-white/5 hover:border-neural-violet/20"
               >
                 <div className="flex-1 min-w-0 pr-4 space-y-0.5">
-                  <a 
-                    href={isLocked ? "#" : url.url} 
-                    target={isLocked ? "_self" : "_blank"} 
-                    rel="noopener noreferrer"
-                    onClick={(e) => isLocked && e.preventDefault()}
-                    className={cn(
-                        "block font-semibold truncate transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
-                        !isLocked && "text-neural-violet/70 hover:text-neural-violet",
-                        isLocked && "text-white/10 blur-sm cursor-not-allowed"
-                    )}
-                  >
-                    {url.url}
-                  </a>
+                  {(() => {
+                    const isActualUrl = url.url.startsWith('http://') || url.url.startsWith('https://') || url.url.startsWith('www.');
+                    const displayUrl = isActualUrl ? url.url : (url.url.length > 50 ? url.url.substring(0, 50) + '...' : url.url);
+                    
+                    return isActualUrl ? (
+                      <a 
+                        href={isLocked ? "#" : (url.url.startsWith('www.') ? `https://${url.url}` : url.url)} 
+                        target={isLocked ? "_self" : "_blank"} 
+                        rel="noopener noreferrer"
+                        onClick={(e) => isLocked && e.preventDefault()}
+                        className={cn(
+                            "block font-semibold truncate transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
+                            !isLocked && "text-neural-violet/70 hover:text-neural-violet",
+                            isLocked && "text-white/10 blur-sm cursor-not-allowed"
+                        )}
+                      >
+                        {displayUrl}
+                      </a>
+                    ) : (
+                      <div 
+                        className={cn(
+                          "block font-semibold truncate transition-all tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
+                          !isLocked && "text-white/60",
+                          isLocked && "text-white/5 blur-sm select-none"
+                        )}
+                        title={url.url}
+                      >
+                        {displayUrl}
+                      </div>
+                    );
+                  })()}
                   <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
                 </div>
                 <div className="flex gap-2">
@@ -456,22 +474,41 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   )}
                   {!isLocked && (
                     <>
-                      <button 
-                        onClick={() => setQrUrl(url.url)}
-                        aria-label={`顯示 ${url.url} 的 QR Code`}
-                        className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
-                      >
-                        <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
-                      </button>
-                      <a 
-                        href={url.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`開啟連結 ${url.url}`}
-                        className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 shadow-lg"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
-                      </a>
+                      {(() => {
+                        const isActualUrl = url.url.startsWith('http://') || url.url.startsWith('https://') || url.url.startsWith('www.');
+                        return (
+                          <>
+                            <button 
+                              onClick={() => setQrUrl(url.url)}
+                              aria-label={`顯示內容的 QR Code`}
+                              className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                            >
+                              <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                            </button>
+                            {isActualUrl && (
+                              <a 
+                                href={url.url.startsWith('www.') ? `https://${url.url}` : url.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`開啟連結 ${url.url}`}
+                                className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                              </a>
+                            )}
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(url.url);
+                                alert("內容已複製到剪貼簿！");
+                              }}
+                              aria-label="複製內容"
+                              className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                            >
+                              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                            </button>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                   {isLocked && <Lock className="w-4 h-4 text-neural-violet/20" />}
@@ -574,9 +611,9 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <p className="text-white font-bold tracking-tight truncate text-sm px-4">{qrUrl}</p>
-                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest">掃描以傳輸連結</p>
+              <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar px-4">
+                <p className="text-white font-bold tracking-tight wrap-break-word text-xs leading-relaxed">{qrUrl}</p>
+                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest pt-2">掃描以獲取內容</p>
               </div>
 
               <button 
