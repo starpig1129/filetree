@@ -189,6 +189,41 @@ class UserService:
                 return True
         return False
 
+    async def delete_user(self, username: str) -> bool:
+        """Delete a user and their associated data.
+
+        Args:
+            username: The username to delete.
+
+        Returns:
+            True if successful, False if not found.
+        """
+        users = await self._read_users()
+        user_to_delete = None
+        for i, u in enumerate(users):
+            if u['username'] == username:
+                user_to_delete = users.pop(i)
+                break
+        
+        if not user_to_delete:
+            return False
+
+        # Clean up storage folder if it matches conventions
+        folder = user_to_delete.get('folder')
+        if folder:
+            folder_path = settings.paths.upload_folder / folder
+            if folder_path.exists() and folder_path.is_dir():
+                import shutil
+                # Use a separate thread for blocking IO? 
+                # For simplicity in this scale, we'll do it directly or use aiofiles if possible.
+                # shutil.rmtree is blocking, so we wrap it.
+                import asyncio
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, shutil.rmtree, folder_path)
+
+        await self._write_users(users)
+        return True
+
 
 # Singleton instance
 user_service = UserService()

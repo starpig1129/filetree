@@ -130,6 +130,38 @@ async def admin_update_user(
     return {"message": "使用者資料更新成功", "status": "success"}
 
 
+@router.post("/admin/reset-default-password")
+async def admin_reset_default_password(
+    request: Request,
+    master_key: str = Form(...),
+    username: str = Form(...)
+):
+    """Admin endpoint to reset a user's password to match their username."""
+    admin_service.verify_request(request, master_key)
+    
+    success = await user_service.reset_password(username, username)
+    if not success:
+        raise HTTPException(status_code=404, detail="找不到該使用者。")
+    
+    return {"message": f"使用者 {username} 的密碼已重設為預設值。"}
+
+
+@router.post("/admin/delete-user")
+async def admin_delete_user(
+    request: Request,
+    master_key: str = Form(...),
+    username: str = Form(...)
+):
+    """Admin endpoint to delete a user and their data."""
+    admin_service.verify_request(request, master_key)
+    
+    success = await user_service.delete_user(username)
+    if not success:
+        raise HTTPException(status_code=404, detail="找不到該使用者。")
+    
+    return {"message": f"使用者 {username} 及其數據已完全移除。"}
+
+
 @router.post("/login", response_model=UserCreate)
 async def login(request: Request, password: str = Form(...)):
     """Verify password and return the associated user."""
@@ -141,6 +173,31 @@ async def login(request: Request, password: str = Form(...)):
     if not user:
         raise HTTPException(status_code=401, detail="密碼錯誤")
     return user
+
+
+@router.post("/user/change-password")
+async def change_password(
+    username: str = Form(...),
+    old_password: str = Form(...),
+    new_password: str = Form(...)
+):
+    """Allow a user to change their password."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    
+    # 1. Verify old password
+    if not verify_password(old_password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="舊密碼錯誤")
+    
+    # 2. Update to new password and clear first_login
+    success = await user_service.reset_password(username, new_password)
+    if success:
+        # Also ensure first_login is false
+        await user_service.update_user(username, {"first_login": False})
+        return {"message": "密碼更新成功", "status": "success"}
+    
+    raise HTTPException(status_code=500, detail="密碼更新失敗")
 
 
 @router.get("/files/{username}", response_model=List[FileInfo])
@@ -171,7 +228,8 @@ async def upload_files(
     return {
         "message": "檔案上傳成功",
         "uploaded_files": uploaded,
-        "redirect": f"/{user.username}"
+        "redirect": f"/{user.username}",
+        "first_login": user.first_login
     }
 
 
@@ -303,7 +361,11 @@ async def upload_url(
     # Store as dicts back to JSON
     await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
     
-    return {"message": "連結建立成功", "redirect": f"/{user.username}"}
+    return {
+        "message": "連結建立成功", 
+        "redirect": f"/{user.username}",
+        "first_login": user.first_login
+    }
 
 
 @router.delete("/files/{username}/{filename}")
@@ -517,7 +579,11 @@ async def get_user_dashboard(
             response_urls = [u for u in user.urls if not getattr(u, 'is_locked', False)]
     
     return {
-        "user": {"username": user.username, "is_locked": is_locked_account},
+        "user": {
+            "username": user.username, 
+            "is_locked": is_locked_account,
+            "first_login": user.first_login
+        },
         "usage": usage_mb,
         "files": response_files,
         "urls": response_urls,

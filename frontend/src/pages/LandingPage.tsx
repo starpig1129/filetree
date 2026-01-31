@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link2, FileUp, Sparkles, Cpu, Orbit, Zap, Activity, ShieldCheck } from 'lucide-react';
+import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { cn } from '../lib/utils';
 import { Starfield } from '../components/Starfield';
 import Uppy from '@uppy/core';
@@ -22,6 +23,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   const [uploadType, setUploadType] = useState<'url' | 'file'>('url');
   const [formData, setFormData] = useState({ content: '', password: '' });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{username: string, oldPwd: string} | null>(null);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   // Initialize Uppy
   const [uppy] = useState(() => new Uppy({
@@ -45,20 +48,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
   // Handle success
   React.useEffect(() => {
-    uppy.on('complete', (result) => {
+    uppy.on('complete', async (result) => {
       if (result.successful && result.successful.length > 0) {
-        // Redirect to user page if at least one upload finished
-        // We assume the password is valid if backend finalized it
-        window.location.href = `/${formData.content || (data.users?.[0]?.username || 'admin')}`; 
-        // Note: The logic above is a bit flawed for redirect, 
-        // but for now we'll just reload or go to the first user.
-        // Better: Backend returns redirect info or we just let user click.
-        // Let's just alert and reload for now.
-        alert('上傳成功！');
-        window.location.reload();
+        // TUS doesn't return user info easily in 'complete', 
+        // so we do a quick check via login or we can assume based on local data
+        // For simplicity and correctness, let's verify if first_login is needed
+        try {
+          const body = new FormData();
+          body.append('password', formData.password);
+          const res = await fetch('/api/login', { method: 'POST', body });
+          if (res.ok) {
+            const user = await res.json();
+            if (user.first_login) {
+                setFirstLoginUserInfo({ username: user.username, oldPwd: formData.password });
+                setRedirectPath(`/${user.username}`);
+                return;
+            }
+            window.location.href = `/${user.username}`;
+          }
+        } catch (err) {
+          console.error(err);
+          alert('上傳成功！');
+          window.location.reload();
+        }
       }
     });
-  }, [uppy, data.users, formData.content]);
+  }, [uppy, data.users, formData.content, formData.password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,8 +90,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           body
         });
         const result = await res.json();
-        if (res.ok) window.location.href = result.redirect;
-        else alert(result.detail || '初始化失敗');
+        if (res.ok) {
+            if (result.first_login) {
+                // Extract username from redirect path e.g. /starpig
+                const username = result.redirect.split('/').pop() || "";
+                setFirstLoginUserInfo({ username, oldPwd: formData.password });
+                setRedirectPath(result.redirect);
+            } else {
+                window.location.href = result.redirect;
+            }
+        } else {
+            alert(result.detail || '初始化失敗');
+        }
       } else if (uploadType === 'file') {
         if (uppy.getFiles().length === 0) {
           alert('請先選擇檔案');
@@ -300,6 +325,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
         </div>
       </div>
+      <SecurityInitializationModal 
+        isOpen={!!firstLoginUserInfo}
+        username={firstLoginUserInfo?.username || ""}
+        oldPassword={firstLoginUserInfo?.oldPwd || ""}
+        onSuccess={() => {
+            alert("安全性初始化完成，正在跳轉至專屬區域。");
+            window.location.href = redirectPath || "/";
+        }}
+      />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { 
   File, FileText, Image as ImageIcon, Music, Video, 
   ExternalLink, Download, Share2, Trash2, Eye,
@@ -29,7 +30,7 @@ interface UrlItem {
 
 interface UserPageProps {
   data: {
-    user?: { username: string };
+    user?: { username: string; is_locked?: boolean; first_login?: boolean };
     usage?: number;
     files?: FileItem[];
     urls?: UrlItem[];
@@ -63,11 +64,19 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{name: string, size: string, url: string} | null>(null);
+  const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
 
   // Sync props to local state if they change (e.g. navigation)
   React.useEffect(() => {
     setDashboardData(data);
   }, [data]);
+
+  // Mandatory password change detection
+  React.useEffect(() => {
+    if (isAuthenticated && dashboardData.user?.first_login) {
+      setShowForcedPasswordChange(true);
+    }
+  }, [isAuthenticated, dashboardData.user?.first_login]);
 
   const refreshDashboard = async (authToken: string) => {
     try {
@@ -111,6 +120,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       console.error(err);
     }
   };
+
 
   const toggleItemLock = async (type: 'file' | 'url', itemId: string, currentStatus: boolean) => {
     if (!isAuthenticated) {
@@ -579,6 +589,18 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           </div>
         )}
       </AnimatePresence>
+
+      <SecurityInitializationModal 
+        isOpen={showForcedPasswordChange}
+        username={dashboardData.user?.username || ""}
+        oldPassword={password}
+        onSuccess={async (newKey) => {
+            alert("密碼更新成功！系統已進入高度安全模式。");
+            setPassword(newKey);
+            setShowForcedPasswordChange(false);
+            await refreshDashboard(token || "");
+        }}
+      />
 
       {/* File Preview Modal */}
       <FilePreviewModal 

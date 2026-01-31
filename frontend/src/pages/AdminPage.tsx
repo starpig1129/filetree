@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Terminal, Activity, UserPlus, ChevronLeft, ShieldCheck, KeyRound, Save, X, Edit3 } from 'lucide-react';
+import { ShieldAlert, Terminal, Activity, UserPlus, ChevronLeft, ShieldCheck, KeyRound, Save, X, Edit3, Trash2 } from 'lucide-react';
 import { Starfield } from '../components/Starfield';
 import { cn } from '../lib/utils';
 
@@ -144,6 +144,62 @@ export const AdminPage: React.FC = () => {
       }
     } catch (err) {
       setStatus({ type: 'error', msg: '系統錯誤：密鑰流寫入中斷。' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleResetToDefault = async (username: string) => {
+    if (!confirm(`確定要將 ${username} 的密碼重設為與帳號名稱相同嗎？`)) return;
+    
+    setIsSyncing(true);
+    try {
+      const body = new FormData();
+      body.append('master_key', masterKey);
+      body.append('username', username);
+
+      const res = await fetch('/api/admin/reset-default-password', {
+        method: 'POST',
+        body
+      });
+      
+      if (res.ok) {
+        setStatus({ type: 'success', msg: `節點 ${username} 已重置為預設密鑰。` });
+        fetchUsers();
+      } else {
+        const err = await res.json();
+        setStatus({ type: 'error', msg: err.detail || '重置失敗。' });
+      }
+    } catch (err) {
+      setStatus({ type: 'error', msg: '系統錯誤。' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDeleteUser = async (username: string) => {
+    if (!confirm(`警告：確定要刪除節點 ${username} 及其所有數據嗎？此操作不可逆！`)) return;
+    
+    setIsSyncing(true);
+    try {
+      const body = new FormData();
+      body.append('master_key', masterKey);
+      body.append('username', username);
+
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST', // Backend uses POST for this as per my implementation above
+        body
+      });
+      
+      if (res.ok) {
+        setStatus({ type: 'success', msg: `節點 ${username} 已從網格中完全抹除。` });
+        fetchUsers();
+      } else {
+        const err = await res.json();
+        setStatus({ type: 'error', msg: err.detail || '刪除失敗。' });
+      }
+    } catch (err) {
+      setStatus({ type: 'error', msg: '系統錯誤。' });
     } finally {
       setIsSyncing(false);
     }
@@ -371,11 +427,26 @@ export const AdminPage: React.FC = () => {
                                   <span>改名</span>
                                 </button>
                                 <button 
+                                  onClick={() => handleResetToDefault(user.username)}
+                                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-quantum-cyan hover:text-quantum-cyan hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
+                                  title="重設為預設密碼"
+                                >
+                                  <Activity className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                  <span>重置</span>
+                                </button>
+                                <button 
                                   onClick={() => { setResettingPwdUser(user.username); setNewPwd(''); }}
                                   className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-neural-violet hover:text-neural-violet hover:bg-neural-violet/5 transition-all flex items-center gap-2 group/btn"
                                 >
                                   <KeyRound className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
                                   <span>改密</span>
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteUser(user.username)}
+                                  className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all flex items-center gap-2 group/btn"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                  <span>刪除</span>
                                 </button>
                               </>
                             )}
