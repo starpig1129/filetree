@@ -29,49 +29,72 @@ FileNexus 是一個專為追求極致效能與視覺體驗而打造的現代化�
 - Python 3.10+ 與 Node.js 20+ 環境。
 
 #### 2. 安裝 Cloudflared
-請直接使用專案附帶的安裝包 (如適用) 或透過官方源安裝：
 
+**Linux (Ubuntu/Debian)**
 ```bash
-# 透過官方儲存庫安裝 (推薦)
+# 透過官方儲存庫安裝
 curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
 sudo dpkg -i cloudflared.deb
+```
 
+**Windows**
+1. 下載官方執行檔：[cloudflared-windows-amd64.exe](https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe)
+2. 將檔案重新命名為 `cloudflared.exe` 並放置於慣用路徑 (例如 `C:\Cloudflared\`)。
+3. 以**系統管理員身分**開啟 PowerShell 執行後續指令。
+
+```powershell
 # 驗證安裝
-cloudflared version
+.\cloudflared.exe version
 ```
 
 #### 3. 建立安全隧道 (Secure Tunnel)
 登入您的 Cloudflare 帳號並授權伺服器：
 
 ```bash
+# Linux/Mac
 cloudflared tunnel login
-# 系統將提供一個 URL，請在瀏覽器中開啟並選擇您的網域以完成授權
+
+# Windows (PowerShell)
+.\cloudflared.exe tunnel login
 ```
+系統將提供一個 URL，請在瀏覽器中開啟並選擇您的網域以完成授權。
 
 建立一條名為 `filenexus` 的專屬隧道：
 
 ```bash
+# Linux
 cloudflared tunnel create filenexus
-# 記下回傳的 Tunnel ID (例如: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+
+# Windows
+.\cloudflared.exe tunnel create filenexus
 ```
+記下回傳的 Tunnel ID (例如: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)。
 
 #### 4. 配置 DNS 路由
 將您的子網域 (例如 `files.your-domain.com`) 指向此隧道：
 
 ```bash
+# Linux
 cloudflared tunnel route dns filenexus files.your-domain.com
+
+# Windows
+.\cloudflared.exe tunnel route dns filenexus files.your-domain.com
 ```
 
 #### 5. 啟動服務與反向代理
-FileNexus 預設運行於本地 `5168` 埠。請直接執行以下指令將流量導入隧道：
+FileNexus 預設運行於本地 `5168` 埠。
 
 ```bash
-# 啟動 Cloudflare Tunnel (指向本機後端服務)
+# Linux
 cloudflared tunnel run --url http://localhost:5168 filenexus
+
+# Windows
+.\cloudflared.exe tunnel run --url http://localhost:5168 filenexus
 ```
 
-> **💡 專業建議**：在生產環境中，建議將 cloudflared 安裝為 Systemd 服務以確保開機自動啟動：
-> `sudo cloudflared service install`
+> **💡 專業建議**：在生產環境中，建議將 cloudflared 安裝為系統服務 (Systemd/Windows Service) 以確保開機自動啟動：
+> - Linux: `sudo cloudflared service install`
+> - Windows: `.\cloudflared.exe service install`
 
 ---
 
@@ -86,8 +109,11 @@ cloudflared tunnel run --url http://localhost:5168 filenexus
     cd backend
     pip install -r requirements.txt
     
-    # 啟動 API 伺服器 (預設運行於 0.0.0.0:5168)
+    # Linux / macOS
     PYTHONPATH=. python3 backend/app.py
+    
+    # Windows (PowerShell)
+    $env:PYTHONPATH="."; python backend/app.py
     ```
 
 2.  **前端 (Frontend)**
