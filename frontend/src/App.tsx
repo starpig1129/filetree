@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useParams, useLocation } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { UserPage } from './pages/UserPage';
 import { AdminPage } from './pages/AdminPage';
 import { Starfield } from './components/Starfield';
+import { Sidebar } from './components/Sidebar';
+import { PublicDirectory } from './components/PublicDirectory';
 
 interface UserData {
   users?: Array<{ username: string; folder: string }>;
@@ -22,71 +25,143 @@ interface UserData {
   error?: string;
 }
 
-const App: React.FC = () => {
-  const [data, setData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const currentPath = window.location.pathname;
+// Main content wrapper that handles data fetching based on route
+const MainContent: React.FC<{
+  users: Array<{ username: string; folder: string }>;
+  loading: boolean;
+}> = ({ users, loading }) => {
+  const { username } = useParams<{ username: string }>();
+  const location = useLocation();
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [userLoading, setUserLoading] = useState(false);
 
-  // Simple SPA routing
-  const isAdminPath = currentPath === '/admin';
-  const username = (currentPath === '/' || isAdminPath) ? null : currentPath.split('/')[1];
-
+  // Fetch user data when username changes
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        if (!username) {
-          const res = await fetch('/api/init');
-          const users = await res.json();
-          setData({ users });
-        } else {
-          const res = await fetch(`/api/user/${username}`);
-          if (res.ok) {
-            const userData = await res.json();
-            setData(userData);
-          } else {
-            setData({ error: '目錄不存在' });
-          }
-        }
-      } catch (err) {
-        console.error('Fetch error:', err);
-        setData({ error: '連線中斷' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    if (username) {
+      setUserLoading(true);
+      fetch(`/api/user/${username}`)
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error('User not found');
+        })
+        .then((data) => setUserData(data))
+        .catch(() => setUserData({ error: '目錄不存在' }))
+        .finally(() => setUserLoading(false));
+    }
   }, [username]);
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-space-black relative">
-        <Starfield />
-        <div className="relative z-10 text-quantum-cyan animate-pulse tracking-[0.4em] font-bold text-xs uppercase">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-quantum-cyan animate-pulse tracking-[0.4em] font-bold text-xs uppercase">
           正在載入系統...
         </div>
       </div>
     );
   }
 
+  // Home page - show upload center
+  if (location.pathname === '/') {
+    return <LandingPage data={{ users }} />;
+  }
+
+  // User page
+  if (username) {
+    return (
+      <UserPage 
+        data={userData || { user: { username }, usage: 0, files: [], urls: [] }} 
+      />
+    );
+  }
+
+  return null;
+};
+
+// Admin route wrapper
+const AdminRoute: React.FC = () => {
+  return <AdminPage />;
+};
+
+// Layout wrapper for main SPA layout (excludes admin)
+const MainLayout: React.FC<{
+  users: Array<{ username: string; folder: string }>;
+  loading: boolean;
+}> = ({ users, loading }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+
+  // Close mobile drawers on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(false);
+        setDirectoryOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <div className="min-h-screen relative text-white/90 selection:bg-quantum-cyan/30 bg-space-black">
-      <Starfield />
-      <main className="container mx-auto px-4 py-8 relative z-10">
-        {isAdminPath ? (
-          <AdminPage />
-        ) : !username ? (
-          <LandingPage data={data || { users: [] }} />
-        ) : (
-          <UserPage data={data || { user: { username: '' }, usage: 0, files: [], urls: [] }} />
-        )}
+    <div className="min-h-screen flex relative">
+      {/* Left Sidebar - Navigation */}
+      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+
+      {/* Center Content */}
+      <main className="flex-1 min-w-0 p-4 lg:p-6 xl:p-8 overflow-y-auto">
+        <MainContent users={users} loading={loading} />
       </main>
-      
-      <footer className="text-center py-12 text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
-        FileNexus - Secure File Bridge Hub
-      </footer>
+
+      {/* Right Sidebar - Public Directory */}
+      <PublicDirectory 
+        users={users} 
+        isOpen={directoryOpen} 
+        onToggle={() => setDirectoryOpen(!directoryOpen)} 
+      />
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  const [users, setUsers] = useState<Array<{ username: string; folder: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch initial user list
+  useEffect(() => {
+    fetch('/api/init')
+      .then((res) => res.json())
+      .then((data) => setUsers(data))
+      .catch((err) => console.error('Fetch error:', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <div className="min-h-screen relative text-white/90 selection:bg-quantum-cyan/30 bg-space-black">
+        <Starfield />
+        
+        <Routes>
+          {/* Admin page has its own layout */}
+          <Route path="/admin" element={
+            <main className="container mx-auto px-4 py-8 relative z-10">
+              <AdminRoute />
+            </main>
+          } />
+          
+          {/* All other routes use the main SPA layout */}
+          <Route path="/:username" element={
+            <MainLayout users={users} loading={loading} />
+          } />
+          <Route path="/" element={
+            <MainLayout users={users} loading={loading} />
+          } />
+        </Routes>
+
+        <footer className="text-center py-6 lg:py-12 text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
+          FileNexus - Secure File Bridge Hub
+        </footer>
+      </div>
+    </BrowserRouter>
   );
 };
 

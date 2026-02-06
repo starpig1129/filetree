@@ -4,12 +4,11 @@ import { SecurityInitializationModal } from '../components/SecurityInitializatio
 import { 
   File, FileText, Image as ImageIcon, Music, Video, 
   ExternalLink, Download, Share2, Trash2, Eye,
-  ChevronLeft,  Lock, Unlock, CheckSquare, Square,
+  Lock, Unlock, CheckSquare, Square,
   Cpu, Zap, Activity, ShieldCheck, Orbit, QrCode, X
 } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { cn } from '../lib/utils';
-import { Starfield } from '../components/Starfield';
 import { FilePreviewModal } from '../components/FilePreviewModal';
 
 interface FileItem {
@@ -258,20 +257,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   };
 
   return (
-    <div className="relative min-h-screen p-[clamp(1rem,3vw,2rem)] md:p-[clamp(1.5rem,4vw,3.5rem)] space-y-[clamp(1.5rem,4vh,4rem)] overflow-hidden">
-      <Starfield />
+    <div className="relative min-h-[calc(100vh-8rem)] space-y-[clamp(1.5rem,4vh,4rem)] overflow-hidden">
       
-      {/* Background Ambient Elements - Deep compression */}
+      {/* Background Ambient Elements */}
       <div className="absolute top-1/4 -right-20 w-[70vw] h-[50vh] max-w-240 max-h-180 bg-quantum-cyan/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" />
       <div className="absolute bottom-1/4 -left-20 w-[60vw] h-[50vh] max-w-240 max-h-180 bg-neural-violet/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" style={{ animationDelay: '1s' }} />
 
-      {/* Header Bar - More compact for 1080p */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
-        <a href="/" className="group flex items-center gap-2 text-white/40 hover:text-quantum-cyan transition-colors cursor-pointer text-[clamp(0.6rem,0.9vw,0.8rem)] font-bold tracking-widest uppercase">
-          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
-          返回首頁
-        </a>
-        
+      {/* Header Bar */}
+      <div className="flex items-center justify-end gap-4 relative z-10">
         <div className="flex items-center gap-3">
           <div className="px-4 sm:px-5 py-2 glass-card flex items-center gap-2 sm:gap-3 text-[clamp(0.5rem,0.75vw,0.7rem)] tracking-widest uppercase font-black text-stellar-white/60 shadow-lg">
             <Activity className="w-4 h-4 text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
