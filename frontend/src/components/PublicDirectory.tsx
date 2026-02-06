@@ -84,8 +84,8 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-200 dark:border-white/5">
-          <h3 className="text-xs font-black text-gray-700 dark:text-white/40 uppercase tracking-[0.3em]">公開目錄</h3>
-          <div className="px-2 py-0.5 bg-cyan-50 dark:bg-quantum-cyan/10 rounded-full border border-cyan-200 dark:border-quantum-cyan/20 text-[10px] font-black text-cyan-700 dark:text-quantum-cyan tracking-widest shrink-0">
+          <h3 className="text-sm font-black text-gray-700 dark:text-white/40 uppercase tracking-[0.3em]">公開目錄</h3>
+          <div className="px-2 py-0.5 bg-cyan-50 dark:bg-quantum-cyan/10 rounded-full border border-cyan-200 dark:border-quantum-cyan/20 text-xs font-black text-cyan-700 dark:text-quantum-cyan tracking-widest shrink-0">
             {users.length} ACTIVE
           </div>
         </div>
@@ -116,12 +116,12 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                       )} />
                       <div className="flex flex-col overflow-hidden">
                         <span className={cn(
-                          "text-sm font-bold tracking-tight truncate transition-colors",
+                          "text-base font-bold tracking-tight truncate transition-colors",
                           isSelected ? "text-cyan-700 dark:text-quantum-cyan" : "text-gray-700 dark:text-white/60 group-hover/item:text-gray-900 dark:group-hover/item:text-white"
                         )}>
                           {user.username}
                         </span>
-                        <span className="text-[10px] text-gray-400 dark:text-white/20 uppercase tracking-widest">
+                        <span className="text-xs text-gray-400 dark:text-white/20 uppercase tracking-widest">
                           Index {idx.toString().padStart(3, '0')}
                         </span>
                       </div>

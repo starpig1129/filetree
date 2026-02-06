@@ -76,7 +76,7 @@
     background-color: var(--color-light-bg);
     background-image: none;
     &::before {
-      @apply opacity-5;
+      display: none;
     }
   }
 
@@ -96,7 +96,7 @@
   }
 
   [data-theme="light"] .glass-card {
-    @apply bg-white/90 border-gray-200 shadow-lg;
+    @apply bg-white/95 border-gray-200 shadow-md shadow-gray-200/50;
   }
 
   .btn-stellar {
@@ -175,6 +175,9 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-white/10 rounded-full hover:bg-quantum-cyan/30 transition-colors;
+  }
+  [data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 hover:bg-gray-400;
   }
 }
 
