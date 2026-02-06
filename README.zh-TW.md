@@ -1,65 +1,132 @@
-# FileNexus - 高性能檔案管理系統
+# FileNexus - 企業級高效能檔案管理系統
 
-FileNexus 是一個基於 FastAPI 和 React/Vite 構建的高性能檔案管理系統。本專案採用現代化的 Single Page Application (SPA) 架構，提供極致的視覺體驗與流暢的操作。
+![Status](https://img.shields.io/badge/Status-Production-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
+![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB)
 
-## 🚀 快速啟動
+FileNexus 是一個專為追求極致效能與視覺體驗而打造的現代化檔案管理系統。我們結合了高效的 FastAPI 後端與流暢的 React SPA 前端，提供安全、穩定且優雅的私有雲解決方案。
 
-### 1. 環境需求
-- **Python**: 3.10+
-- **Node.js**: 20+ (推薦)
-- **NPM**: 10+
+## ✨ 核心特色
 
-### 2. 後端設定 (FastAPI)
-後端負責 API 邏輯、身份驗證與檔案處理。
+- **🔒 企業級安全防護**：原生支援 Cloudflare Tunnel (反向代理) 部署，無需暴露真實 IP，自動享用 DDoS 防護。
+- **🚀 極速傳輸架構**：基於 TUS 協議的斷點續傳技術，支援 GB 級大檔案穩定上傳。
+- **💎 沉浸式視覺體驗**：精心設計的深色主題介面 (Dark Mode)，搭配流暢的互動動畫。
+- **🛡️ 嚴格權限控管**：完整的用戶身份驗證 (JWT) 與角色權限管理系統 (RBAC)。
+- **📂 智能檔案管理**：支援多層級目錄、即時預覽、拖曳上傳與批量操作。
 
-```bash
-# 進入後端目錄 (如有需要)
-cd backend
+---
 
-# 安裝依賴
-pip install -r requirements.txt
+## 🌩️ 產品級部署指南 (Cloudflare Tunnel)
 
-# 啟動後端服務 (預設埠號 5168)
-PYTHONPATH=. python3 backend/app.py
-```
+為了確保生產環境的安全性與連線品質，**我們強烈建議使用 Cloudflare Tunnel 進行部署**。此架構無需在路由器開啟任何埠口 (Port Forwarding)，即可讓外部安全存取您的 FileNexus 實例。
 
-### 3. 前端設定 (Vite + React)
-前端提供基於 FileNexus 主題的簡潔現代化視覺介面。
+### 即刻啟動 (Quick Start)
 
-```bash
-# 進入前端目錄
-cd frontend
+#### 1. 準備工作
+- 一個由 Cloudflare 代管的網域 (例如 `your-domain.com`)。
+- 一台運行 Linux (Ubuntu/Debian 推薦) 的伺服器。
+- Python 3.10+ 與 Node.js 20+ 環境。
 
-# 安裝依賴
-npm install
-
-# 啟動開發伺服器
-npm run dev
-```
-
-## 🛠️ 管理員指令 (CLI)
-
-系統內建開發者工具 `backend/cli.py` 用於管理使用者：
+#### 2. 安裝 Cloudflared
+請直接使用專案附帶的安裝包 (如適用) 或透過官方源安裝：
 
 ```bash
-# 創建使用者
-PYTHONPATH=. python3 backend/cli.py createuser --name admin --password yourpassword
+# 透過官方儲存庫安裝 (推薦)
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
 
-# 列出所有使用者
-PYTHONPATH=. python3 backend/cli.py listusers
+# 驗證安裝
+cloudflared version
 ```
 
-## 📂 系統架構
+#### 3. 建立安全隧道 (Secure Tunnel)
+登入您的 Cloudflare 帳號並授權伺服器：
 
-- `/backend`: FastAPI 伺服器、路由與服務。
-- `/frontend`: React SPA 前端，使用 TailwindCSS 與 Framer Motion。
-- `/static`: 前端編譯後的靜態檔案。
-- `/data`: 使用者上傳的檔案與資料庫 (JSON 檔案)。
-- `/docs`: 詳細的系統說明文件。
+```bash
+cloudflared tunnel login
+# 系統將提供一個 URL，請在瀏覽器中開啟並選擇您的網域以完成授權
+```
 
-## 📖 更多說明
+建立一條名為 `filenexus` 的專屬隧道：
 
-請參考 `docs/` 資料夾下的詳細說明：
-- [系統架構設計](docs/ARCHITECTURE.md)
-- [後端開發說明](docs/BACKEND.md)
-- [前端介面說明](docs/FRONTEND.md)
+```bash
+cloudflared tunnel create filenexus
+# 記下回傳的 Tunnel ID (例如: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+```
+
+#### 4. 配置 DNS 路由
+將您的子網域 (例如 `files.your-domain.com`) 指向此隧道：
+
+```bash
+cloudflared tunnel route dns filenexus files.your-domain.com
+```
+
+#### 5. 啟動服務與反向代理
+FileNexus 預設運行於本地 `5168` 埠。請直接執行以下指令將流量導入隧道：
+
+```bash
+# 啟動 Cloudflare Tunnel (指向本機後端服務)
+cloudflared tunnel run --url http://localhost:5168 filenexus
+```
+
+> **💡 專業建議**：在生產環境中，建議將 cloudflared 安裝為 Systemd 服務以確保開機自動啟動：
+> `sudo cloudflared service install`
+
+---
+
+## 🛠️ 開發者部署 (Localhost)
+
+僅供開發測試或區域網路內使用。
+
+### 環境設置
+
+1.  **後端 (Backend)**
+    ```bash
+    cd backend
+    pip install -r requirements.txt
+    
+    # 啟動 API 伺服器 (預設運行於 0.0.0.0:5168)
+    PYTHONPATH=. python3 backend/app.py
+    ```
+
+2.  **前端 (Frontend)**
+    ```bash
+    cd frontend
+    npm install
+    
+    # 啟動開發伺服器
+    npm run dev
+    ```
+
+---
+
+## ⚙️ 系統管理 (CLI)
+
+FileNexus 內建強大的命令列工具，方便管理員進行維運操作。
+
+### 用戶管理
+
+```bash
+# 創建新的管理員帳號
+PF=backend PYTHONPATH=. python3 backend/cli.py createuser --name admin --password "StrongPassword123!"
+
+# 列出所有系統用戶
+PF=backend PYTHONPATH=. python3 backend/cli.py listusers
+
+# 重設用戶密碼
+PF=backend PYTHONPATH=. python3 backend/cli.py resetpassword --name admin --new-password "NewPassword456!"
+```
+
+---
+
+## 🏗️ 系統架構
+
+- **Backend**: FastAPI (Python), Uvicorn, SQLite/JSON (Metadata), TUS Protocol.
+- **Frontend**: React 18, Vite, TypeScript, TailwindCSS, Framer Motion.
+- **Security**: OAuth2 with Password (Bearer JWT), BCrypt hashing.
+
+## 📄 版權與授權
+
+© 2024-2026 FileNexus Team. All Rights Reserved.
+本專案採用 MIT 授權條款，詳情請參閱 [LICENSE](LICENSE) 文件。
