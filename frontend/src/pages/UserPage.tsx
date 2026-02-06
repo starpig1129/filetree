@@ -266,16 +266,16 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       {/* Header Bar */}
       <div className="flex items-center justify-end gap-4 relative z-10">
         <div className="flex items-center gap-3">
-          <div className="px-4 sm:px-5 py-2 glass-card flex items-center gap-2 sm:gap-3 text-[clamp(0.5rem,0.75vw,0.7rem)] tracking-widest uppercase font-black text-stellar-white/60 shadow-lg">
-            <Activity className="w-4 h-4 text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
+          <div className="px-4 sm:px-5 py-2 glass-card flex items-center gap-2 sm:gap-3 text-[clamp(0.5rem,0.75vw,0.7rem)] tracking-widest uppercase font-black text-gray-500 dark:text-stellar-white/60 shadow-lg">
+            <Activity className="w-4 h-4 text-cyan-600 dark:text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
             已使用空間：{dashboardData.usage} MB
           </div>
           <button 
             onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
             aria-label={isAuthenticated ? "鎖定目錄" : "解鎖目錄"}
             className={cn(
-                "p-2 sm:p-2.5 glass-card transition-all cursor-pointer border-white/5 focus-ring shadow-lg",
-                isAuthenticated ? "text-quantum-cyan hover:bg-quantum-cyan/10" : "text-neural-violet hover:bg-neural-violet/10"
+                "p-2 sm:p-2.5 glass-card transition-all cursor-pointer border-gray-200 dark:border-white/5 focus-ring shadow-lg",
+                isAuthenticated ? "text-cyan-600 dark:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10" : "text-violet-500 dark:text-neural-violet hover:bg-violet-50 dark:hover:bg-neural-violet/10"
             )}
           >
             {isAuthenticated ? <Unlock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" /> : <Lock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />}
@@ -289,17 +289,17 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         animate={{ opacity: 1, y: 0 }}
         className="glass-card p-[clamp(1.5rem,4vw,3rem)] text-center relative overflow-hidden group z-10"
       >
-        <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-quantum-cyan to-transparent opacity-50" />
+        <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-cyan-500 dark:via-quantum-cyan to-transparent opacity-50" />
         <div className="flex flex-col md:flex-row items-center justify-center gap-[clamp(0.5rem,1.5vw,1.25rem)] mb-[clamp(0.75rem,1.5vh,1.5rem)]">
-          <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20 hidden md:block" />
-          <h1 className="text-[clamp(1.5rem,4.5vw,3.5rem)] font-bold tracking-tight text-white/90 leading-tight">
-            {dashboardData.user?.username} <span className="text-quantum-cyan/80">個人目錄</span>
+          <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-cyan-500 dark:text-quantum-cyan animate-spin-slow opacity-20 hidden md:block" />
+          <h1 className="text-[clamp(1.5rem,4.5vw,3.5rem)] font-bold tracking-tight text-gray-900 dark:text-white/90 leading-tight">
+            {dashboardData.user?.username} <span className="text-cyan-600 dark:text-quantum-cyan/80">個人目錄</span>
             <span className="text-[10px] opacity-10 ml-2 font-mono">v2.1.5-build</span>
           </h1>
-          <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-quantum-cyan animate-spin-slow opacity-20" />
+          <Orbit className="w-[clamp(1.25rem,3vw,2.25rem)] h-[clamp(1.25rem,3vw,2.25rem)] text-cyan-500 dark:text-quantum-cyan animate-spin-slow opacity-20" />
         </div>
-        <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2 bg-white/5 rounded-full text-[clamp(0.45rem,0.7vw,0.6rem)] text-white/30 tracking-widest uppercase font-bold border border-white/5">
-          <ShieldCheck className="w-3.5 h-3.5 text-quantum-cyan shrink-0" />
+        <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2 bg-gray-100 dark:bg-white/5 rounded-full text-[clamp(0.45rem,0.7vw,0.6rem)] text-gray-500 dark:text-white/30 tracking-widest uppercase font-bold border border-gray-200 dark:border-white/5">
+          <ShieldCheck className="w-3.5 h-3.5 text-cyan-600 dark:text-quantum-cyan shrink-0" />
           檔案 30 天後自動刪除，連結與筆記永久保留。
         </div>
       </motion.div>
@@ -307,9 +307,9 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       {/* Files Section - Compact grid gap */}
       <section className="space-y-[clamp(1rem,1.5vh,1.5rem)] relative z-10">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-[clamp(1.1rem,1.8vw,1.6rem)] font-bold flex items-center gap-3 text-stellar-white/80 tracking-tight">
-            <div className="p-2 sm:p-2.5 bg-quantum-cyan/5 rounded-xl border border-quantum-cyan/10 shrink-0">
-              <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-quantum-cyan" />
+          <h2 className="text-[clamp(1.1rem,1.8vw,1.6rem)] font-bold flex items-center gap-3 text-gray-800 dark:text-stellar-white/80 tracking-tight">
+            <div className="p-2 sm:p-2.5 bg-cyan-50 dark:bg-quantum-cyan/5 rounded-xl border border-cyan-100 dark:border-quantum-cyan/10 shrink-0">
+              <Cpu className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-600 dark:text-quantum-cyan" />
             </div>
             檔案列表
           </h2>
@@ -317,12 +317,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
              <motion.div 
                initial={{ opacity: 0, scale: 0.9, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
-               className="flex items-center gap-2 shrink-0 bg-white/5 p-1 rounded-xl border border-white/10"
+               className="flex items-center gap-2 shrink-0 bg-white dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm"
              >
                <button 
                  onClick={() => handleBatchAction('lock')}
                  disabled={isBatchSyncing}
-                 className="p-2 hover:bg-neural-violet/20 text-neural-violet cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                 className="p-2 hover:bg-violet-50 dark:hover:bg-neural-violet/20 text-violet-500 dark:text-neural-violet cursor-pointer transition-colors rounded-lg flex items-center gap-2"
                  title="批次鎖定"
                >
                  <Lock className="w-4 h-4" />
@@ -330,16 +330,16 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                <button 
                  onClick={() => handleBatchAction('unlock')}
                  disabled={isBatchSyncing}
-                 className="p-2 hover:bg-quantum-cyan/20 text-quantum-cyan cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                 className="p-2 hover:bg-cyan-50 dark:hover:bg-quantum-cyan/20 text-cyan-600 dark:text-quantum-cyan cursor-pointer transition-colors rounded-lg flex items-center gap-2"
                  title="批次解鎖"
                >
                  <Unlock className="w-4 h-4" />
                </button>
-               <div className="w-px h-6 bg-white/10 mx-1" />
+               <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1" />
                <button 
                  onClick={() => handleBatchAction('delete')}
                  disabled={isBatchSyncing}
-                 className="p-2 hover:bg-red-500/20 text-red-400 cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                 className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer transition-colors rounded-lg flex items-center gap-2"
                  title="批次刪除"
                >
                  <Trash2 className="w-4 h-4" />
@@ -362,8 +362,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "glass-card p-[clamp(1rem,1.5vw,1.25rem)] group cursor-pointer border-white/5 transition-all hover:bg-white/5 hover:border-quantum-cyan/20",
-                    isSelected && "border-quantum-cyan/50 bg-quantum-cyan/5",
+                    "glass-card p-[clamp(1rem,1.5vw,1.25rem)] group cursor-pointer border-gray-200 dark:border-white/5 transition-all hover:bg-gray-50 dark:hover:bg-white/5 hover:border-cyan-200 dark:hover:border-quantum-cyan/20",
+                    isSelected && "border-cyan-500 dark:border-quantum-cyan/50 bg-cyan-50 dark:bg-quantum-cyan/5",
                     isLocked && "opacity-80"
                   )}
                 >
@@ -378,7 +378,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                         });
                       }
                     }}
-                    className="relative aspect-square flex items-center justify-center bg-white/2 rounded-[clamp(1rem,1.5vw,1.5rem)] mb-[clamp(0.75rem,1vh,1.25rem)] overflow-hidden border border-white/5 group-hover:border-quantum-cyan/10 transition-colors"
+                    className="relative aspect-square flex items-center justify-center bg-gray-50 dark:bg-white/2 rounded-[clamp(1rem,1.5vw,1.5rem)] mb-[clamp(0.75rem,1vh,1.25rem)] overflow-hidden border border-gray-100 dark:border-white/5 group-hover:border-cyan-200 dark:group-hover:border-quantum-cyan/10 transition-colors"
                   >
                     {/* Thumbnail Preview Logic - Using extension check for robustness */}
                     {!isLocked && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(file.name.split('.').pop()?.toLowerCase() || '') ? (
@@ -394,8 +394,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       />
                     ) : (
                       <Icon className={cn(
-                        "w-[clamp(2rem,5vw,3rem)] h-[clamp(2rem,5vw,3rem)] text-white/5 transition-all duration-500",
-                        !isLocked && "group-hover:text-quantum-cyan/30 group-hover:scale-110",
+                        "w-[clamp(2rem,5vw,3rem)] h-[clamp(2rem,5vw,3rem)] text-gray-300 dark:text-white/5 transition-all duration-500",
+                        !isLocked && "group-hover:text-cyan-400 dark:group-hover:text-quantum-cyan/30 group-hover:scale-110",
                         isLocked && "blur-xl"
                       )} />
                     )}
@@ -404,7 +404,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                        {isAuthenticated && (
                            <button 
                             onClick={(e) => { e.stopPropagation(); toggleItemLock('file', file.name, !!file.is_locked); }}
-                            className={cn("p-1 rounded-md transition-colors", file.is_locked ? "text-neural-violet bg-neural-violet/10" : "text-white/20 hover:text-white/40")}
+                            className={cn("p-1 rounded-md transition-colors", file.is_locked ? "text-violet-500 dark:text-neural-violet bg-violet-50 dark:bg-neural-violet/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40")}
                            >
                             {file.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                            </button>
@@ -414,25 +414,25 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                            onClick={(e) => { e.stopPropagation(); toggleSelectItem('file', file.name); }}
                            className="transition-transform active:scale-95"
                          >
-                           {isSelected ? <CheckSquare className="w-4 h-4 text-quantum-cyan" /> : <Square className="w-4 h-4 text-white/5 group-hover:text-white/20 transition-colors" />}
+                           {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600 dark:text-quantum-cyan" /> : <Square className="w-4 h-4 text-gray-300 dark:text-white/5 group-hover:text-gray-400 dark:group-hover:text-white/20 transition-colors" />}
                          </button>
                        )}
-                       {isLocked && <Lock className="w-5 h-5 text-neural-violet/40 animate-pulse" />}
+                       {isLocked && <Lock className="w-5 h-5 text-violet-300 dark:text-neural-violet/40 animate-pulse" />}
                     </div>
                   </div>
 
                   <div className="space-y-[clamp(0.5rem,0.7vh,0.75rem)]">
                     <div className="space-y-0.5">
                       <h3 className={cn(
-                        "font-semibold truncate text-[clamp(0.8rem,1vw,0.9rem)] text-white/80 tracking-tight",
+                        "font-semibold truncate text-[clamp(0.8rem,1vw,0.9rem)] text-gray-800 dark:text-white/80 tracking-tight",
                         isLocked && "blur-sm select-none"
                       )} title={file.name}>
                         {file.name}
                       </h3>
-                      <p className="text-[clamp(0.5rem,0.65vw,0.6rem)] text-white/20 font-bold uppercase tracking-widest">{file.size} MB</p>
+                      <p className="text-[clamp(0.5rem,0.65vw,0.6rem)] text-gray-400 dark:text-white/20 font-bold uppercase tracking-widest">{file.size} MB</p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-[clamp(0.5rem,0.7vh,0.75rem)] border-t border-white/5">
+                    <div className="flex items-center justify-between pt-[clamp(0.5rem,0.7vh,0.75rem)] border-t border-gray-100 dark:border-white/5">
                       <div className={cn("text-[clamp(0.45rem,0.55vw,0.5rem)] uppercase tracking-[0.2em] font-bold", getLifecycleColor(file))}>
                         {file.expired ? '已刪除' : `剩餘 ${file.remaining_days} 天`}
                       </div>
@@ -446,28 +446,28 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                                 url: `/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
                             }); }} 
                             aria-label={`預覽 ${file.name}`}
-                            className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
                             <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
                             <button 
                             onClick={(e) => { e.stopPropagation(); handleShare(file.name); }} 
                             aria-label={`分享 ${file.name}`}
-                            className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
                             <Share2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
                             <a 
                             href={`/api/download/${data.user?.username}/${file.name}${token ? `?token=${token}` : ''}`} 
                             aria-label={`下載 ${file.name}`}
-                            className="p-1.5 text-white/60 hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
                             <Download className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </a>
                             <button 
                             onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }} 
                             aria-label={`移除 ${file.name}`}
-                            className="p-1.5 text-white/60 hover:text-red-400 transition-colors cursor-pointer rounded-md"
+                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer rounded-md"
                             >
                             <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
@@ -485,9 +485,9 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
       {/* URLs Section - Compact layout */}
       <section className="space-y-4 relative z-10">
-        <h2 className="text-[clamp(1.1rem,1.8vw,1.6rem)] font-bold flex items-center gap-3 text-stellar-white/80 tracking-tight">
-          <div className="p-2 sm:p-2.5 bg-neural-violet/5 rounded-xl border border-neural-violet/10 shrink-0">
-            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-neural-violet" />
+        <h2 className="text-[clamp(1.1rem,1.8vw,1.6rem)] font-bold flex items-center gap-3 text-gray-800 dark:text-stellar-white/80 tracking-tight">
+          <div className="p-2 sm:p-2.5 bg-violet-50 dark:bg-neural-violet/5 rounded-xl border border-violet-100 dark:border-neural-violet/10 shrink-0">
+            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-violet-600 dark:text-neural-violet" />
           </div>
           筆記 / 連結
         </h2>
@@ -495,6 +495,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-[clamp(0.5rem,1.2vw,1.25rem)]">
           {dashboardData.urls?.map((url, idx) => {
             const isLocked = url.is_locked && !isAuthenticated;
+            const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
+            
             return (
               <motion.div
                 key={idx}
@@ -502,8 +504,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
                  className={cn(
-                    "glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-white/5 transition-all border-white/5 hover:border-neural-violet/20",
-                    selectedItems.find(i => i.type === 'url' && i.id === url.url) && "border-neural-violet/50 bg-neural-violet/5"
+                    "glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-gray-200 dark:border-white/5 hover:border-violet-200 dark:hover:border-neural-violet/20",
+                    isSelected && "border-violet-400 dark:border-neural-violet/50 bg-violet-50 dark:bg-neural-violet/5"
                  )}
                >
                  <div className="flex-1 min-w-0 pr-4 space-y-0.5">
@@ -519,8 +521,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                         onClick={(e) => isLocked && e.preventDefault()}
                         className={cn(
                             "block font-semibold truncate transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
-                            !isLocked && "text-neural-violet/70 hover:text-neural-violet",
-                            isLocked && "text-white/10 blur-sm cursor-not-allowed"
+                            !isLocked && "text-violet-600 dark:text-neural-violet/70 hover:text-violet-700 dark:hover:text-neural-violet",
+                            isLocked && "text-gray-300 dark:text-white/10 blur-sm cursor-not-allowed"
                         )}
                       >
                         {displayUrl}
@@ -529,8 +531,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       <div 
                         className={cn(
                           "block font-semibold truncate transition-all tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
-                          !isLocked && "text-white/60",
-                          isLocked && "text-white/5 blur-sm select-none"
+                          !isLocked && "text-gray-700 dark:text-white/60",
+                          isLocked && "text-gray-300 dark:text-white/5 blur-sm select-none"
                         )}
                         title={url.url}
                       >
@@ -538,20 +540,20 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       </div>
                     );
                   })()}
-                  <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
+                  <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-gray-400 dark:text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
                 </div>
                 <div className="flex gap-2">
                    {isAuthenticated && (
                      <div className="flex items-center gap-1">
                         <button 
                            onClick={() => toggleSelectItem('url', url.url)}
-                           className="p-2 text-white/10 hover:text-white/30 transition-colors"
+                           className="p-2 text-gray-300 dark:text-white/10 hover:text-gray-500 dark:hover:text-white/30 transition-colors"
                         >
-                           {selectedItems.find(i => i.type === 'url' && i.id === url.url) ? <CheckSquare className="w-3.5 h-3.5 text-neural-violet" /> : <Square className="w-3.5 h-3.5" />}
+                           {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-violet-600 dark:text-neural-violet" /> : <Square className="w-3.5 h-3.5" />}
                         </button>
                         <button 
                             onClick={() => toggleItemLock('url', url.url, !!url.is_locked)}
-                            className={cn("p-2 rounded-lg transition-all cursor-pointer border border-white/5", url.is_locked ? "text-neural-violet bg-neural-violet/10" : "text-white/10 hover:text-white/20")}
+                            className={cn("p-2 rounded-lg transition-all cursor-pointer border border-gray-100 dark:border-white/5", url.is_locked ? "text-violet-600 dark:text-neural-violet bg-violet-50 dark:bg-neural-violet/10" : "text-gray-300 dark:text-white/10 hover:text-gray-500 dark:hover:text-white/20")}
                         >
                             {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
                         </button>
@@ -566,7 +568,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                             <button 
                               onClick={() => setQrUrl(url.url)}
                               aria-label={`顯示內容的 QR Code`}
-                              className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                              className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 dark:text-white/20 group-hover:text-cyan-600 dark:group-hover:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-lg"
                             >
                               <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
                             </button>
@@ -576,7 +578,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label={`開啟連結 ${url.url}`}
-                                className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-neural-violet hover:bg-neural-violet/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                                className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 dark:text-white/20 group-hover:text-violet-600 dark:group-hover:text-neural-violet hover:bg-violet-50 dark:hover:bg-neural-violet/10 transition-all cursor-pointer border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-lg"
                               >
                                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
                               </a>
@@ -587,7 +589,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                                 alert("內容已複製到剪貼簿！");
                               }}
                               aria-label="複製內容"
-                              className="p-2 bg-white/5 rounded-lg text-white/20 group-hover:text-quantum-cyan hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-white/5 shadow-lg"
+                              className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 dark:text-white/20 group-hover:text-cyan-600 dark:group-hover:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-lg"
                             >
                               <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
                             </button>
@@ -596,7 +598,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       })()}
                     </>
                   )}
-                  {isLocked && <Lock className="w-4 h-4 text-neural-violet/20" />}
+                  {isLocked && <Lock className="w-4 h-4 text-violet-300 dark:text-neural-violet/20" />}
                 </div>
               </motion.div>
             );
@@ -613,20 +615,20 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAuthModal(false)}
-              className="absolute inset-0 bg-space-black/90 backdrop-blur-xl"
+              className="absolute inset-0 bg-white/80 dark:bg-space-black/90 backdrop-blur-xl"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="glass-card p-8 w-full max-w-sm relative z-10 space-y-6 border-neural-violet/30"
+              className="glass-card p-8 w-full max-w-sm relative z-10 space-y-6 border-violet-200 dark:border-neural-violet/30 shadow-2xl"
             >
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-neural-violet/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-neural-violet/20">
-                  <ShieldCheck className="w-6 h-6 text-neural-violet animate-pulse" />
+                <div className="w-12 h-12 bg-violet-50 dark:bg-neural-violet/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-violet-100 dark:border-neural-violet/20">
+                  <ShieldCheck className="w-6 h-6 text-violet-600 dark:text-neural-violet animate-pulse" />
                 </div>
-                <h3 className="text-xl font-bold text-white tracking-tight">存取授權請求</h3>
-                <p className="text-white/30 text-[10px] uppercase font-black tracking-[0.2em]">請輸入密碼解鎖目錄</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">存取授權請求</h3>
+                <p className="text-gray-500 dark:text-white/30 text-[10px] uppercase font-black tracking-[0.2em]">請輸入密碼解鎖目錄</p>
               </div>
 
               <form onSubmit={(e) => { 
@@ -641,11 +643,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   type="password" 
                   autoFocus
                   placeholder="授權密鑰..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 outline-none focus:border-neural-violet focus:bg-white/10 transition-all text-white text-center font-medium tracking-widest"
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-5 py-4 outline-none focus:border-violet-500 dark:focus:border-neural-violet focus:bg-white dark:focus:bg-white/10 transition-all text-gray-900 dark:text-white text-center font-medium tracking-widest placeholder:text-gray-400 dark:placeholder:text-white/20"
                 />
                 <button 
                   type="submit"
-                  className="btn-stellar w-full mt-6 py-4 bg-neural-violet/20 border-neural-violet/40 text-neural-violet uppercase text-xs font-black tracking-[0.3em]"
+                  className="btn-stellar w-full mt-6 py-4 bg-violet-50 dark:bg-neural-violet/20 border-violet-200 dark:border-neural-violet/40 text-violet-600 dark:text-neural-violet uppercase text-xs font-black tracking-[0.3em] hover:bg-violet-100 dark:hover:bg-neural-violet/30 transition-colors"
                 >
                   解鎖
                 </button>
@@ -664,17 +666,17 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setQrUrl(null)}
-              className="absolute inset-0 bg-space-black/80 backdrop-blur-md"
+              className="absolute inset-0 bg-white/80 dark:bg-space-black/80 backdrop-blur-md"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="glass-card p-8 w-full max-w-sm relative z-10 text-center space-y-6 border-quantum-cyan/20"
+              className="glass-card p-8 w-full max-w-sm relative z-10 text-center space-y-6 border-cyan-200 dark:border-quantum-cyan/20 shadow-2xl"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-quantum-cyan">神經傳輸模組：QR_GATEWAY</span>
-                <button onClick={() => setQrUrl(null)} className="text-white/40 hover:text-white transition-colors">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-600 dark:text-quantum-cyan">神經傳輸模組：QR_GATEWAY</span>
+                <button onClick={() => setQrUrl(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -697,13 +699,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               </div>
 
               <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar px-4">
-                <p className="text-white font-bold tracking-tight wrap-break-word text-xs leading-relaxed">{qrUrl}</p>
-                <p className="text-white/30 text-[10px] uppercase font-black tracking-widest pt-2">掃描以獲取內容</p>
+                <p className="text-gray-900 dark:text-white font-bold tracking-tight wrap-break-word text-xs leading-relaxed">{qrUrl}</p>
+                <p className="text-gray-400 dark:text-white/30 text-[10px] uppercase font-black tracking-widest pt-2">掃描以獲取內容</p>
               </div>
 
               <button 
                 onClick={() => setQrUrl(null)}
-                className="btn-stellar w-full py-3 bg-quantum-cyan/10 border-quantum-cyan/30 text-quantum-cyan uppercase text-xs font-black tracking-widest"
+                className="btn-stellar w-full py-3 bg-cyan-50 dark:bg-quantum-cyan/10 border-cyan-200 dark:border-quantum-cyan/30 text-cyan-600 dark:text-quantum-cyan uppercase text-xs font-black tracking-widest hover:bg-cyan-100 dark:hover:bg-quantum-cyan/20 transition-colors"
               >
                 關閉視窗
               </button>

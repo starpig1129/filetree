@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  /* FileNexus Design System - Tokens */
+  /* FileNexus Design System - Dark Mode Tokens */
   --color-space-black: hsl(240, 30%, 4%);
   --color-space-deep: hsl(240, 35%, 2%);
 
@@ -13,6 +16,16 @@
 
   --color-glass-base: hsla(240, 40%, 2%, 0.92);
   --color-glass-border: hsla(185, 80%, 55%, 0.4);
+
+  /* Light Mode Tokens */
+  --color-light-bg: hsl(220, 20%, 97%);
+  --color-light-surface: hsl(0, 0%, 100%);
+  --color-light-text: hsl(220, 25%, 15%);
+  --color-light-text-muted: hsl(220, 10%, 45%);
+  --color-light-text-subtle: hsl(220, 8%, 60%);
+  --color-light-border: hsl(220, 15%, 88%);
+  --color-light-glass-base: hsla(0, 0%, 100%, 0.92);
+  --color-light-glass-border: hsla(185, 80%, 45%, 0.5);
 
   --font-heading: "Inter", system-ui, sans-serif;
   --font-interface: "Outfit", sans-serif;
@@ -45,33 +58,25 @@
 }
 
 @layer base {
+  /* Dark mode (default) */
   body {
     @apply bg-space-black text-stellar-white min-h-screen font-interface selection:bg-quantum-cyan/30 overflow-x-hidden;
     background-color: #020205;
-    background-image:
-      /* Deep space texture */
-      radial-gradient(
-        circle at 20% 30%,
-        hsla(270, 70%, 15%, 0.15) 0%,
-        transparent 40%
-      ),
-      radial-gradient(
-        circle at 80% 70%,
-        hsla(185, 80%, 15%, 0.12) 0%,
-        transparent 40%
-      ),
-      radial-gradient(
-        circle at 50% 20%,
-        hsla(300, 60%, 10%, 0.1) 0%,
-        transparent 50%
-      ),
-      /* Main cosmic base */
-        radial-gradient(ellipse at center, #080a1a 0%, #020205 100%);
     background-attachment: fixed;
     &::before {
       content: "";
       @apply fixed inset-0 -z-30 opacity-20 pointer-events-none;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+  }
+
+  /* Light mode overrides */
+  [data-theme="light"] body {
+    @apply text-black;
+    background-color: var(--color-light-bg);
+    background-image: none;
+    &::before {
+      @apply opacity-5;
     }
   }
 
@@ -90,55 +95,47 @@
     @apply bg-glass-base backdrop-blur-2xl border border-glass-border rounded-4xl shadow-2xl;
   }
 
+  [data-theme="light"] .glass-card {
+    @apply bg-white/90 border-gray-200 shadow-lg;
+  }
+
   .btn-stellar {
     @apply relative overflow-hidden bg-white/5 border border-white/10 hover:border-quantum-cyan/50 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)];
   }
 
+  [data-theme="light"] .btn-stellar {
+    @apply bg-gray-100 text-gray-900 border-gray-300 hover:border-quantum-cyan hover:bg-gray-50;
+  }
+
   .animate-stellar-text {
-    background: linear-gradient(
-      90deg,
-      #fff 0%,
-      var(--color-quantum-cyan) 25%,
-      var(--color-neural-violet) 50%,
-      var(--color-quantum-cyan) 75%,
-      #fff 100%
-    );
-    background-size: 200% auto;
-    animation: neuralFlow 8s linear infinite;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    will-change: background-position;
+    background: none;
+    -webkit-text-fill-color: var(--color-stellar-white);
+    color: var(--color-stellar-white);
+    animation: none;
+  }
+
+  [data-theme="light"] .animate-stellar-text {
+    background: none;
+    -webkit-text-fill-color: hsl(220, 25%, 15%);
+    color: hsl(220, 25%, 15%);
+    animation: none;
   }
 
   .neural-border {
-    @apply relative border border-transparent bg-clip-padding;
-    will-change: background-position;
-    &::after {
-      content: "";
-      @apply absolute -inset-px -z-10 rounded-[inherit] opacity-60;
-      background: linear-gradient(
-        90deg,
-        var(--color-quantum-cyan),
-        var(--color-neural-violet),
-        var(--color-quantum-cyan),
-        var(--color-neural-violet),
-        var(--color-quantum-cyan)
-      );
-      background-size: 200% 100%;
-      animation: neuralFlow 12s linear infinite;
-    }
-    position: relative;
-    background:
-      linear-gradient(var(--color-space-black), var(--color-space-black))
-        padding-box,
-      linear-gradient(
-          to bottom right,
-          rgba(34, 211, 238, 0.3),
-          rgba(139, 92, 246, 0.3)
-        )
-        border-box;
-    border: 1px solid transparent;
+    @apply relative border border-white/10 bg-clip-padding rounded-4xl;
+    background: var(--color-glass-base);
+  }
+
+  [data-theme="light"] .neural-border {
+    background: white;
+    border: 1px solid var(--color-light-border);
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  }
+
+  [data-theme="light"] .neural-border::after {
+    display: none;
   }
 }
 
@@ -210,6 +207,11 @@ body {
   --uppy-Dashboard-browse-color: var(--color-quantum-cyan);
 }
 
+[data-theme="light"] {
+  --uppy-Color-text: var(--color-light-text);
+  --uppy-Dashboard-browse-color: #0891b2; /* cyan-700 */
+}
+
 .uppy-Dashboard-inner {
   background-color: transparent !important;
   border: none !important;
@@ -231,9 +233,19 @@ body {
   transition: all 0.3s ease;
 }
 
+[data-theme="light"] .uppy-Dashboard-AddFiles {
+  border: 1px dashed var(--color-light-border) !important;
+  background: rgba(0, 0, 0, 0.02) !important;
+}
+
 .uppy-Dashboard-AddFiles:hover {
   border-color: var(--color-quantum-cyan) !important;
   background: rgba(34, 211, 238, 0.05) !important;
+}
+
+[data-theme="light"] .uppy-Dashboard-AddFiles:hover {
+  border-color: #0891b2 !important;
+  background: rgba(8, 145, 178, 0.05) !important;
 }
 
 .uppy-Dashboard-AddFiles-title {
@@ -242,9 +254,17 @@ body {
   color: rgba(255, 255, 255, 0.7) !important;
 }
 
+[data-theme="light"] .uppy-Dashboard-AddFiles-title {
+  color: var(--color-light-text) !important;
+}
+
 .uppy-Dashboard-browse {
   color: var(--color-quantum-cyan) !important;
   font-weight: 700 !important;
+}
+
+[data-theme="light"] .uppy-Dashboard-browse {
+  color: #0891b2 !important; /* cyan-700 */
 }
 
 .uppy-StatusBar {
@@ -252,8 +272,16 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
+[data-theme="light"] .uppy-StatusBar {
+  border-top: 1px solid var(--color-light-border) !important;
+}
+
 .uppy-StatusBar-content {
   color: rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="light"] .uppy-StatusBar-content {
+  color: var(--color-light-text) !important;
 }
 
 .uppy-Dashboard-Item {
@@ -263,13 +291,28 @@ body {
   margin-bottom: 0.5rem !important;
 }
 
+[data-theme="light"] .uppy-Dashboard-Item {
+  background-color: white !important;
+  border: 1px solid var(--color-light-border) !important;
+}
+
 .uppy-Dashboard-Item-name {
   color: white !important;
   font-family: var(--font-interface) !important;
 }
 
+[data-theme="light"] .uppy-Dashboard-Item-name {
+  color: var(--color-light-text) !important;
+}
+
 .uppy-Dashboard-Item-status {
   color: rgba(255, 255, 255, 0.5) !important;
+  margin-top: 0 !important; /* Fix overlap issues */
+  font-size: 11px !important;
+}
+
+[data-theme="light"] .uppy-Dashboard-Item-status {
+  color: var(--color-light-text-muted) !important;
 }
 
 /* Hide the powered by footer if desired, or style it */

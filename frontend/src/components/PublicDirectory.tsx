@@ -50,7 +50,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
       {/* Mobile Toggle Button */}
       <button
         onClick={onToggle}
-        className="lg:hidden fixed top-4 right-4 z-50 p-2.5 glass-card text-white/60 hover:text-neural-violet transition-colors"
+        className="lg:hidden fixed top-4 right-4 z-50 p-2.5 glass-card text-gray-600 dark:text-white/60 hover:text-neural-violet transition-colors"
         aria-label={isOpen ? '關閉目錄' : '開啟目錄'}
       >
         {isOpen ? <X className="w-5 h-5" /> : <Cpu className="w-5 h-5" />}
@@ -64,7 +64,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onToggle}
-            className="fixed inset-0 bg-space-black/80 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 dark:bg-space-black/80 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>
@@ -72,7 +72,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
       {/* Directory Container */}
       <aside
         className={cn(
-          "fixed right-0 top-0 h-full w-72 z-45 bg-space-deep/95 backdrop-blur-xl border-l border-white/5",
+          "fixed right-0 top-0 h-full w-72 z-45 bg-white/95 dark:bg-space-deep/95 backdrop-blur-xl border-l border-gray-200 dark:border-white/5",
           "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block",
           "flex flex-col py-6 px-4 lg:py-4 lg:px-2",
           "transition-transform duration-300 ease-in-out",
@@ -83,9 +83,9 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/5">
-          <h3 className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em]">公開目錄</h3>
-          <div className="px-2 py-0.5 bg-quantum-cyan/10 rounded-full border border-quantum-cyan/20 text-[8px] font-black text-quantum-cyan tracking-widest shrink-0">
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-200 dark:border-white/5">
+          <h3 className="text-xs font-black text-gray-700 dark:text-white/40 uppercase tracking-[0.3em]">公開目錄</h3>
+          <div className="px-2 py-0.5 bg-cyan-50 dark:bg-quantum-cyan/10 rounded-full border border-cyan-200 dark:border-quantum-cyan/20 text-[10px] font-black text-cyan-700 dark:text-quantum-cyan tracking-widest shrink-0">
             {users.length} ACTIVE
           </div>
         </div>
@@ -104,38 +104,38 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                     transition={{ delay: idx * 0.03 }}
                     onClick={() => handleUserClick(user.username)}
                     className={cn(
-                      "w-full glass-card p-3 flex items-center justify-between transition-all group/item cursor-pointer text-left",
-                      "border-white/5 hover:border-quantum-cyan/20 bg-space-deep/40 backdrop-blur-md",
-                      isSelected && "border-quantum-cyan/50 bg-quantum-cyan/10 shadow-[0_0_20px_rgba(34,211,238,0.1)]"
+                      "w-full glass-card p-4 flex items-center justify-between transition-all group/item cursor-pointer text-left",
+                      "border-gray-200 dark:border-white/5 hover:border-cyan-300 dark:hover:border-quantum-cyan/20 bg-white dark:bg-space-deep/40 backdrop-blur-md shadow-sm dark:shadow-none",
+                      isSelected && "border-cyan-500 dark:border-quantum-cyan/50 bg-cyan-50 dark:bg-quantum-cyan/10 shadow-[0_0_20px_rgba(34,211,238,0.1)]"
                     )}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <Cpu className={cn(
-                        "w-3.5 h-3.5 shrink-0 transition-colors",
-                        isSelected ? "text-quantum-cyan" : "text-quantum-cyan/30 group-hover/item:text-quantum-cyan"
+                        "w-4 h-4 shrink-0 transition-colors",
+                        isSelected ? "text-cyan-600 dark:text-quantum-cyan" : "text-gray-400 dark:text-quantum-cyan/30 group-hover/item:text-cyan-600 dark:group-hover/item:text-quantum-cyan"
                       )} />
                       <div className="flex flex-col overflow-hidden">
                         <span className={cn(
-                          "text-[10px] font-bold tracking-tight truncate transition-colors",
-                          isSelected ? "text-quantum-cyan" : "text-white/60 group-hover/item:text-white"
+                          "text-sm font-bold tracking-tight truncate transition-colors",
+                          isSelected ? "text-cyan-700 dark:text-quantum-cyan" : "text-gray-700 dark:text-white/60 group-hover/item:text-gray-900 dark:group-hover/item:text-white"
                         )}>
                           {user.username}
                         </span>
-                        <span className="text-[7px] text-white/20 uppercase tracking-widest">
+                        <span className="text-[10px] text-gray-400 dark:text-white/20 uppercase tracking-widest">
                           Index {idx.toString().padStart(3, '0')}
                         </span>
                       </div>
                     </div>
                     <Sparkles className={cn(
-                      "w-3.5 h-3.5 shrink-0 transition-all",
-                      isSelected ? "text-quantum-cyan/50" : "text-white/5 group-hover/item:text-quantum-cyan/30"
+                      "w-4 h-4 shrink-0 transition-all",
+                      isSelected ? "text-cyan-400 dark:text-quantum-cyan/50" : "text-gray-300 dark:text-white/5 group-hover/item:text-cyan-300 dark:group-hover/item:text-quantum-cyan/30"
                     )} />
                   </motion.button>
                 );
               })
             ) : (
-              <div className="text-center py-6 border border-dashed border-white/5 rounded-2xl opacity-30">
-                <p className="text-[8px] font-black uppercase tracking-[0.2em]">無活躍節點</p>
+              <div className="text-center py-6 border border-dashed border-gray-300 dark:border-white/5 rounded-2xl opacity-50">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-white/50">無活躍節點</p>
               </div>
             )}
           </AnimatePresence>
@@ -144,3 +144,4 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
     </>
   );
 };
+

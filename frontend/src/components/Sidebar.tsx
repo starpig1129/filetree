@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Cpu, FileUp, Menu, X, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Cpu, FileUp, Menu, X, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ const navItems: NavItem[] = [
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
   const [isDesktop, setIsDesktop] = useState(false);
   const [isLocalhost, setIsLocalhost] = useState(false);
 
@@ -66,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       {/* Mobile Toggle Button */}
       <button
         onClick={onToggle}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 glass-card text-white/60 hover:text-quantum-cyan transition-colors"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 glass-card text-gray-600 dark:text-white/60 hover:text-quantum-cyan transition-colors"
         aria-label={isOpen ? '關閉選單' : '開啟選單'}
       >
         {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -79,14 +81,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onToggle}
-          className="fixed inset-0 bg-space-black/80 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-black/50 dark:bg-space-black/80 backdrop-blur-sm z-40"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-full w-64 z-45 bg-space-deep/95 backdrop-blur-xl border-r border-white/5",
+          "fixed left-0 top-0 h-full w-64 z-45 bg-white/95 dark:bg-space-deep/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/5",
           "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block",
           "flex flex-col py-6 px-4 lg:py-4 lg:px-2",
           "transition-transform duration-300 ease-in-out",
@@ -101,13 +103,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           <div className="w-8 h-8 bg-quantum-cyan/10 rounded-xl flex items-center justify-center border border-quantum-cyan/20">
             <Cpu className="w-4 h-4 text-quantum-cyan" />
           </div>
-          <span className="text-sm font-bold text-white/80 tracking-tight hidden sm:block">FileNexus</span>
+          <span className="text-sm font-bold text-gray-800 dark:text-white/80 tracking-tight hidden sm:block">FileNexus</span>
         </div>
 
         {/* Navigation Items */}
         <nav className="flex-1 space-y-2">
           <div className="px-3 mb-3">
-            <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em]">功能選單</span>
+            <span className="text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em]">功能選單</span>
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -121,12 +123,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   "text-left text-sm font-medium tracking-tight",
                   active
                     ? "bg-quantum-cyan/10 text-quantum-cyan border border-quantum-cyan/30 shadow-[0_0_15px_rgba(34,211,238,0.1)]"
-                    : "text-white/40 hover:text-white/70 hover:bg-white/5 border border-transparent"
+                    : "text-gray-600 dark:text-white/40 hover:text-gray-900 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
                 )}
               >
                 <Icon className={cn(
                   "w-4 h-4 shrink-0 transition-colors",
-                  active ? "text-quantum-cyan" : "text-white/20 group-hover:text-white/40"
+                  active ? "text-quantum-cyan" : "text-gray-400 dark:text-white/20 group-hover:text-gray-600 dark:group-hover:text-white/40"
                 )} />
                 <span>{item.label}</span>
               </button>
@@ -134,9 +136,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           })}
         </nav>
 
+        {/* Theme Toggle */}
+        <div className="pt-4 border-t border-gray-200 dark:border-white/5">
+          <button
+            onClick={toggleTheme}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer group",
+              "text-left text-xs font-medium tracking-wide",
+              "text-gray-600 dark:text-white/40 hover:text-gray-900 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
+            )}
+            aria-label={theme === 'dark' ? '切換至淺色模式' : '切換至深色模式'}
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 shrink-0 text-yellow-500" />
+            ) : (
+              <Moon className="w-4 h-4 shrink-0 text-indigo-500" />
+            )}
+            <span>{theme === 'dark' ? '淺色模式' : '深色模式'}</span>
+          </button>
+        </div>
+
         {/* Admin Link - Only show on localhost/internal network */}
         {isLocalhost && (
-          <div className="pt-4 border-t border-white/5">
+          <div className="pt-4 border-t border-gray-200 dark:border-white/5">
             <button
               onClick={() => handleNavClick('/admin')}
               className={cn(
@@ -144,7 +166,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 "text-left text-xs font-medium tracking-wide",
                 location.pathname === '/admin'
                   ? "bg-neural-violet/10 text-neural-violet border border-neural-violet/30"
-                  : "text-white/20 hover:text-neural-violet/60 hover:bg-neural-violet/5 border border-transparent"
+                  : "text-gray-500 dark:text-white/20 hover:text-neural-violet/80 dark:hover:text-neural-violet/60 hover:bg-neural-violet/5 border border-transparent"
               )}
             >
               <ShieldCheck className="w-4 h-4 shrink-0" />

@@ -7,6 +7,7 @@ import { HelpPage } from './pages/HelpPage';
 import { Starfield } from './components/Starfield';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 interface UserData {
   users?: Array<{ username: string; folder: string }>;
@@ -128,7 +129,11 @@ const MainLayout: React.FC<{
   );
 };
 
-const App: React.FC = () => {
+/**
+ * Inner app component that uses theme context.
+ */
+const AppContent: React.FC = () => {
+  const { theme } = useTheme();
   const [users, setUsers] = useState<Array<{ username: string; folder: string }>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -143,8 +148,9 @@ const App: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen relative text-white/90 selection:bg-quantum-cyan/30 bg-space-black">
-        <Starfield />
+      <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30 bg-gray-50 dark:bg-space-black">
+        {/* Only show Starfield in dark mode */}
+        {theme === 'dark' && <Starfield />}
         
         <Routes>
           {/* Admin page has its own layout */}
@@ -163,7 +169,7 @@ const App: React.FC = () => {
           } />
         </Routes>
 
-        <footer className="text-center py-6 lg:py-12 text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
+        <footer className="text-center py-6 lg:py-12 text-gray-400 dark:text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
           FileNexus - Secure File Bridge Hub
         </footer>
       </div>
@@ -171,4 +177,13 @@ const App: React.FC = () => {
   );
 };
 
+const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+};
+
 export default App;
+
