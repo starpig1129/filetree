@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useParams, useLocation } from 'react-rout
 import { LandingPage } from './pages/LandingPage';
 import { UserPage } from './pages/UserPage';
 import { AdminPage } from './pages/AdminPage';
+import { HelpPage } from './pages/HelpPage';
 import { Starfield } from './components/Starfield';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
@@ -63,6 +64,11 @@ const MainContent: React.FC<{
   // Home page - show upload center
   if (location.pathname === '/') {
     return <LandingPage data={{ users }} />;
+  }
+
+  // Help page
+  if (location.pathname === '/help') {
+    return <HelpPage />;
   }
 
   // User page

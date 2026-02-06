@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Cpu, FileUp, Menu, X, ShieldCheck } from 'lucide-react';
+import { Cpu, FileUp, Menu, X, ShieldCheck, HelpCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface SidebarProps {
@@ -18,12 +18,14 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'upload', label: '資料上傳中心', icon: FileUp, path: '/' },
+  { id: 'help', label: '使用說明', icon: HelpCircle, path: '/help' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isLocalhost, setIsLocalhost] = useState(false);
 
   // Track viewport size for responsive behavior
   useEffect(() => {
@@ -31,6 +33,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
+  // Check if running on localhost (internal network)
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const isLocal = hostname === 'localhost' || 
+                    hostname === '127.0.0.1' || 
+                    hostname.startsWith('192.168.') ||
+                    hostname.startsWith('10.') ||
+                    hostname.endsWith('.local');
+    setIsLocalhost(isLocal);
   }, []);
 
   const isActive = (path: string) => {
@@ -121,22 +134,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           })}
         </nav>
 
-        {/* Admin Link */}
-        <div className="pt-4 border-t border-white/5">
-          <button
-            onClick={() => handleNavClick('/admin')}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer group",
-              "text-left text-xs font-medium tracking-wide",
-              location.pathname === '/admin'
-                ? "bg-neural-violet/10 text-neural-violet border border-neural-violet/30"
-                : "text-white/20 hover:text-neural-violet/60 hover:bg-neural-violet/5 border border-transparent"
-            )}
-          >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>管理員</span>
-          </button>
-        </div>
+        {/* Admin Link - Only show on localhost/internal network */}
+        {isLocalhost && (
+          <div className="pt-4 border-t border-white/5">
+            <button
+              onClick={() => handleNavClick('/admin')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer group",
+                "text-left text-xs font-medium tracking-wide",
+                location.pathname === '/admin'
+                  ? "bg-neural-violet/10 text-neural-violet border border-neural-violet/30"
+                  : "text-white/20 hover:text-neural-violet/60 hover:bg-neural-violet/5 border border-transparent"
+              )}
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>管理員</span>
+            </button>
+          </div>
+        )}
       </aside>
     </>
   );
