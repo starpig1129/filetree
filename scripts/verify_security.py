@@ -1,9 +1,13 @@
 
 import requests
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 BASE_URL = "http://localhost:5168/api"
-MASTER_KEY = "pigstar" # Default in config.py for now
+MASTER_KEY = os.environ.get("SECURITY__MASTER_KEY", "pigstar")
 
 def test_path_traversal():
     print("Testing Path Traversal...")
