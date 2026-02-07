@@ -266,38 +266,93 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       const body = new FormData();
       if (token) body.append('token', token);
 
-      const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
-        method: 'POST',
-        body
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        alert(`分享失敗：${errorData.detail || '未知錯誤'}`);
-        return;
-      }
-
-      const result = await res.json();
-      const url = `${window.location.origin}/api/download-shared/${result.token}`;
-
-      // Try clipboard API - works on HTTPS or localhost with user gesture
+      // Safari requires clipboard write to be in the same user gesture context.
+      // Using ClipboardItem with a blob promise allows us to "reserve" the
+      // clipboard write permission before the async fetch completes.
       let copySuccess = false;
+      let shareUrlResult: string | null = null;
 
-      // Modern async clipboard API
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      // Check if ClipboardItem is supported (Safari 13.1+, Chrome 76+)
+      const supportsClipboardItem = typeof ClipboardItem !== 'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.write === 'function';
+
+      if (supportsClipboardItem) {
+        // Create a promise that will resolve with the share URL after fetch
+        const textPromise = (async () => {
+          const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
+            method: 'POST',
+            body
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.detail || '未知錯誤');
+          }
+
+          const result = await res.json();
+          shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
+          return new Blob([shareUrlResult], { type: 'text/plain' });
+        })();
+
         try {
-          await navigator.clipboard.writeText(url);
+          // This must be called synchronously in the user gesture context
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'text/plain': textPromise })
+          ]);
           copySuccess = true;
-        } catch {
-          console.log('Async clipboard failed, trying fallback');
+        } catch (clipboardErr) {
+          console.log('ClipboardItem write failed:', clipboardErr);
+          // If ClipboardItem failed but we got the URL, try fallback
+          if (shareUrlResult) {
+            copySuccess = false; // Will try fallback below
+          } else {
+            // Need to fetch the URL separately for fallback
+            const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
+              method: 'POST',
+              body
+            });
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({}));
+              alert(`分享失敗：${errorData.detail || '未知錯誤'}`);
+              return;
+            }
+            const result = await res.json();
+            shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
+          }
+        }
+      } else {
+        // Older browser path - fetch first, then try clipboard
+        const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
+          method: 'POST',
+          body
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          alert(`分享失敗：${errorData.detail || '未知錯誤'}`);
+          return;
+        }
+
+        const result = await res.json();
+        shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
+
+        // Try async clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(shareUrlResult);
+            copySuccess = true;
+          } catch {
+            console.log('Async clipboard failed, trying fallback');
+          }
         }
       }
 
-      // Fallback for older browsers or when async fails
-      if (!copySuccess) {
+      // Fallback for older browsers or when clipboard APIs fail
+      if (!copySuccess && shareUrlResult) {
         try {
           const textarea = document.createElement('textarea');
-          textarea.value = url;
+          textarea.value = shareUrlResult;
           textarea.style.position = 'fixed';
           textarea.style.left = '0';
           textarea.style.top = '0';
@@ -315,9 +370,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
       if (copySuccess) {
         alert('分享連結已複製到剪貼簿！');
+      } else if (shareUrlResult) {
+        // Show dialog for manual copy
+        setShareUrl(shareUrlResult);
       } else {
-        // Show dialog for manual copy on mobile
-        setShareUrl(url);
+        alert('分享功能發生錯誤，請稍後再試。');
       }
     } catch (err) {
       console.error(err);
