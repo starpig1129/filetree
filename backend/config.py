@@ -22,6 +22,8 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 5168
     debug: bool = True
+    ssl_cert: Optional[str] = None
+    ssl_key: Optional[str] = None
 
 
 class PathConfig(BaseModel):
@@ -44,6 +46,7 @@ class LogicConfig(BaseModel):
     file_retention_days: int = 30
     max_url_records: int = 30
     max_content_length: Optional[int] = None
+    allowed_extensions: Optional[list[str]] = None
 
 
 class Config(BaseSettings):

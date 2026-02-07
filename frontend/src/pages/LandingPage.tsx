@@ -16,6 +16,7 @@ interface LandingPageProps {
   data: {
     users?: Array<{ username: string; folder: string }>;
     error?: string;
+    config?: { allowed_extensions?: string[] };
   };
 }
 
@@ -24,7 +25,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   const [uploadType, setUploadType] = useState<'url' | 'file'>('url');
   const [formData, setFormData] = useState({ content: '', password: '' });
   const [isSyncing, setIsSyncing] = useState(false);
-  const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{username: string, oldPwd: string} | null>(null);
+  const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{ username: string, oldPwd: string } | null>(null);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   // Initialize Uppy
@@ -34,6 +35,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     debug: true,
     restrictions: {
       maxFileSize: 10 * 1024 * 1024 * 1024, // 10GB
+      allowedFileTypes: data.config?.allowed_extensions || null
     }
   }).use(Tus, {
     endpoint: '/api/upload/tus',
@@ -41,6 +43,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     retryDelays: [0, 1000, 3000, 5000],
     removeFingerprintOnSuccess: true,
   }));
+
+  // Update Uppy restrictions when config changes
+  React.useEffect(() => {
+    if (data.config?.allowed_extensions) {
+      uppy.setOptions({
+        restrictions: {
+          maxFileSize: 10 * 1024 * 1024 * 1024,
+          allowedFileTypes: data.config.allowed_extensions
+        }
+      });
+    }
+  }, [data.config, uppy]);
 
   // Sync password to metadata
   React.useEffect(() => {
@@ -58,9 +72,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           if (res.ok) {
             const user = await res.json();
             if (user.first_login) {
-                setFirstLoginUserInfo({ username: user.username, oldPwd: formData.password });
-                setRedirectPath(`/${user.username}`);
-                return;
+              setFirstLoginUserInfo({ username: user.username, oldPwd: formData.password });
+              setRedirectPath(`/${user.username}`);
+              return;
             }
             navigate(`/${user.username}`);
           }
@@ -71,33 +85,43 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         }
       }
     });
+
+    uppy.on('error', (error) => {
+      console.error('Uppy Global Error:', error);
+      alert('上傳發生錯誤 (Global): ' + error.message);
+    });
+
+    uppy.on('upload-error', (file, error) => {
+      console.error('Upload error for file:', file?.name, error);
+      alert(`檔案 ${file?.name} 上傳失敗: ${error.message}`);
+    });
   }, [uppy, data.users, formData.content, formData.password, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSyncing(true);
-    
+
     try {
       if (uploadType === 'url') {
         const body = new FormData();
         body.append('url', formData.content);
         body.append('password', formData.password);
-        
+
         const res = await fetch('/api/upload_url', {
           method: 'POST',
           body
         });
         const result = await res.json();
         if (res.ok) {
-            if (result.first_login) {
-                const username = result.redirect.split('/').pop() || "";
-                setFirstLoginUserInfo({ username, oldPwd: formData.password });
-                setRedirectPath(result.redirect);
-            } else {
-                navigate(result.redirect);
-            }
+          if (result.first_login) {
+            const username = result.redirect.split('/').pop() || "";
+            setFirstLoginUserInfo({ username, oldPwd: formData.password });
+            setRedirectPath(result.redirect);
+          } else {
+            navigate(result.redirect);
+          }
         } else {
-            alert(result.detail || '初始化失敗');
+          alert(result.detail || '初始化失敗');
         }
       } else if (uploadType === 'file') {
         if (uppy.getFiles().length === 0) {
@@ -121,15 +145,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] overflow-hidden flex flex-col items-center justify-center">
-      
+
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] max-w-300 max-h-200 bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block" />
 
       {/* Main Content Container */}
       <div className="w-full max-w-2xl px-4 relative z-10 py-4">
-        
+
         {/* Title Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-6 space-y-2"
@@ -152,7 +176,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           className="glass-card p-0.5 relative group"
         >
           <div className="neural-border rounded-4xl p-5 sm:p-6 md:p-8 space-y-6 bg-white/95 dark:bg-space-black/80 backdrop-blur-3xl relative overflow-hidden">
-            
+
             <div className="relative z-10">
               <div className="text-center space-y-1 mb-6">
                 <h2 className="text-[clamp(1.1rem,2vw,1.5rem)] font-bold flex items-center justify-center gap-3 leading-tight">
@@ -166,7 +190,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
               {/* Selector & Form */}
               <div className="space-y-5 sm:space-y-6">
                 <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
-                  <button 
+                  <button
                     onClick={() => setUploadType('url')}
                     className={cn(
                       "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[9px] sm:text-xs",
@@ -175,7 +199,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   >
                     <Zap className="w-3.5 h-3.5" /> 加密筆記
                   </button>
-                  <button 
+                  <button
                     onClick={() => setUploadType('file')}
                     className={cn(
                       "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[9px] sm:text-xs",
@@ -198,38 +222,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                       >
                         <label className="text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">資料源</label>
                         {uploadType === 'url' ? (
-                           <textarea 
-                             required
-                             value={formData.content}
-                             onChange={(e) => setFormData(p => ({ ...p, content: e.target.value }))}
-                             placeholder="輸入網址或任何想保存的文字資訊..."
-                             className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/10 transition-all text-gray-900 dark:text-white text-sm sm:text-base font-medium shadow-inner min-h-[clamp(7rem,12vh,9rem)] resize-none placeholder:text-gray-400 dark:placeholder:text-white/30"
-                           />
+                          <textarea
+                            required
+                            value={formData.content}
+                            onChange={(e) => setFormData(p => ({ ...p, content: e.target.value }))}
+                            placeholder="輸入網址或任何想保存的文字資訊..."
+                            className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/10 transition-all text-gray-900 dark:text-white text-sm sm:text-base font-medium shadow-inner min-h-[clamp(7rem,12vh,9rem)] resize-none placeholder:text-gray-400 dark:placeholder:text-white/30"
+                          />
                         ) : (
-                           <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/2">
-                             <UppyDashboard 
-                               uppy={uppy} 
-                               className="w-full"
-                               props={{
-                                 showProgressDetails: true,
-                                 note: 'Supports chunked & resumable uploads (powered by Tus)',
-                                 theme: 'dark',
-                                 hideUploadButton: true,
-                                 height: 300,
-                                 width: '100%'
-                               }}
-                             />
-                           </div>
+                          <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/2">
+                            <UppyDashboard
+                              uppy={uppy}
+                              className="w-full"
+                              props={{
+                                showProgressDetails: true,
+                                note: 'Supports chunked & resumable uploads (powered by Tus)',
+                                theme: 'dark',
+                                hideUploadButton: true,
+                                height: 300,
+                                width: '100%'
+                              }}
+                            />
+                          </div>
                         )}
                       </motion.div>
                     </AnimatePresence>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">密碼</label>
                     <div className="relative">
-                      <input 
-                        type="password" 
+                      <input
+                        type="password"
                         required
                         value={formData.password}
                         onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
@@ -240,7 +264,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     type="submit"
                     disabled={isSyncing}
                     className="btn-stellar w-full flex items-center justify-center gap-3 py-4 sm:py-5 hover:scale-[1.01] active:scale-[0.99] shadow-lg bg-cyan-50 dark:bg-quantum-cyan/10 border-cyan-200 dark:border-quantum-cyan/30 cursor-pointer"
@@ -257,17 +281,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         </motion.div>
       </div>
 
-      <SecurityInitializationModal 
+      <SecurityInitializationModal
         isOpen={!!firstLoginUserInfo}
         username={firstLoginUserInfo?.username || ""}
         oldPassword={firstLoginUserInfo?.oldPwd || ""}
         onSuccess={() => {
-            alert("安全性初始化完成，正在跳轉至專屬區域。");
-            if (redirectPath) {
-              navigate(redirectPath);
-            } else {
-              navigate('/');
-            }
+          alert("安全性初始化完成，正在跳轉至專屬區域。");
+          if (redirectPath) {
+            navigate(redirectPath);
+          } else {
+            navigate('/');
+          }
         }}
       />
     </div>

@@ -14,7 +14,7 @@ from backend.services.admin_service import admin_service
 from backend.services.tus_service import tus_service
 from backend.services.audit_service import AuditService
 from backend.services.event_service import EventService
-from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, ToggleLockRequest, BatchActionRequest
+from backend.schemas import UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, ToggleLockRequest, BatchActionRequest, InitResponse, SystemConfig
 from backend.core.auth import generate_salt, hash_password, verify_password
 from backend.core.rate_limit import login_limiter, admin_limiter
 from backend.config import settings
@@ -35,12 +35,12 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-@router.get("/init", response_model=List[UserPublic])
+@router.get("/init", response_model=InitResponse)
 async def init_data(request: Request):
-    """Initial data fetch for the SPA. Lists all public users."""
-    # Add a simple check: if not localhost, maybe don't return everything?
-    # For now, we'll keep it as is but we've acknowledged the risk.
-    return await user_service.list_public_users()
+    """Initial data fetch for the SPA. Lists all public users and system config."""
+    users = await user_service.list_public_users()
+    config = SystemConfig(allowed_extensions=settings.logic.allowed_extensions)
+    return InitResponse(users=users, config=config)
 
 
 @router.post("/admin/create-user")
@@ -48,7 +48,7 @@ async def admin_create_user(
     request: Request,
     master_key: str = Form(...),
     username: str = Form(...),
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
     folder: Optional[str] = Form(None)
 ):
     """Admin endpoint to create a user."""
@@ -64,7 +64,10 @@ async def admin_create_user(
     if existing:
         raise HTTPException(status_code=400, detail="此使用者已存在。")
     
-    # 3. Create user logic (copied from cli.py logic)
+    # 3. Create user logic
+    # Default password is the username
+    password = username
+    
     salt = generate_salt()
     users = await user_service._read_users()
     
@@ -285,20 +288,32 @@ async def tus_create(request: Request):
     upload_id = str(uuid.uuid4())
     
     try:
+        print(f"DEBUG: tus_create called. Length: {length}, Metadata: {metadata_str}")
         await tus_service.create_upload(upload_id, length, metadata_str)
         # We don't log success here to avoid file spam for large files, 
         # but we'll log it in finalize.
     except PermissionError as e:
+        print(f"DEBUG: PermissionError in tus_create: {e}")
         await audit_service.log_event("unknown", "TUS_CREATE_FAILURE", f"Auth failed: {str(e)}", level="WARNING", ip=get_client_ip(request))
         raise HTTPException(status_code=401, detail=str(e))
     except ValueError as e:
+        print(f"DEBUG: ValueError in tus_create: {e}")
         await audit_service.log_event("unknown", "TUS_CREATE_FAILURE", f"Bad request: {str(e)}", level="WARNING", ip=get_client_ip(request))
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"DEBUG: Unexpected error in tus_create: {type(e).__name__}: {e}")
+        # import traceback
+        # traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
     
     # We expect password in metadata for initial auth
     # For now, we'll return the location
-    host = request.headers.get("Host", "localhost:5168")
-    scheme = request.headers.get("X-Forwarded-Proto", "http")
+    host = request.headers.get("X-Forwarded-Host") or request.headers.get("Host", "localhost:5168")
+    
+    # Use X-Forwarded-Proto if available (for proxies), otherwise use the actual request scheme
+    # When running Uvicorn with SSL, request.url.scheme will be 'https'
+    scheme = request.headers.get("X-Forwarded-Proto", request.url.scheme)
+    
     location = f"{scheme}://{host}/api/upload/tus/{upload_id}"
     
     return JSONResponse(
@@ -408,11 +423,22 @@ async def upload_url(
     # Store as dicts back to JSON
     await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
     
+    # Also save as a text file
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        txt_filename = f"note_{timestamp}.txt"
+        file_content = url.encode('utf-8')
+        saved_name = await file_service.save_file(user.folder, txt_filename, file_content)
+        await audit_service.log_event(user.username, "NOTE_FILE_CREATE", f"Created note file: {saved_name}", ip=get_client_ip(request))
+    except Exception as e:
+        print(f"Error saving note as file: {e}")
+        # Don't fail the request if file saving fails, just log it
+
     await audit_service.log_event(user.username, "NOTE_CREATE", f"Created a secure note/link: {url}", ip=get_client_ip(request))
     await event_service.notify_user_update(user.username)
     
     return {
-        "message": "連結建立成功", 
+        "message": "連結建立成功 (已同步儲存為文字檔)", 
         "redirect": f"/{user.username}",
         "first_login": user.first_login
     }

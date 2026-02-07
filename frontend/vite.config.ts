@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import fs from 'fs'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -9,10 +10,15 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    https: {
+      key: fs.readFileSync('../certificate/99.valpher.com-key.pem'),
+      cert: fs.readFileSync('../certificate/99.valpher.com-crt.pem'),
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:5168',
+        target: 'https://localhost:5168',
         changeOrigin: true,
+        secure: false,
       }
     }
   },

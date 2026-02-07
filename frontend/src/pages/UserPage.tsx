@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
-import { 
-  File, FileText, Image as ImageIcon, Music, Video, 
+import {
+  File, FileText, Image as ImageIcon, Music, Video,
   ExternalLink, Download, Share2, Trash2, Eye,
   Lock, Unlock, CheckSquare, Square,
   Cpu, Zap, Activity, ShieldCheck, Orbit, QrCode, X
@@ -56,13 +56,13 @@ const formatSize = (bytes: number) => {
 
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [dashboardData, setDashboardData] = useState(data);
-  const [selectedItems, setSelectedItems] = useState<{type: 'file' | 'url', id: string}[]>([]);
+  const [selectedItems, setSelectedItems] = useState<{ type: 'file' | 'url', id: string }[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<{name: string, size: string, url: string} | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string, size: string, url: string } | null>(null);
   const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
 
@@ -86,7 +86,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   // Real-time synchronization via WebSocket
   React.useEffect(() => {
     if (!dashboardData.user?.username) return;
-    
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/api/ws/${dashboardData.user.username}`;
     let socket: WebSocket | null = new WebSocket(wsUrl);
@@ -100,7 +100,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     socket.onclose = () => {
       // Small delay before reconnecting
       setTimeout(() => {
-         socket = new WebSocket(wsUrl);
+        socket = new WebSocket(wsUrl);
       }, 5000);
     };
 
@@ -123,12 +123,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete') => {
     if (selectedItems.length === 0) return;
     if (!isAuthenticated) {
-        setShowAuthModal(true);
-        return;
+      setShowAuthModal(true);
+      return;
     }
-    
+
     if (action === 'delete' && !confirm(`確定要批次刪除選中的 ${selectedItems.length} 個項目嗎？此操作不可恢復！`)) {
-        return;
+      return;
     }
 
     setIsBatchSyncing(true);
@@ -153,12 +153,19 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         });
       };
 
-      await Promise.all([perform('file', files), perform('url', urls)]);
+      // Optimistic UI Update
+      setDashboardData(prev => ({
+        ...prev,
+        files: prev.files?.filter(f => !files.includes(f.name)),
+        urls: prev.urls?.filter(u => !urls.includes(u.url))
+      }));
       setSelectedItems([]);
-      await refreshDashboard(token || "");
+
+      await Promise.all([perform('file', files), perform('url', urls)]);
     } catch (err) {
       console.error(err);
-      alert("批次操作失敗");
+      alert("批次操作失敗，將重新整理頁面。");
+      window.location.reload();
     } finally {
       setIsBatchSyncing(false);
     }
@@ -176,9 +183,9 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         setIsAuthenticated(true);
         setPassword(pwd);
         if (result.token) {
-            setToken(result.token);
-            // Refresh data with token to see hidden files
-            await refreshDashboard(result.token);
+          setToken(result.token);
+          // Refresh data with token to see hidden files
+          await refreshDashboard(result.token);
         }
         setShowAuthModal(false);
       } else {
@@ -218,15 +225,29 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
   const handleDelete = async (filename: string) => {
     if (!confirm(`確定要移除「${filename}」嗎？`)) return;
+
+    // Optimistic UI Update
+    setDashboardData(prev => ({
+      ...prev,
+      files: prev.files?.filter(f => f.name !== filename)
+    }));
+
     try {
-      let url = `/api/files/${data.user?.username}/${filename}`;
-      if (token) url += `?token=${token}`;
-      
-      const res = await fetch(url, { method: 'DELETE' });
-      if (res.ok) window.location.reload();
-      else alert('移除失敗');
+      const body = new FormData();
+      body.append('filename', filename);
+      if (token) body.append('token', token);
+
+      const res = await fetch(`/api/user/${data.user?.username}/delete`, {
+        method: 'POST',
+        body
+      });
+      if (!res.ok) {
+        throw new Error("Delete failed");
+      }
     } catch (err) {
       console.error(err);
+      alert('移除失敗，將重新整理頁面');
+      window.location.reload();
     }
   };
 
@@ -234,8 +255,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     try {
       const body = new FormData();
       if (token) body.append('token', token);
-      
-      const res = await fetch(`/api/share/${data.user?.username}/${filename}`, { 
+
+      const res = await fetch(`/api/share/${data.user?.username}/${filename}`, {
         method: 'POST',
         body: token ? body : undefined
       });
@@ -258,7 +279,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] space-y-[clamp(1.5rem,4vh,4rem)] overflow-hidden">
-      
+
       {/* Background Ambient Elements */}
       <div className="absolute top-1/4 -right-20 w-[70vw] h-[50vh] max-w-240 max-h-180 bg-quantum-cyan/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" />
       <div className="absolute bottom-1/4 -left-20 w-[60vw] h-[50vh] max-w-240 max-h-180 bg-neural-violet/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" style={{ animationDelay: '1s' }} />
@@ -270,12 +291,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             <Activity className="w-4 h-4 text-cyan-600 dark:text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
             已使用空間：{dashboardData.usage} MB
           </div>
-          <button 
+          <button
             onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
             aria-label={isAuthenticated ? "鎖定目錄" : "解鎖目錄"}
             className={cn(
-                "p-2 sm:p-2.5 glass-card transition-all cursor-pointer border-gray-200 dark:border-white/5 focus-ring shadow-lg",
-                isAuthenticated ? "text-cyan-600 dark:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10" : "text-violet-500 dark:text-neural-violet hover:bg-violet-50 dark:hover:bg-neural-violet/10"
+              "p-2 sm:p-2.5 glass-card transition-all cursor-pointer border-gray-200 dark:border-white/5 focus-ring shadow-lg",
+              isAuthenticated ? "text-cyan-600 dark:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10" : "text-violet-500 dark:text-neural-violet hover:bg-violet-50 dark:hover:bg-neural-violet/10"
             )}
           >
             {isAuthenticated ? <Unlock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" /> : <Lock className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />}
@@ -284,7 +305,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       </div>
 
       {/* Hero Section - Deep vertical compression to save screen real estate */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-card p-[clamp(1.5rem,4vw,3rem)] text-center relative overflow-hidden group z-10"
@@ -314,37 +335,37 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             檔案列表
           </h2>
           {selectedItems.length > 0 && (
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.9, y: 10 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               className="flex items-center gap-2 shrink-0 bg-white dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm"
-             >
-               <button 
-                 onClick={() => handleBatchAction('lock')}
-                 disabled={isBatchSyncing}
-                 className="p-2 hover:bg-violet-50 dark:hover:bg-neural-violet/20 text-violet-500 dark:text-neural-violet cursor-pointer transition-colors rounded-lg flex items-center gap-2"
-                 title="批次鎖定"
-               >
-                 <Lock className="w-4 h-4" />
-               </button>
-               <button 
-                 onClick={() => handleBatchAction('unlock')}
-                 disabled={isBatchSyncing}
-                 className="p-2 hover:bg-cyan-50 dark:hover:bg-quantum-cyan/20 text-cyan-600 dark:text-quantum-cyan cursor-pointer transition-colors rounded-lg flex items-center gap-2"
-                 title="批次解鎖"
-               >
-                 <Unlock className="w-4 h-4" />
-               </button>
-               <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1" />
-               <button 
-                 onClick={() => handleBatchAction('delete')}
-                 disabled={isBatchSyncing}
-                 className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer transition-colors rounded-lg flex items-center gap-2"
-                 title="批次刪除"
-               >
-                 <Trash2 className="w-4 h-4" />
-               </button>
-             </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="flex items-center gap-2 shrink-0 bg-white dark:bg-white/5 p-1 rounded-xl border border-gray-200 dark:border-white/10 shadow-sm"
+            >
+              <button
+                onClick={() => handleBatchAction('lock')}
+                disabled={isBatchSyncing}
+                className="p-2 hover:bg-violet-50 dark:hover:bg-neural-violet/20 text-violet-500 dark:text-neural-violet cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                title="批次鎖定"
+              >
+                <Lock className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleBatchAction('unlock')}
+                disabled={isBatchSyncing}
+                className="p-2 hover:bg-cyan-50 dark:hover:bg-quantum-cyan/20 text-cyan-600 dark:text-quantum-cyan cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                title="批次解鎖"
+              >
+                <Unlock className="w-4 h-4" />
+              </button>
+              <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1" />
+              <button
+                onClick={() => handleBatchAction('delete')}
+                disabled={isBatchSyncing}
+                className="p-2 hover:bg-red-50 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 cursor-pointer transition-colors rounded-lg flex items-center gap-2"
+                title="批次刪除"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </motion.div>
           )}
         </div>
 
@@ -354,7 +375,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               const Icon = getFileIcon(file.name);
               const isSelected = !!selectedItems.find(i => i.type === 'file' && i.id === file.name);
               const isLocked = file.is_locked && !isAuthenticated;
-              
+
               return (
                 <motion.div
                   key={file.name}
@@ -367,13 +388,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                     isLocked && "opacity-80"
                   )}
                 >
-                  <div 
-                    onClick={(e) => { 
+                  <div
+                    onClick={(e) => {
                       if (!isLocked) {
                         e.stopPropagation();
                         setPreviewFile({
-                          name: file.name, 
-                          size: formatSize(file.size_bytes), 
+                          name: file.name,
+                          size: formatSize(file.size_bytes),
                           url: `/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
                         });
                       }
@@ -382,7 +403,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   >
                     {/* Thumbnail Preview Logic - Using extension check for robustness */}
                     {!isLocked && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(file.name.split('.').pop()?.toLowerCase() || '') ? (
-                      <img 
+                      <img
                         src={`/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`}
                         alt={file.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
@@ -399,25 +420,25 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                         isLocked && "blur-xl"
                       )} />
                     )}
-                    
+
                     <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-2">
-                       {isAuthenticated && (
-                           <button 
-                            onClick={(e) => { e.stopPropagation(); toggleItemLock('file', file.name, !!file.is_locked); }}
-                            className={cn("p-1 rounded-md transition-colors", file.is_locked ? "text-violet-500 dark:text-neural-violet bg-violet-50 dark:bg-neural-violet/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40")}
-                           >
-                            {file.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                           </button>
-                       )}
-                       {!isLocked && (
-                         <button 
-                           onClick={(e) => { e.stopPropagation(); toggleSelectItem('file', file.name); }}
-                           className="transition-transform active:scale-95"
-                         >
-                           {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600 dark:text-quantum-cyan" /> : <Square className="w-4 h-4 text-gray-300 dark:text-white/5 group-hover:text-gray-400 dark:group-hover:text-white/20 transition-colors" />}
-                         </button>
-                       )}
-                       {isLocked && <Lock className="w-5 h-5 text-violet-300 dark:text-neural-violet/40 animate-pulse" />}
+                      {isAuthenticated && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleItemLock('file', file.name, !!file.is_locked); }}
+                          className={cn("p-1 rounded-md transition-colors", file.is_locked ? "text-violet-500 dark:text-neural-violet bg-violet-50 dark:bg-neural-violet/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40")}
+                        >
+                          {file.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                        </button>
+                      )}
+                      {!isLocked && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleSelectItem('file', file.name); }}
+                          className="transition-transform active:scale-95"
+                        >
+                          {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600 dark:text-quantum-cyan" /> : <Square className="w-4 h-4 text-gray-300 dark:text-white/5 group-hover:text-gray-400 dark:group-hover:text-white/20 transition-colors" />}
+                        </button>
+                      )}
+                      {isLocked && <Lock className="w-5 h-5 text-violet-300 dark:text-neural-violet/40 animate-pulse" />}
                     </div>
                   </div>
 
@@ -439,37 +460,39 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
                         {!isLocked && (
                           <>
-                            <button 
-                            onClick={(e) => { e.stopPropagation(); setPreviewFile({
-                                name: file.name, 
-                                size: formatSize(file.size_bytes), 
-                                url: `/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
-                            }); }} 
-                            aria-label={`預覽 ${file.name}`}
-                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); setPreviewFile({
+                                  name: file.name,
+                                  size: formatSize(file.size_bytes),
+                                  url: `/api/download/${data.user?.username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+                                });
+                              }}
+                              aria-label={`預覽 ${file.name}`}
+                              className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
-                            <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                              <Eye className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
-                            <button 
-                            onClick={(e) => { e.stopPropagation(); handleShare(file.name); }} 
-                            aria-label={`分享 ${file.name}`}
-                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleShare(file.name); }}
+                              aria-label={`分享 ${file.name}`}
+                              className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
-                            <Share2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                              <Share2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
-                            <a 
-                            href={`/api/download/${data.user?.username}/${file.name}${token ? `?token=${token}` : ''}`} 
-                            aria-label={`下載 ${file.name}`}
-                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
+                            <a
+                              href={`/api/download/${data.user?.username}/${file.name}${token ? `?token=${token}` : ''}`}
+                              aria-label={`下載 ${file.name}`}
+                              className="p-1.5 text-gray-400 dark:text-white/60 hover:text-cyan-600 dark:hover:text-quantum-cyan transition-colors cursor-pointer rounded-md"
                             >
-                            <Download className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                              <Download className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </a>
-                            <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }} 
-                            aria-label={`移除 ${file.name}`}
-                            className="p-1.5 text-gray-400 dark:text-white/60 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer rounded-md"
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}
+                              aria-label={`移除 ${file.name}`}
+                              className="p-1.5 text-gray-400 dark:text-white/60 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer rounded-md"
                             >
-                            <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                              <Trash2 className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                             </button>
                           </>
                         )}
@@ -496,39 +519,39 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           {dashboardData.urls?.map((url, idx) => {
             const isLocked = url.is_locked && !isAuthenticated;
             const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
-            
+
             return (
               <motion.div
-                key={idx}
+                key={`${url.url}-${idx}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                 className={cn(
-                    "glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-gray-200 dark:border-white/5 hover:border-violet-200 dark:hover:border-neural-violet/20",
-                    isSelected && "border-violet-400 dark:border-neural-violet/50 bg-violet-50 dark:bg-neural-violet/5"
-                 )}
-               >
-                 <div className="flex-1 min-w-0 pr-4 space-y-0.5">
+                className={cn(
+                  "glass-card p-[clamp(0.75rem,1.5vw,1.25rem)] flex items-center justify-between group hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-gray-200 dark:border-white/5 hover:border-violet-200 dark:hover:border-neural-violet/20",
+                  isSelected && "border-violet-400 dark:border-neural-violet/50 bg-violet-50 dark:bg-neural-violet/5"
+                )}
+              >
+                <div className="flex-1 min-w-0 pr-4 space-y-0.5">
                   {(() => {
                     const isActualUrl = url.url.startsWith('http://') || url.url.startsWith('https://') || url.url.startsWith('www.');
                     const displayUrl = isActualUrl ? url.url : (url.url.length > 50 ? url.url.substring(0, 50) + '...' : url.url);
-                    
+
                     return isActualUrl ? (
-                      <a 
-                        href={isLocked ? "#" : (url.url.startsWith('www.') ? `https://${url.url}` : url.url)} 
-                        target={isLocked ? "_self" : "_blank"} 
+                      <a
+                        href={isLocked ? "#" : (url.url.startsWith('www.') ? `https://${url.url}` : url.url)}
+                        target={isLocked ? "_self" : "_blank"}
                         rel="noopener noreferrer"
                         onClick={(e) => isLocked && e.preventDefault()}
                         className={cn(
-                            "block font-semibold truncate transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
-                            !isLocked && "text-violet-600 dark:text-neural-violet/70 hover:text-violet-700 dark:hover:text-neural-violet",
-                            isLocked && "text-gray-300 dark:text-white/10 blur-sm cursor-not-allowed"
+                          "block font-semibold truncate transition-colors tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
+                          !isLocked && "text-violet-600 dark:text-neural-violet/70 hover:text-violet-700 dark:hover:text-neural-violet",
+                          isLocked && "text-gray-300 dark:text-white/10 blur-sm cursor-not-allowed"
                         )}
                       >
                         {displayUrl}
                       </a>
                     ) : (
-                      <div 
+                      <div
                         className={cn(
                           "block font-semibold truncate transition-all tracking-tight text-[clamp(0.7rem,0.9vw,0.8rem)]",
                           !isLocked && "text-gray-700 dark:text-white/60",
@@ -543,21 +566,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   <p className="text-[clamp(0.45rem,0.6vw,0.55rem)] text-gray-400 dark:text-white/20 uppercase tracking-widest font-bold">同步於 {url.created}</p>
                 </div>
                 <div className="flex gap-2">
-                   {isAuthenticated && (
-                     <div className="flex items-center gap-1">
-                        <button 
-                           onClick={() => toggleSelectItem('url', url.url)}
-                           className="p-2 text-gray-300 dark:text-white/10 hover:text-gray-500 dark:hover:text-white/30 transition-colors"
-                        >
-                           {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-violet-600 dark:text-neural-violet" /> : <Square className="w-3.5 h-3.5" />}
-                        </button>
-                        <button 
-                            onClick={() => toggleItemLock('url', url.url, !!url.is_locked)}
-                            className={cn("p-2 rounded-lg transition-all cursor-pointer border border-gray-100 dark:border-white/5", url.is_locked ? "text-violet-600 dark:text-neural-violet bg-violet-50 dark:bg-neural-violet/10" : "text-gray-300 dark:text-white/10 hover:text-gray-500 dark:hover:text-white/20")}
-                        >
-                            {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                        </button>
-                     </div>
+                  {isAuthenticated && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => toggleSelectItem('url', url.url)}
+                        className="p-2 text-gray-300 dark:text-white/10 hover:text-gray-500 dark:hover:text-white/30 transition-colors"
+                      >
+                        {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-violet-600 dark:text-neural-violet" /> : <Square className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => toggleItemLock('url', url.url, !!url.is_locked)}
+                        className={cn("p-2 rounded-lg transition-all cursor-pointer border border-gray-100 dark:border-white/5", url.is_locked ? "text-violet-600 dark:text-neural-violet bg-violet-50 dark:bg-neural-violet/10" : "text-gray-300 dark:text-white/10 hover:text-gray-500 dark:hover:text-white/20")}
+                      >
+                        {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   )}
                   {!isLocked && (
                     <>
@@ -565,7 +588,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                         const isActualUrl = url.url.startsWith('http://') || url.url.startsWith('https://') || url.url.startsWith('www.');
                         return (
                           <>
-                            <button 
+                            <button
                               onClick={() => setQrUrl(url.url)}
                               aria-label={`顯示內容的 QR Code`}
                               className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 dark:text-white/20 group-hover:text-cyan-600 dark:group-hover:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-lg"
@@ -573,7 +596,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                               <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
                             </button>
                             {isActualUrl && (
-                              <a 
+                              <a
                                 href={url.url.startsWith('www.') ? `https://${url.url}` : url.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -583,7 +606,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
                               </a>
                             )}
-                            <button 
+                            <button
                               onClick={() => {
                                 navigator.clipboard.writeText(url.url);
                                 alert("內容已複製到剪貼簿！");
@@ -592,6 +615,42 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                               className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 dark:text-white/20 group-hover:text-cyan-600 dark:group-hover:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/10 transition-all cursor-pointer border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-lg"
                             >
                               <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                // Direct calling batch action logic for consistency + optimistic update
+                                toggleSelectItem('url', url.url);
+                                // We need to wait a tick for state to update? 
+                                // Actually, standard setState is async. 
+                                // Better to just call a dedicated single delete helper or manually invoke fetch.
+                                // Let's manually invoke to avoid selection state complexity.
+
+                                if (!isAuthenticated) { setShowAuthModal(true); return; }
+                                if (!confirm("確定要刪除此連結/筆記嗎？")) return;
+
+                                // Optimistic Update
+                                setDashboardData(prev => ({
+                                  ...prev,
+                                  urls: prev.urls?.filter(u => u.url !== url.url)
+                                }));
+
+                                fetch(`/api/user/${dashboardData.user?.username}/batch-action`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    password,
+                                    item_type: 'url',
+                                    item_ids: [url.url],
+                                    action: 'delete'
+                                  })
+                                }).then(res => {
+                                  if (!res.ok) { alert("刪除失敗"); window.location.reload(); }
+                                });
+                              }}
+                              aria-label="刪除"
+                              className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg text-gray-400 dark:text-white/20 group-hover:text-red-500 dark:group-hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all cursor-pointer border border-gray-200 dark:border-white/5 shadow-sm dark:shadow-lg"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
                             </button>
                           </>
                         );
@@ -610,14 +669,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       <AnimatePresence>
         {showAuthModal && (
           <div className="fixed inset-0 z-120 flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowAuthModal(false)}
               className="absolute inset-0 bg-white/80 dark:bg-space-black/90 backdrop-blur-xl"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -631,21 +690,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 <p className="text-gray-500 dark:text-white/30 text-[10px] uppercase font-black tracking-[0.2em]">請輸入密碼解鎖目錄</p>
               </div>
 
-              <form onSubmit={(e) => { 
-                e.preventDefault(); 
+              <form onSubmit={(e) => {
+                e.preventDefault();
                 const target = e.target as typeof e.target & {
                   pwd: { value: string };
                 };
-                handleUnlock(target.pwd.value); 
+                handleUnlock(target.pwd.value);
               }}>
-                <input 
+                <input
                   name="pwd"
-                  type="password" 
+                  type="password"
                   autoFocus
                   placeholder="授權密鑰..."
                   className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-5 py-4 outline-none focus:border-violet-500 dark:focus:border-neural-violet focus:bg-white dark:focus:bg-white/10 transition-all text-gray-900 dark:text-white text-center font-medium tracking-widest placeholder:text-gray-400 dark:placeholder:text-white/20"
                 />
-                <button 
+                <button
                   type="submit"
                   className="btn-stellar w-full mt-6 py-4 bg-violet-50 dark:bg-neural-violet/20 border-violet-200 dark:border-neural-violet/40 text-violet-600 dark:text-neural-violet uppercase text-xs font-black tracking-[0.3em] hover:bg-violet-100 dark:hover:bg-neural-violet/30 transition-colors"
                 >
@@ -661,14 +720,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       <AnimatePresence>
         {qrUrl && (
           <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setQrUrl(null)}
               className="absolute inset-0 bg-white/80 dark:bg-space-black/80 backdrop-blur-md"
             />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -680,11 +739,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="p-6 bg-white rounded-3xl shadow-[0_0_30px_rgba(34,211,238,0.2)] inline-block">
-                <QRCodeCanvas 
-                  value={qrUrl} 
-                  size={250} 
+                <QRCodeCanvas
+                  value={qrUrl}
+                  size={250}
                   level="H"
                   includeMargin={false}
                   imageSettings={{
@@ -703,7 +762,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 <p className="text-gray-400 dark:text-white/30 text-[10px] uppercase font-black tracking-widest pt-2">掃描以獲取內容</p>
               </div>
 
-              <button 
+              <button
                 onClick={() => setQrUrl(null)}
                 className="btn-stellar w-full py-3 bg-cyan-50 dark:bg-quantum-cyan/10 border-cyan-200 dark:border-quantum-cyan/30 text-cyan-600 dark:text-quantum-cyan uppercase text-xs font-black tracking-widest hover:bg-cyan-100 dark:hover:bg-quantum-cyan/20 transition-colors"
               >
@@ -714,23 +773,23 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         )}
       </AnimatePresence>
 
-      <SecurityInitializationModal 
+      <SecurityInitializationModal
         isOpen={showForcedPasswordChange}
         username={dashboardData.user?.username || ""}
         oldPassword={password}
         onSuccess={async (newKey) => {
-            alert("密碼更新成功！系統已進入高度安全模式。");
-            setPassword(newKey);
-            setShowForcedPasswordChange(false);
-            await refreshDashboard(token || "");
+          alert("密碼更新成功！系統已進入高度安全模式。");
+          setPassword(newKey);
+          setShowForcedPasswordChange(false);
+          await refreshDashboard(token || "");
         }}
       />
 
       {/* File Preview Modal */}
-      <FilePreviewModal 
-        isOpen={!!previewFile} 
-        onClose={() => setPreviewFile(null)} 
-        file={previewFile} 
+      <FilePreviewModal
+        isOpen={!!previewFile}
+        onClose={() => setPreviewFile(null)}
+        file={previewFile}
       />
     </div>
   );

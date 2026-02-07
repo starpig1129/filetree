@@ -45,21 +45,35 @@ class TusService:
         metadata = {}
         if metadata_str:
             for pair in metadata_str.split(','):
-                parts = pair.strip().split(' ')
+                # Split only on first space to separate key and value
+                parts = pair.strip().split(' ', 1)
                 if len(parts) >= 2:
                     key = parts[0]
                     try:
                         value = base64.b64decode(parts[1]).decode('utf-8')
                         metadata[key] = value
-                    except Exception:
+                    except Exception as e:
+                        print(f"Metadata decode error for {key}: {e}")
                         continue
 
         if not metadata:
-            raise ValueError("Missing metadata")
+            print(f"DEBUG: No metadata found after parsing. Original string: {metadata_str}")
+            # Fallback if metadata parsing failed completely but we have a raw string?
+            # Actually Tus spec says it must be Key Base64Value
+            raise ValueError(f"Invalid or missing metadata: {metadata_str}")
 
         password = metadata.get('password')
         if not password:
+            print("DEBUG: Password missing in metadata")
             raise ValueError("Missing password in metadata")
+
+        # Validate file extension
+        filename = metadata.get('filename')
+        if filename and settings.logic.allowed_extensions:
+            # Check if extension is allowed (case-insensitive)
+            ext = os.path.splitext(filename)[1].lower()
+            if ext not in [e.lower() for e in settings.logic.allowed_extensions]:
+                raise ValueError(f"File type not allowed. Allowed: {', '.join(settings.logic.allowed_extensions)}")
 
         # Validate password using UserService
         # We need to await this since user_service methods are async

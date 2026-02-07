@@ -72,3 +72,12 @@ class BatchActionRequest(BaseModel):
     item_type: str  # 'file' or 'url'
     item_ids: List[str]
     action: str  # 'lock', 'unlock', 'delete'
+
+class SystemConfig(BaseModel):
+    """Public system configuration."""
+    allowed_extensions: Optional[List[str]] = None
+
+class InitResponse(BaseModel):
+    """Response for initial data load."""
+    users: List[UserPublic]
+    config: SystemConfig

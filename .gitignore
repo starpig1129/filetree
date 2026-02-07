@@ -4,8 +4,11 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
 frontend/.nvmrc
+frontend/.env
+frontend/.env.*
 
-# --- Backend (Python/Flask) ---
+# --- Backend (Python/Flask/FastAPI) ---
+backend/config.yaml
 __pycache__/
 *.py[cod]
 *$py.class
@@ -20,8 +23,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-/lib/
-/lib64/
+lib/
+lib64/
 parts/
 sdist/
 var/
@@ -29,6 +32,10 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+instance/
+.pytest_cache/
+coverage/
+htmlcov/
 
 # --- Databases & Assets ---
 *.db
@@ -36,19 +43,28 @@ wheels/
 uploads/
 temp/
 static/dist/
-data
+data/
+# Ignore locally generated certificates
+certificate/
+custom_certs/
 
 # --- Binaries & Installers ---
 *.deb
 *.exe
 *.dmg
+*.iso
 
 # --- OS & Editors ---
 .DS_Store
 .idea/
-.vscode/ (not: !.vscode/extensions.json)
+.vscode/ 
+!.vscode/extensions.json
 *.swp
 *.swo
+
+# --- Logs ---
+*.log
+logs/
 
 # --- Agentic ---
 .agent/

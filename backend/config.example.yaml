@@ -1,10 +1,14 @@
-# FileTree Configuration (FastAPI)
+# FileTree Configuration Template
+# Rename this file to config.yaml to use locally (if not using .env for everything)
 
 # Server settings
 server:
   host: "0.0.0.0"
   port: 5168
-  debug: true
+  debug: false
+  # SSL Certificates (Optional)
+  # ssl_cert: "certificate/fullchain.pem"
+  # ssl_key: "certificate/privkey.pem"
 
 # Directory settings (Relative to project root or absolute)
 paths:
@@ -22,3 +26,4 @@ logic:
   file_retention_days: 30
   max_url_records: 30
   max_content_length: null # null means no limit
+  allowed_extensions: null # null means all allowed, or list like ['.jpg', '.png']

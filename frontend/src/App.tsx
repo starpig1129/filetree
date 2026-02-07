@@ -30,8 +30,9 @@ interface UserData {
 // Main content wrapper that handles data fetching based on route
 const MainContent: React.FC<{
   users: Array<{ username: string; folder: string }>;
+  config: { allowed_extensions?: string[] };
   loading: boolean;
-}> = ({ users, loading }) => {
+}> = ({ users, config, loading }) => {
   const { username } = useParams<{ username: string }>();
   const location = useLocation();
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -64,7 +65,7 @@ const MainContent: React.FC<{
 
   // Home page - show upload center
   if (location.pathname === '/') {
-    return <LandingPage data={{ users }} />;
+    return <LandingPage data={{ users, config }} />;
   }
 
   // Help page
@@ -75,8 +76,8 @@ const MainContent: React.FC<{
   // User page
   if (username) {
     return (
-      <UserPage 
-        data={userData || { user: { username }, usage: 0, files: [], urls: [] }} 
+      <UserPage
+        data={userData || { user: { username }, usage: 0, files: [], urls: [] }}
       />
     );
   }
@@ -92,8 +93,9 @@ const AdminRoute: React.FC = () => {
 // Layout wrapper for main SPA layout (excludes admin)
 const MainLayout: React.FC<{
   users: Array<{ username: string; folder: string }>;
+  config: { allowed_extensions?: string[] };
   loading: boolean;
-}> = ({ users, loading }) => {
+}> = ({ users, config, loading }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [directoryOpen, setDirectoryOpen] = useState(false);
 
@@ -116,14 +118,14 @@ const MainLayout: React.FC<{
 
       {/* Center Content */}
       <main className="flex-1 min-w-0 p-4 lg:p-6 xl:p-8 overflow-y-auto">
-        <MainContent users={users} loading={loading} />
+        <MainContent users={users} config={config} loading={loading} />
       </main>
 
       {/* Right Sidebar - Public Directory */}
-      <PublicDirectory 
-        users={users} 
-        isOpen={directoryOpen} 
-        onToggle={() => setDirectoryOpen(!directoryOpen)} 
+      <PublicDirectory
+        users={users}
+        isOpen={directoryOpen}
+        onToggle={() => setDirectoryOpen(!directoryOpen)}
       />
     </div>
   );
@@ -135,13 +137,18 @@ const MainLayout: React.FC<{
 const AppContent: React.FC = () => {
   const { theme } = useTheme();
   const [users, setUsers] = useState<Array<{ username: string; folder: string }>>([]);
+  const [config, setConfig] = useState<{ allowed_extensions?: string[] }>({});
   const [loading, setLoading] = useState(true);
 
-  // Fetch initial user list
+  // Fetch initial user list and config
   useEffect(() => {
     fetch('/api/init')
       .then((res) => res.json())
-      .then((data) => setUsers(data))
+      .then((data) => {
+        // data.users is array, data.config is object
+        setUsers(data.users || []);
+        setConfig(data.config || {});
+      })
       .catch((err) => console.error('Fetch error:', err))
       .finally(() => setLoading(false));
   }, []);
@@ -151,7 +158,7 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30 bg-gray-50 dark:bg-space-black">
         {/* Only show Starfield in dark mode */}
         {theme === 'dark' && <Starfield />}
-        
+
         <Routes>
           {/* Admin page has its own layout */}
           <Route path="/admin" element={
@@ -159,13 +166,13 @@ const AppContent: React.FC = () => {
               <AdminRoute />
             </main>
           } />
-          
+
           {/* All other routes use the main SPA layout */}
           <Route path="/:username" element={
-            <MainLayout users={users} loading={loading} />
+            <MainLayout users={users} config={config} loading={loading} />
           } />
           <Route path="/" element={
-            <MainLayout users={users} loading={loading} />
+            <MainLayout users={users} config={config} loading={loading} />
           } />
         </Routes>
 

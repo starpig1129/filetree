@@ -3,12 +3,25 @@ Main FastAPI entry point for the FileNexus application.
 """
 
 import os
+import sys
+import asyncio
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.routes.api import router as api_router
+
+
+def suppress_connection_reset_error(loop, context):
+    """Custom exception handler to suppress ConnectionResetError on Windows."""
+    exception = context.get("exception")
+    if isinstance(exception, ConnectionResetError):
+        # Silently ignore ConnectionResetError (WinError 10054)
+        return
+    # For all other exceptions, use the default handler
+    loop.default_exception_handler(context)
+
 
 app = FastAPI(
     title="FileNexus API",
@@ -59,9 +72,17 @@ async def serve_spa(request: Request, path: str):
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # Suppress ConnectionResetError on Windows
+    loop = asyncio.new_event_loop()
+    loop.set_exception_handler(suppress_connection_reset_error)
+    asyncio.set_event_loop(loop)
+    
     uvicorn.run(
         "backend.app:app",
         host=settings.server.host,
         port=settings.server.port,
-        reload=settings.server.debug
+        reload=settings.server.debug,
+        ssl_certfile=settings.server.ssl_cert,
+        ssl_keyfile=settings.server.ssl_key
     )

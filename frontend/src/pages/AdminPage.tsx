@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 export const AdminPage: React.FC = () => {
   const [masterKey, setMasterKey] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [formData, setFormData] = useState({ username: '', password: '', folder: '' });
+  const [formData, setFormData] = useState({ username: '', folder: '' });
   const [status, setStatus] = useState<{ type: 'info' | 'error' | 'success', msg: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   interface User {
@@ -16,7 +16,7 @@ export const AdminPage: React.FC = () => {
     is_locked: boolean;
     first_login: boolean;
   }
-  
+
   interface AuditLog {
     timestamp: string;
     username: string;
@@ -29,7 +29,7 @@ export const AdminPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
-  
+
   // Inline editing states (RESTORED)
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -97,7 +97,7 @@ export const AdminPage: React.FC = () => {
       const body = new FormData();
       body.append('master_key', masterKey);
       body.append('username', formData.username);
-      body.append('password', formData.password);
+      // Password now defaults to username on backend
       if (formData.folder) body.append('folder', formData.folder);
 
       const res = await fetch('/api/admin/create-user', {
@@ -108,7 +108,7 @@ export const AdminPage: React.FC = () => {
 
       if (res.ok) {
         setStatus({ type: 'success', msg: `節點建立成功：${formData.username} 已加入網格。` });
-        setFormData({ username: '', password: '', folder: '' });
+        setFormData({ username: '', folder: '' });
         fetchUsers();
       } else {
         setStatus({ type: 'error', msg: result.detail || '建立失敗：核心邏輯衝突。' });
@@ -138,7 +138,7 @@ export const AdminPage: React.FC = () => {
         method: 'POST',
         body
       });
-      
+
       if (res.ok) {
         setStatus({ type: 'success', msg: `節點 ${oldName} 已重命名為 ${editName}` });
         setEditingUser(null);
@@ -168,7 +168,7 @@ export const AdminPage: React.FC = () => {
         method: 'POST',
         body
       });
-      
+
       if (res.ok) {
         setStatus({ type: 'success', msg: `節點 ${username} 的密鑰已重新產生。` });
         setResettingPwdUser(null);
@@ -186,7 +186,7 @@ export const AdminPage: React.FC = () => {
 
   const handleResetToDefault = async (username: string) => {
     if (!confirm(`確定要將 ${username} 的密碼重設為與帳號名稱相同嗎？`)) return;
-    
+
     setIsSyncing(true);
     try {
       const body = new FormData();
@@ -197,7 +197,7 @@ export const AdminPage: React.FC = () => {
         method: 'POST',
         body
       });
-      
+
       if (res.ok) {
         setStatus({ type: 'success', msg: `節點 ${username} 已重置為預設密鑰。` });
         fetchUsers();
@@ -214,7 +214,7 @@ export const AdminPage: React.FC = () => {
 
   const handleDeleteUser = async (username: string) => {
     if (!confirm(`警告：確定要刪除節點 ${username} 及其所有數據嗎？此操作不可逆！`)) return;
-    
+
     setIsSyncing(true);
     try {
       const body = new FormData();
@@ -225,7 +225,7 @@ export const AdminPage: React.FC = () => {
         method: 'POST', // Backend uses POST for this as per my implementation above
         body
       });
-      
+
       if (res.ok) {
         setStatus({ type: 'success', msg: `節點 ${username} 已從網格中完全抹除。` });
         fetchUsers();
@@ -244,7 +244,7 @@ export const AdminPage: React.FC = () => {
     return (
       <div className="relative min-h-screen flex items-center justify-center p-4">
         <Starfield />
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="glass-card p-12 w-full max-w-md space-y-8 relative z-10"
@@ -256,7 +256,7 @@ export const AdminPage: React.FC = () => {
           </div>
 
           <form onSubmit={handleVerify} className="space-y-6">
-            <input 
+            <input
               type="password"
               placeholder="MASTER KEY"
               value={masterKey}
@@ -281,7 +281,7 @@ export const AdminPage: React.FC = () => {
   return (
     <div className="relative min-h-screen p-[clamp(1rem,3vw,2rem)] sm:p-[clamp(1.5rem,4vw,3rem)] space-y-[clamp(1.5rem,4vh,3rem)] overflow-hidden">
       <Starfield />
-      
+
       {/* Background Ambient Elements */}
       <div className="absolute top-1/4 -left-20 w-[60vw] h-[50vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" />
       <div className="absolute bottom-1/4 -right-20 w-[80vw] h-[60vh] bg-neural-violet/5 blur-[clamp(4rem,10vw,10rem)] rounded-full -z-10 animate-pulse" style={{ animationDelay: '2s' }} />
@@ -289,7 +289,7 @@ export const AdminPage: React.FC = () => {
       {/* Admin Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10 max-w-10xl mx-auto">
         <a href="/" className="flex items-center gap-2 text-white/40 hover:text-quantum-cyan transition-all uppercase text-[clamp(0.6rem,0.9vw,0.8rem)] tracking-[0.3em] font-bold group">
-          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-2 transition-transform" /> 
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-2 transition-transform" />
           <span>回歸核心樞紐</span>
         </a>
         <div className="flex items-center gap-3 sm:gap-6 px-4 sm:px-6 py-2 sm:py-2.5 glass-card text-[clamp(0.45rem,0.75vw,0.7rem)] tracking-[0.2em] sm:tracking-[0.3em] uppercase font-black text-green-400 border-green-500/20 shadow-lg">
@@ -300,13 +300,13 @@ export const AdminPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-[clamp(1rem,3vw,3rem)] relative z-10 max-w-10xl mx-auto">
         <div className="lg:col-span-8 xl:col-span-9 space-y-[clamp(1rem,2.5vh,2.5rem)]">
           {/* Create User Form Section */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-card p-[clamp(1.25rem,3.5vw,3rem)] space-y-[clamp(1.25rem,3.5vh,2.5rem)] relative overflow-hidden group"
           >
             <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-quantum-cyan to-transparent opacity-30" />
-            
+
             <div className="flex items-center gap-4">
               <div className="p-[clamp(0.75rem,2vw,1.25rem)] bg-quantum-cyan/5 rounded-2xl border border-quantum-cyan/20 shadow-xl shrink-0">
                 <UserPlus className="w-[clamp(1.5rem,3vw,2.5rem)] h-[clamp(1.5rem,3vw,2.5rem)] text-quantum-cyan" />
@@ -320,7 +320,7 @@ export const AdminPage: React.FC = () => {
             <form onSubmit={handleCreateUser} className="grid grid-cols-1 sm:grid-cols-2 gap-[clamp(1rem,2.5vw,2rem)]">
               <div className="space-y-2">
                 <label className="text-[9px] sm:text-[10px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-60">Username / Node ID</label>
-                <input 
+                <input
                   required
                   placeholder="輸入節點代碼 (例如: pilot_01)"
                   value={formData.username}
@@ -328,27 +328,17 @@ export const AdminPage: React.FC = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[9px] sm:text-[10px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-60">Access Key / Auth</label>
-                <input 
-                  required
-                  type="password"
-                  placeholder="設定節點存取金鑰"
-                  value={formData.password}
-                  onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium"
-                />
-              </div>
+
               <div className="sm:col-span-2 space-y-2">
                 <label className="text-[9px] sm:text-[10px] font-black text-stellar-label uppercase tracking-[0.3em] ml-2 opacity-60">Storage Sector (Optional)</label>
-                <input 
+                <input
                   placeholder="檔案儲存路徑 (預設為名稱)"
                   value={formData.folder}
                   onChange={(e) => setFormData(p => ({ ...p, folder: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white/10 transition-all text-white text-sm sm:text-base font-medium font-mono"
                 />
               </div>
-              <button 
+              <button
                 disabled={isSyncing}
                 className="sm:col-span-2 btn-stellar py-4 sm:py-5 bg-quantum-cyan/10 border-quantum-cyan/30 text-white font-black uppercase tracking-[clamp(0.2em,1vw,0.5em)] text-sm sm:text-base hover:bg-quantum-cyan/20 shadow-xl transition-all"
               >
@@ -358,11 +348,11 @@ export const AdminPage: React.FC = () => {
 
             <AnimatePresence>
               {status && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className={cn("p-4 rounded-2xl border text-center text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3", 
+                  className={cn("p-4 rounded-2xl border text-center text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3",
                     status.type === 'error' ? "bg-red-500/10 border-red-500/20 text-red-100" : "bg-green-500/10 border-green-500/20 text-green-100 shadow-lg")}
                 >
                   <Activity className={cn("w-4 h-4 sm:w-5 sm:h-5", status.type === 'error' ? "text-red-400" : "text-green-400 animate-pulse")} />
@@ -374,7 +364,7 @@ export const AdminPage: React.FC = () => {
 
           {/* Tab Navigation */}
           <div className="flex gap-4 mb-6">
-            <button 
+            <button
               onClick={() => setActiveTab('users')}
               className={cn(
                 "px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all border",
@@ -383,7 +373,7 @@ export const AdminPage: React.FC = () => {
             >
               使用者節點管理
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('logs')}
               className={cn(
                 "px-6 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all border",
@@ -396,130 +386,130 @@ export const AdminPage: React.FC = () => {
 
           <AnimatePresence mode="wait">
             {activeTab === 'users' ? (
-              <motion.div 
+              <motion.div
                 key="users-tab"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 className="glass-card p-[clamp(1.25rem,3.5vw,3rem)] space-y-6"
               >
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h3 className="text-xl font-bold text-white tracking-tight">數據節點目錄</h3>
-                <p className="text-white/30 text-[10px] uppercase tracking-[0.3em] font-bold italic">DATA NEXUS NODE DIRECTORY</p>
-              </div>
-              <button onClick={fetchUsers} className="p-2 hover:bg-white/5 rounded-lg transition-colors group">
-                <Activity className="w-5 h-5 text-quantum-cyan group-hover:rotate-180 transition-transform duration-500" />
-              </button>
-            </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-bold text-white tracking-tight">數據節點目錄</h3>
+                    <p className="text-white/30 text-[10px] uppercase tracking-[0.3em] font-bold italic">DATA NEXUS NODE DIRECTORY</p>
+                  </div>
+                  <button onClick={fetchUsers} className="p-2 hover:bg-white/5 rounded-lg transition-colors group">
+                    <Activity className="w-5 h-5 text-quantum-cyan group-hover:rotate-180 transition-transform duration-500" />
+                  </button>
+                </div>
 
-            <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/2">
-              <div className="max-h-[clamp(15rem,40vh,30rem)] overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-[#0A0A0F] z-20">
-                    <tr className="border-b border-white/10">
-                      <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">節點狀態 / 代碼</th>
-                      <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em] hidden sm:table-cell">存取扇區</th>
-                      <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em] text-right">管理指令</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {users.map((user) => (
-                      <tr key={user.username} className="group hover:bg-white/3 transition-colors">
-                        <td className="px-6 py-5">
-                          {editingUser === user.username ? (
-                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
-                              <input 
-                                autoFocus
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateUsername(user.username)}
-                                className="bg-white/10 border border-quantum-cyan/30 rounded-lg px-3 py-1.5 text-sm text-white outline-none w-40"
-                              />
-                              <button onClick={() => handleUpdateUsername(user.username)} className="p-1.5 bg-quantum-cyan/20 text-quantum-cyan rounded-md hover:bg-quantum-cyan/30 transition-colors">
-                                <Save className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => setEditingUser(null)} className="p-1.5 bg-white/5 text-white/40 rounded-md hover:bg-white/10 transition-colors">
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-4">
-                              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                              <span className="text-white font-bold text-base tracking-tight">{user.username}</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-5 hidden sm:table-cell">
-                          <div className="flex items-center gap-2 text-white/30 font-mono text-xs">
-                            <Terminal className="w-3.5 h-3.5 opacity-50" />
-                            <span>/data/uploads/{user.folder}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex items-center justify-end gap-2">
-                            {resettingPwdUser === user.username ? (
-                              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-                                <input 
-                                  autoFocus
-                                  type="password"
-                                  placeholder="新金鑰"
-                                  value={newPwd}
-                                  onChange={(e) => setNewPwd(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && handleResetPassword(user.username)}
-                                  className="bg-white/10 border border-neural-violet/30 rounded-lg px-3 py-1.5 text-sm text-white outline-none w-32"
-                                />
-                                <button onClick={() => handleResetPassword(user.username)} className="p-1.5 bg-neural-violet/20 text-neural-violet rounded-md hover:bg-neural-violet/30 transition-colors">
-                                  <Save className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => setResettingPwdUser(null)} className="p-1.5 bg-white/5 text-white/40 rounded-md hover:bg-white/10 transition-colors">
-                                  <X className="w-4 h-4" />
-                                </button>
+                <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/2">
+                  <div className="max-h-[clamp(15rem,40vh,30rem)] overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="sticky top-0 bg-[#0A0A0F] z-20">
+                        <tr className="border-b border-white/10">
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">節點狀態 / 代碼</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em] hidden sm:table-cell">存取扇區</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-white/40 uppercase tracking-[0.2em] text-right">管理指令</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {users.map((user) => (
+                          <tr key={user.username} className="group hover:bg-white/3 transition-colors">
+                            <td className="px-6 py-5">
+                              {editingUser === user.username ? (
+                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                                  <input
+                                    autoFocus
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleUpdateUsername(user.username)}
+                                    className="bg-white/10 border border-quantum-cyan/30 rounded-lg px-3 py-1.5 text-sm text-white outline-none w-40"
+                                  />
+                                  <button onClick={() => handleUpdateUsername(user.username)} className="p-1.5 bg-quantum-cyan/20 text-quantum-cyan rounded-md hover:bg-quantum-cyan/30 transition-colors">
+                                    <Save className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setEditingUser(null)} className="p-1.5 bg-white/5 text-white/40 rounded-md hover:bg-white/10 transition-colors">
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-4">
+                                  <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                  <span className="text-white font-bold text-base tracking-tight">{user.username}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-6 py-5 hidden sm:table-cell">
+                              <div className="flex items-center gap-2 text-white/30 font-mono text-xs">
+                                <Terminal className="w-3.5 h-3.5 opacity-50" />
+                                <span>/data/uploads/{user.folder}</span>
                               </div>
-                            ) : (
-                              <>
-                                <button 
-                                  onClick={() => { setEditingUser(user.username); setEditName(user.username); }}
-                                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-quantum-cyan hover:text-quantum-cyan hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                                  <span>改名</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleResetToDefault(user.username)}
-                                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-quantum-cyan hover:text-quantum-cyan hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
-                                  title="重設為預設密碼"
-                                >
-                                  <Activity className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                                  <span>重置</span>
-                                </button>
-                                <button 
-                                  onClick={() => { setResettingPwdUser(user.username); setNewPwd(''); }}
-                                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-neural-violet hover:text-neural-violet hover:bg-neural-violet/5 transition-all flex items-center gap-2 group/btn"
-                                >
-                                  <KeyRound className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                                  <span>改密</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteUser(user.username)}
-                                  className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all flex items-center gap-2 group/btn"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-                                  <span>刪除</span>
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                            </td>
+                            <td className="px-6 py-5">
+                              <div className="flex items-center justify-end gap-2">
+                                {resettingPwdUser === user.username ? (
+                                  <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                                    <input
+                                      autoFocus
+                                      type="password"
+                                      placeholder="新金鑰"
+                                      value={newPwd}
+                                      onChange={(e) => setNewPwd(e.target.value)}
+                                      onKeyDown={(e) => e.key === 'Enter' && handleResetPassword(user.username)}
+                                      className="bg-white/10 border border-neural-violet/30 rounded-lg px-3 py-1.5 text-sm text-white outline-none w-32"
+                                    />
+                                    <button onClick={() => handleResetPassword(user.username)} className="p-1.5 bg-neural-violet/20 text-neural-violet rounded-md hover:bg-neural-violet/30 transition-colors">
+                                      <Save className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => setResettingPwdUser(null)} className="p-1.5 bg-white/5 text-white/40 rounded-md hover:bg-white/10 transition-colors">
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => { setEditingUser(user.username); setEditName(user.username); }}
+                                      className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-quantum-cyan hover:text-quantum-cyan hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                      <span>改名</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleResetToDefault(user.username)}
+                                      className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-quantum-cyan hover:text-quantum-cyan hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
+                                      title="重設為預設密碼"
+                                    >
+                                      <Activity className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                      <span>重置</span>
+                                    </button>
+                                    <button
+                                      onClick={() => { setResettingPwdUser(user.username); setNewPwd(''); }}
+                                      className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60 hover:border-neural-violet hover:text-neural-violet hover:bg-neural-violet/5 transition-all flex items-center gap-2 group/btn"
+                                    >
+                                      <KeyRound className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                      <span>改密</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteUser(user.username)}
+                                      className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-[10px] font-black uppercase tracking-widest text-red-400/60 hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all flex items-center gap-2 group/btn"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                      <span>刪除</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </motion.div>
             ) : (
-              <motion.div 
+              <motion.div
                 key="logs-tab"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -562,18 +552,18 @@ export const AdminPage: React.FC = () => {
                                 {log.username}
                               </span>
                             </td>
-                             <td className="px-6 py-4">
-                               <span className="text-white/30 font-mono text-[10px]">{log.ip || '---'}</span>
-                             </td>
-                             <td className="px-6 py-4">
-                               <span className={cn(
-                                 "font-black",
-                                 log.level === 'ERROR' ? "text-red-400" : log.level === 'WARNING' ? "text-yellow-400" : "text-green-400"
-                               )}>
-                                 {log.action}
-                               </span>
-                             </td>
-                             <td className="px-6 py-4 text-white/60 max-w-xs truncate" title={log.details}>{log.details}</td>
+                            <td className="px-6 py-4">
+                              <span className="text-white/30 font-mono text-[10px]">{log.ip || '---'}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={cn(
+                                "font-black",
+                                log.level === 'ERROR' ? "text-red-400" : log.level === 'WARNING' ? "text-yellow-400" : "text-green-400"
+                              )}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-white/60 max-w-xs truncate" title={log.details}>{log.details}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -587,7 +577,7 @@ export const AdminPage: React.FC = () => {
 
         {/* Sidebar Status */}
         <div className="lg:col-span-4 xl:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-[clamp(1rem,2.5vw,2.5rem)]">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
@@ -610,7 +600,7 @@ export const AdminPage: React.FC = () => {
             </div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
