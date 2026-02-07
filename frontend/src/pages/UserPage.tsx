@@ -225,6 +225,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   };
 
   const handleDelete = async (filename: string) => {
+    // Require authentication before deletion (same protection as notes)
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+
     if (!confirm(`確定要移除「${filename}」嗎？`)) return;
 
     // Optimistic UI Update
@@ -234,13 +240,16 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }));
 
     try {
-      const body = new FormData();
-      body.append('filename', filename);
-      if (token) body.append('token', token);
-
-      const res = await fetch(`/api/user/${data.user?.username}/delete`, {
+      // Use batch-action API with password for consistent protection
+      const res = await fetch(`/api/user/${data.user?.username}/batch-action`, {
         method: 'POST',
-        body
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password,
+          item_type: 'file',
+          item_ids: [filename],
+          action: 'delete'
+        })
       });
       if (!res.ok) {
         throw new Error("Delete failed");

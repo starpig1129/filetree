@@ -82,5 +82,7 @@ if __name__ == "__main__":
         "backend.app:app",
         host=settings.server.host,
         port=settings.server.port,
-        reload=settings.server.debug
+        reload=settings.server.debug,
+        timeout_graceful_shutdown=0,  # Force immediate shutdown
+        timeout_keep_alive=0  # Don't wait for keep-alive connections
     )
