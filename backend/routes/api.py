@@ -423,22 +423,11 @@ async def upload_url(
     # Store as dicts back to JSON
     await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
     
-    # Also save as a text file
-    try:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        txt_filename = f"note_{timestamp}.txt"
-        file_content = url.encode('utf-8')
-        saved_name = await file_service.save_file(user.folder, txt_filename, file_content)
-        await audit_service.log_event(user.username, "NOTE_FILE_CREATE", f"Created note file: {saved_name}", ip=get_client_ip(request))
-    except Exception as e:
-        print(f"Error saving note as file: {e}")
-        # Don't fail the request if file saving fails, just log it
-
     await audit_service.log_event(user.username, "NOTE_CREATE", f"Created a secure note/link: {url}", ip=get_client_ip(request))
     await event_service.notify_user_update(user.username)
     
     return {
-        "message": "連結建立成功 (已同步儲存為文字檔)", 
+        "message": "連結建立成功", 
         "redirect": f"/{user.username}",
         "first_login": user.first_login
     }
@@ -519,9 +508,17 @@ async def download_shared(token: str):
 async def download_direct(
     username: str, 
     filename: str,
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    inline: Optional[bool] = None
 ):
-    """Direct download for authenticated users (protected in real apps)."""
+    """Direct download for authenticated users (protected in real apps).
+    
+    Args:
+        username: The username of the file owner.
+        filename: The name of the file to download.
+        token: Optional access token for locked resources.
+        inline: If True, display file inline (for preview) instead of attachment.
+    """
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
@@ -539,7 +536,13 @@ async def download_direct(
                 raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
 
     folder = file_service._get_user_folder(user.folder)
-    return FileResponse(path=folder / filename, filename=filename)
+    file_path = folder / filename
+    
+    # When inline=True, omit filename to allow browser to display inline
+    # (e.g., for PDF preview in iframe)
+    if inline:
+        return FileResponse(path=file_path)
+    return FileResponse(path=file_path, filename=filename)
 
 
 @router.post("/user/{username}/unlock")

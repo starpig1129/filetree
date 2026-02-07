@@ -62,6 +62,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [token, setToken] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{ name: string, size: string, url: string } | null>(null);
   const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
@@ -256,18 +257,62 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       const body = new FormData();
       if (token) body.append('token', token);
 
-      const res = await fetch(`/api/share/${data.user?.username}/${filename}`, {
+      const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
         method: 'POST',
-        body: token ? body : undefined
+        body
       });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`分享失敗：${errorData.detail || '未知錯誤'}`);
+        return;
+      }
+
       const result = await res.json();
-      if (res.ok) {
-        const shareUrl = `${window.location.origin}/api/download-shared/${result.token}`;
-        navigator.clipboard.writeText(shareUrl);
+      const url = `${window.location.origin}/api/download-shared/${result.token}`;
+
+      // Try clipboard API - works on HTTPS or localhost with user gesture
+      let copySuccess = false;
+
+      // Modern async clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          copySuccess = true;
+        } catch {
+          console.log('Async clipboard failed, trying fallback');
+        }
+      }
+
+      // Fallback for older browsers or when async fails
+      if (!copySuccess) {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = url;
+          textarea.style.position = 'fixed';
+          textarea.style.left = '0';
+          textarea.style.top = '0';
+          textarea.style.opacity = '0';
+          textarea.setAttribute('readonly', '');
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          copySuccess = document.execCommand('copy');
+          document.body.removeChild(textarea);
+        } catch {
+          console.log('Fallback clipboard also failed');
+        }
+      }
+
+      if (copySuccess) {
         alert('分享連結已複製到剪貼簿！');
+      } else {
+        // Show dialog for manual copy on mobile
+        setShareUrl(url);
       }
     } catch (err) {
       console.error(err);
+      alert('分享功能發生錯誤，請稍後再試。');
     }
   };
 
@@ -768,6 +813,68 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               >
                 關閉視窗
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Share URL Dialog for Mobile */}
+      <AnimatePresence>
+        {shareUrl && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShareUrl(null)}
+              className="absolute inset-0 bg-white/80 dark:bg-space-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="glass-card p-6 w-full max-w-md relative z-10 text-center space-y-4 border-cyan-200 dark:border-quantum-cyan/20 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600 dark:text-quantum-cyan">分享連結</span>
+                <button onClick={() => setShareUrl(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-gray-500 dark:text-white/40 text-xs">自動複製失敗，請長按下方連結手動複製</p>
+
+              <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p
+                  className="text-gray-900 dark:text-white font-mono text-xs break-all select-all leading-relaxed"
+                  style={{ userSelect: 'all', WebkitUserSelect: 'all' }}
+                >
+                  {shareUrl}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    // Try one more time with user gesture
+                    navigator.clipboard?.writeText(shareUrl).then(() => {
+                      alert('已複製！');
+                      setShareUrl(null);
+                    }).catch(() => {
+                      alert('請長按上方連結手動複製');
+                    });
+                  }}
+                  className="btn-stellar flex-1 py-3 bg-cyan-50 dark:bg-quantum-cyan/10 border-cyan-200 dark:border-quantum-cyan/30 text-cyan-600 dark:text-quantum-cyan uppercase text-xs font-black tracking-widest hover:bg-cyan-100 dark:hover:bg-quantum-cyan/20 transition-colors"
+                >
+                  再試一次
+                </button>
+                <button
+                  onClick={() => setShareUrl(null)}
+                  className="btn-stellar flex-1 py-3 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/60 uppercase text-xs font-black tracking-widest hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                >
+                  關閉
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
