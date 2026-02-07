@@ -82,7 +82,5 @@ if __name__ == "__main__":
         "backend.app:app",
         host=settings.server.host,
         port=settings.server.port,
-        reload=settings.server.debug,
-        ssl_certfile=settings.server.ssl_cert,
-        ssl_keyfile=settings.server.ssl_key
+        reload=settings.server.debug
     )
