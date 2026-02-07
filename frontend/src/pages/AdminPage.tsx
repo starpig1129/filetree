@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Terminal, Activity, UserPlus, ChevronLeft, ShieldCheck, KeyRound, Save, X, Edit3, Trash2 } from 'lucide-react';
 import { Starfield } from '../components/Starfield';
 import { cn } from '../lib/utils';
+import { NotFoundPage } from './NotFoundPage';
 
 export const AdminPage: React.FC = () => {
   const [masterKey, setMasterKey] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isExternalBlocked, setIsExternalBlocked] = useState(false);
   const [formData, setFormData] = useState({ username: '', folder: '' });
   const [status, setStatus] = useState<{ type: 'info' | 'error' | 'success', msg: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -78,6 +80,9 @@ export const AdminPage: React.FC = () => {
       if (res.ok) {
         setIsAuthorized(true);
         setStatus({ type: 'success', msg: '矩陣權限已確認。指揮系統上線。' });
+      } else if (res.status === 418) {
+        // External network blocked
+        setIsExternalBlocked(true);
       } else {
         const err = await res.json();
         setStatus({ type: 'error', msg: err.detail || '權限驗證失敗：無效的主金鑰。' });
@@ -239,6 +244,11 @@ export const AdminPage: React.FC = () => {
       setIsSyncing(false);
     }
   };
+
+  // External network access - show 404 meme page
+  if (isExternalBlocked) {
+    return <NotFoundPage />;
+  }
 
   if (!isAuthorized) {
     return (

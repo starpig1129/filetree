@@ -4,6 +4,7 @@ import { LandingPage } from './pages/LandingPage';
 import { UserPage } from './pages/UserPage';
 import { AdminPage } from './pages/AdminPage';
 import { HelpPage } from './pages/HelpPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { Starfield } from './components/Starfield';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
@@ -73,8 +74,12 @@ const MainContent: React.FC<{
     return <HelpPage />;
   }
 
-  // User page
+  // User page - check if user exists
   if (username) {
+    // If user not found, show 404
+    if (userData?.error) {
+      return <NotFoundPage />;
+    }
     return (
       <UserPage
         data={userData || { user: { username }, usage: 0, files: [], urls: [] }}
@@ -174,6 +179,9 @@ const AppContent: React.FC = () => {
           <Route path="/" element={
             <MainLayout users={users} config={config} loading={loading} />
           } />
+
+          {/* Catch-all 404 route */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
 
         <footer className="text-center py-6 lg:py-12 text-gray-400 dark:text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
