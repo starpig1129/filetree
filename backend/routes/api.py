@@ -593,6 +593,7 @@ async def toggle_item_lock(username: str, data: ToggleLockRequest):
                         break
             
             await user_service._write_users(users)
+            await event_service.notify_user_update(username)
             return {"status": "success", "message": "鎖定狀態已更新"}
             
     raise HTTPException(status_code=500, detail="寫入數據失敗")

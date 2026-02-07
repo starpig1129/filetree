@@ -165,8 +165,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       await Promise.all([perform('file', files), perform('url', urls)]);
     } catch (err) {
       console.error(err);
-      alert("批次操作失敗，將重新整理頁面。");
-      window.location.reload();
+      alert("批次操作失敗，正在重新載入資料。");
+      await refreshDashboard(token || "");
     } finally {
       setIsBatchSyncing(false);
     }
@@ -203,6 +203,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       setShowAuthModal(true);
       return;
     }
+
+    // Optimistic UI update to avoid page reload
+    const newLockStatus = !currentStatus;
+    if (type === 'file') {
+      setDashboardData(prev => ({
+        ...prev,
+        files: prev.files?.map(f => f.name === itemId ? { ...f, is_locked: newLockStatus } : f)
+      }));
+    } else {
+      setDashboardData(prev => ({
+        ...prev,
+        urls: prev.urls?.map(u => u.url === itemId ? { ...u, is_locked: newLockStatus } : u)
+      }));
+    }
+
     try {
       const res = await fetch(`/api/user/${data.user?.username}/toggle-lock`, {
         method: 'POST',
@@ -211,16 +226,18 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           password,
           item_type: type,
           item_id: itemId,
-          is_locked: !currentStatus
+          is_locked: newLockStatus
         })
       });
-      if (res.ok) {
-        window.location.reload(); // Quickest way to sync state
-      } else {
+      if (!res.ok) {
+        // Revert optimistic update on failure
         alert("更新鎖定狀態失敗。");
+        await refreshDashboard(token || "");
       }
     } catch (err) {
       console.error(err);
+      // Revert optimistic update on error
+      await refreshDashboard(token || "");
     }
   };
 
@@ -256,8 +273,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       }
     } catch (err) {
       console.error(err);
-      alert('移除失敗，將重新整理頁面');
-      window.location.reload();
+      alert('移除失敗，正在重新載入資料');
+      await refreshDashboard(token || "");
     }
   };
 
@@ -755,7 +772,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                                     action: 'delete'
                                   })
                                 }).then(res => {
-                                  if (!res.ok) { alert("刪除失敗"); window.location.reload(); }
+                                  if (!res.ok) { alert("刪除失敗"); refreshDashboard(token || ""); }
                                 });
                               }}
                               aria-label="刪除"
