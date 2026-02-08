@@ -78,6 +78,17 @@ class R2Config(BaseModel):
     monthly_limit_class_b: int = 9000000 # Limit to 9M ops (Free tier is 10M)
 
 
+class RateLimitConfig(BaseModel):
+    """API Rate limiting settings."""
+    enabled: bool = True
+    login_limit: str = "5/minute"
+    admin_limit: str = "10/minute"
+    upload_limit: str = "50/minute"
+    default_limit: str = "60/minute"
+    tus_limit: str = "3000/minute"
+
+
+
 class Config(BaseSettings):
     """Global configuration object."""
     server: ServerConfig = ServerConfig()
@@ -85,6 +96,8 @@ class Config(BaseSettings):
     security: SecurityConfig = SecurityConfig()
     logic: LogicConfig = LogicConfig()
     r2: R2Config = R2Config()
+    rate_limit: RateLimitConfig = RateLimitConfig()
+
 
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",

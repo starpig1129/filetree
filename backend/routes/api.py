@@ -27,7 +27,7 @@ from backend.schemas import (
 )
 from backend.services.thumbnail_service import thumbnail_service
 from backend.core.auth import generate_salt, hash_password, verify_password
-from backend.core.rate_limit import limiter
+from backend.core.rate_limit import limiter, LOGIN_LIMIT, ADMIN_LIMIT, UPLOAD_LIMIT, TUS_LIMIT
 from backend.config import settings
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -58,7 +58,7 @@ async def init_data(request: Request):
 
 
 @router.post("/admin/create-user")
-@limiter.limit("5/minute")
+@limiter.limit(ADMIN_LIMIT)
 async def admin_create_user(
     request: Request,
     master_key: str = Form(...),
@@ -226,7 +226,7 @@ async def admin_delete_user(
 
 
 @router.post("/login", response_model=UserCreate)
-@limiter.limit("5/minute")
+@limiter.limit(LOGIN_LIMIT)
 async def login(request: Request, password: str = Form(...)):
     """Verify password and return the associated user."""
     # 0. Rate Limit handled by decorator
@@ -279,7 +279,7 @@ async def get_files(username: str):
 
 
 @router.post("/upload")
-@limiter.limit("20/minute")
+@limiter.limit(UPLOAD_LIMIT)
 async def upload_files(
     request: Request,
     password: str = Form(...),
@@ -339,7 +339,8 @@ async def init_upload(request: Request, req: UploadInitRequest):
 # --- R2 / S3 Multipart Endpoints (Uppy Compatible) ---
 
 @router.post("/upload/r2/multipart")
-async def create_multipart(req: UppyCreateMultipartRequest):
+@limiter.limit(TUS_LIMIT)
+async def create_multipart(req: UppyCreateMultipartRequest, request: Request):
     """Initiate S3 Multipart Upload."""
     # Auth is tricky here. Uppy sends metadata, we can check password in it.
     password = req.metadata.get("password") if req.metadata else None
@@ -365,7 +366,8 @@ async def create_multipart(req: UppyCreateMultipartRequest):
     }
 
 @router.get("/upload/r2/multipart/{uploadId}")
-async def sign_part(uploadId: str, key: str, partNumber: int):
+@limiter.limit(TUS_LIMIT)
+async def sign_part(uploadId: str, key: str, partNumber: int, request: Request):
     """Sign a part for upload."""
     if not r2_service._client:
         raise HTTPException(status_code=503, detail="R2 service unavailable")
@@ -387,10 +389,12 @@ async def sign_part(uploadId: str, key: str, partNumber: int):
     return {"url": url}
 
 @router.post("/upload/r2/multipart/{uploadId}/complete")
+@limiter.limit(TUS_LIMIT)
 async def complete_multipart(
     uploadId: str, 
     request: UppyCompleteMultipartRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    req: Request
 ):
     """Complete upload and trigger local download."""
     key = request.key
@@ -467,6 +471,7 @@ async def _handle_r2_download(key: str, local_path: Path, username: str):
         await audit_service.log_event(username, "FILE_UPLOAD_R2_FAIL", f"Failed to download/delete R2 file: {key}", level="ERROR", ip="system")
 
 @router.post("/upload/tus")
+@limiter.limit(TUS_LIMIT)
 async def tus_create(request: Request):
     upload_id = str(uuid.uuid4())
     length = request.headers.get("Upload-Length")
@@ -544,7 +549,8 @@ async def tus_create(request: Request):
 
 
 @router.head("/upload/tus/{upload_id}")
-async def tus_head(upload_id: str):
+@limiter.limit(TUS_LIMIT)
+async def tus_head(upload_id: str, request: Request):
     """Tus Core HEAD endpoint."""
     info = await tus_service.get_upload_info(upload_id)
     if not info:
@@ -562,6 +568,7 @@ async def tus_head(upload_id: str):
 
 
 @router.patch("/upload/tus/{upload_id}")
+@limiter.limit(TUS_LIMIT)
 async def tus_patch(upload_id: str, request: Request):
     """Tus Core PATCH endpoint."""
     offset = int(request.headers.get("Upload-Offset", 0))
