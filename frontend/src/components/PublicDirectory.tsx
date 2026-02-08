@@ -73,7 +73,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
       <aside
         className={cn(
           "fixed right-0 top-0 h-full w-72 z-45 bg-white/95 dark:bg-space-deep/95 backdrop-blur-xl border-l border-gray-200 dark:border-white/5",
-          "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block",
+          "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block lg:backdrop-blur-none",
           "flex flex-col py-6 px-4 lg:py-4 lg:px-2",
           "transition-transform duration-300 ease-in-out",
           // Mobile: slide in/out based on isOpen

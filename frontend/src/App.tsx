@@ -123,7 +123,7 @@ const MainLayout: React.FC<{
   }, []);
 
   return (
-    <div className="h-screen flex relative overflow-hidden bg-gray-50 dark:bg-space-black">
+    <div className="h-screen flex relative overflow-hidden">
       {/* Left Sidebar - Navigation */}
       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
@@ -173,7 +173,7 @@ const AppContent: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30 bg-gray-50 dark:bg-space-black">
+      <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30">
         {/* Only show Starfield in dark mode */}
         {theme === 'dark' && <Starfield />}
 

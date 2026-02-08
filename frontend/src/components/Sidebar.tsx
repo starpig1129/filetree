@@ -89,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       <aside
         className={cn(
           "fixed left-0 top-0 h-full w-64 z-45 bg-white/95 dark:bg-space-deep/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/5",
-          "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block",
+          "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block lg:backdrop-blur-none",
           "flex flex-col py-6 px-4 lg:py-4 lg:px-2",
           "transition-transform duration-300 ease-in-out",
           // Mobile: slide in/out based on isOpen
