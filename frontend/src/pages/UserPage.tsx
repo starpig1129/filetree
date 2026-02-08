@@ -413,7 +413,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       <div className="absolute bottom-1/4 -left-20 w-[60vw] h-[50vh] max-w-240 max-h-180 bg-neural-violet/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" style={{ animationDelay: '1s' }} />
 
       {/* Header Bar */}
-      <div className="flex items-center justify-end gap-4 relative z-10">
+      <div className="flex items-center justify-end gap-4 relative z-10 p-1">
         <div className="flex items-center gap-3">
           <div className="px-4 sm:px-5 py-2 glass-card flex items-center gap-2 sm:gap-3 text-[clamp(0.5rem,0.75vw,0.7rem)] tracking-widest uppercase font-black text-gray-500 dark:text-stellar-white/60 shadow-lg">
             <Activity className="w-4 h-4 text-cyan-600 dark:text-quantum-cyan animate-pulse shrink-0" aria-hidden="true" />
