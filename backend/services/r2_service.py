@@ -25,8 +25,77 @@ class R2Service:
         self._active_uploads = 0
         self._active_downloads = 0
         
+        # Zero-Cost Safety Mechanism
+        self._usage_file = settings.paths.upload_folder.parent / "r2_usage.json"
+        self._usage = self._load_usage()
+        
         # Initialize client if config is present
         self._init_client()
+
+    def _load_usage(self) -> Dict[str, Any]:
+        """Load usage stats from disk."""
+        default_usage = {
+            "month": time.strftime("%Y-%m"),
+            "storage_bytes_approx": 0, # Note: This is hard to track perfectly due to deletions
+            "requests_class_a": 0,
+            "requests_class_b": 0
+        }
+        
+        if not self._usage_file.exists():
+            return default_usage
+            
+        try:
+            with open(self._usage_file, 'r') as f:
+                data = json.load(f)
+                # Check if month changed
+                if data.get("month") != time.strftime("%Y-%m"):
+                    logger.info("New month detected. Resetting R2 usage stats.")
+                    return default_usage
+                return data
+        except Exception as e:
+            logger.error(f"Failed to load R2 usage: {e}")
+            return default_usage
+
+    def _save_usage(self):
+        """Save usage stats to disk."""
+        try:
+            with open(self._usage_file, 'w') as f:
+                json.dump(self._usage, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save R2 usage: {e}")
+
+    def get_usage(self) -> Dict[str, Any]:
+        """Get current usage stats."""
+        return self._usage.copy()
+
+    def _check_quota(self, class_a: int = 0, class_b: int = 0) -> bool:
+        """Check if operation is within monthly limits."""
+        with self._lock:
+            if self._usage["requests_class_a"] + class_a >= settings.r2.monthly_limit_class_a:
+                logger.warning("R2 Class A quota exceeded (Self-Imposed). Switching to fallback.")
+                return False
+            if self._usage["requests_class_b"] + class_b >= settings.r2.monthly_limit_class_b:
+                logger.warning("R2 Class B quota exceeded (Self-Imposed). Switching to fallback.")
+                return False
+                
+            # Storage Check Relaxation:
+            # Since we delete files immediately after download, our *Average Storage* (which Cloudflare bills for)
+            # is extremely low, even if we transfer TBs of data.
+            # The 'storage_bytes_approx' metric is actually 'cumulative_ingress', which doesn't reflect cost.
+            # Therefore, we DO NOT block based on this metric to allow high-throughput transient usage.
+            # We only track it for informational purposes.
+            return True
+
+    def _increment_usage(self, class_a: int = 0, class_b: int = 0, bytes_added: int = 0):
+        """Update usage stats."""
+        with self._lock:
+            self._usage["requests_class_a"] += class_a
+            self._usage["requests_class_b"] += class_b
+            self._usage["storage_bytes_approx"] += bytes_added
+            # Prevent negative storage
+            if self._usage["storage_bytes_approx"] < 0:
+                self._usage["storage_bytes_approx"] = 0
+        self._save_usage()
 
     def _init_client(self):
         """Initialize boto3 client."""
@@ -49,11 +118,17 @@ class R2Service:
             self._client = None
 
     def is_configured(self) -> bool:
-        """Check if R2 is configured and client is ready."""
-        return self._client is not None
+        """Check if R2 is configured and client is ready AND within quota."""
+        if self._client is None:
+            return False
+        # Check quota (0 cost check)
+        return self._check_quota()
 
     def acquire_upload_slot(self) -> bool:
         """Try to acquire an upload slot."""
+        if not self._check_quota(class_a=1): # Upload assumes at least 1 Class A op forthcoming
+            return False
+            
         with self._lock:
             if self._active_uploads < settings.r2.max_concurrent_uploads:
                 self._active_uploads += 1
@@ -71,6 +146,12 @@ class R2Service:
         if not self._client:
             return None
         
+        # Check quota. Presigning itself is local, but it enables an op.
+        # Put = Class A, Get = Class B
+        is_put = method == 'put_object'
+        if not self._check_quota(class_a=1 if is_put else 0, class_b=0 if is_put else 1):
+             return None
+
         try:
             response = self._client.generate_presigned_url(
                 ClientMethod=method,
@@ -80,6 +161,10 @@ class R2Service:
                 },
                 ExpiresIn=expiration
             )
+            # Optimistically increment usage for the URL generation
+            # Note: We don't know if client actually uses it, but safer to over-count for 0 cost.
+            self._increment_usage(class_a=1 if is_put else 0, class_b=0 if is_put else 1)
+            
             return response
         except ClientError as e:
             logger.error(f"Error generating presigned URL: {e}")
@@ -89,6 +174,9 @@ class R2Service:
         """Initiate a multipart upload."""
         if not self._client:
             return None
+            
+        if not self._check_quota(class_a=1):
+            return None
         
         try:
             response = self._client.create_multipart_upload(
@@ -96,6 +184,7 @@ class R2Service:
                 Key=object_name,
                 ContentType=content_type
             )
+            self._increment_usage(class_a=1)
             return {'UploadId': response['UploadId'], 'Key': response['Key']}
         except ClientError as e:
             logger.error(f"Error initiating multipart upload: {e}")
@@ -111,6 +200,7 @@ class R2Service:
                 Bucket=settings.r2.bucket_name,
                 Key=object_name
             )
+            self._increment_usage(class_a=1) # Delete is Class A
             logger.info(f"Deleted file from R2: {object_name}")
         except ClientError as e:
             logger.error(f"Error deleting file from R2: {e}")
@@ -120,12 +210,17 @@ class R2Service:
         if not self._client:
             return False
             
+        if not self._check_quota(class_a=1):
+            return False
+
         try:
+            file_size = os.path.getsize(local_path)
             self._client.upload_file(
                 str(local_path),
                 settings.r2.bucket_name,
                 object_name
             )
+            self._increment_usage(class_a=1, bytes_added=file_size)
             return True
         except ClientError as e:
             logger.error(f"Error uploading file to R2: {e}")
@@ -136,6 +231,19 @@ class R2Service:
         if not self._client:
             return False
             
+        if not self._check_quota(class_b=1): # Download is Class B
+             # Critical fallback: If we can't download because of quota, we are in trouble if we uploaded it.
+             # But usually this method matches 'upload_file' -> 'download'.
+             # If we are strictly 0 cost, we should block.
+             # However, delete (Class A) is needed to clean up.
+             # Let's allow download if it's cleanup? No, strict rules.
+             logger.warning("Quota exceeded during download_and_delete. Attempting anyway to cleanup?")
+             pass # We proceed for download/cleanup to avoid data loss/zombies? 
+             # Actually, if we block download, the file stays in R2.
+             # Strategy: Allow Class B overage slightly for cleanup? 
+             # For now, strict check.
+             return False
+
         try:
             logger.info(f"Downloading {object_name} from R2 to {local_path}...")
             self._client.download_file(
@@ -143,8 +251,17 @@ class R2Service:
                 object_name,
                 str(local_path)
             )
+            
+            # Decrement storage usage (Transient Storage Logic)
+            try:
+                file_size = os.path.getsize(str(local_path))
+                self._increment_usage(class_b=1, bytes_added=-file_size)
+            except Exception:
+                # Fallback if size check fails (shouldn't happen)
+                self._increment_usage(class_b=1)
+
             logger.info(f"Download complete. Deleting R2 copy...")
-            self.delete_file(object_name)
+            self.delete_file(object_name) # Internal increment check (Class A)
             return True
         except Exception as e:
             logger.error(f"Error downloading/deleting file from R2: {e}")

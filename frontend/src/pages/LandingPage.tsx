@@ -200,10 +200,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           setIsSyncing(false);
           return;
         }
-        await uppy.upload();
+
+        try {
+          await uppy.upload();
+        } catch (err: any) {
+          console.error("Upload failed:", err);
+          // Auto-fallback: If Turbo Mode is on and it failed, try switching to TUS
+          if (turboMode) {
+            console.warn("Turbo Mode (R2) failed. Falling back to Standard Mode (TUS)...");
+            // Disable Turbo Mode
+            setTurboMode(false);
+            // Wait for useEffect to recreate Uppy instance with TUS
+            // This is tricky because React state updates are async.
+            // We need to trigger a retry after state update.
+            // Actually, simply setting turboMode(false) will reset Uppy. 
+            // The user will have to click upload again? Or we can hack it?
+            // Better UX: Show specific alert asking user to retry.
+            alert('高速上傳通道暫時無法使用，系統將自動切換至標準模式。請再次點擊「開始同步」按鈕。');
+            setTurboMode(false); // This triggers useEffect -> new Uppy (Tus)
+            setIsSyncing(false);
+            return;
+          }
+          throw err; // Re-throw if not turbo mode or other error
+        }
       }
     } catch (err) {
       console.error(err);
+      // alert('上傳失敗，請檢查網路或密碼。'); // Don't show generic alert if we handled fallback
+      if (!turboMode) {
+          alert('上傳失敗，請檢查網路或密碼。');
+      }
     } finally {
       setIsSyncing(false);
     }

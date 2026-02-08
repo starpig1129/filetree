@@ -28,8 +28,23 @@ export const AdminPage: React.FC = () => {
     ip?: string;
   }
 
+  interface R2Usage {
+    usage: {
+      month: string;
+      storage_bytes_approx: number;
+      requests_class_a: number;
+      requests_class_b: number;
+    };
+    limits: {
+      gb: number;
+      class_a: number;
+      class_b: number;
+    };
+  }
+
   const [users, setUsers] = useState<User[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [r2Usage, setR2Usage] = useState<R2Usage | null>(null);
   const [activeTab, setActiveTab] = useState<'users' | 'logs'>('users');
 
   // Inline editing states (RESTORED)
@@ -62,16 +77,30 @@ export const AdminPage: React.FC = () => {
     }
   }, [masterKey]);
 
+  const fetchR2Usage = React.useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/r2-usage?master_key=${masterKey}`);
+      if (res.ok) {
+        const data = await res.json();
+        setR2Usage(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch R2 usage:', err);
+    }
+  }, [masterKey]);
+
   React.useEffect(() => {
     if (isAuthorized) {
       fetchUsers();
       fetchLogs();
+      fetchR2Usage();
       const interval = setInterval(() => {
         fetchLogs();
-      }, 5000); // Auto-refresh logs every 5s
+        fetchR2Usage(); // Refresh usage periodically too
+      }, 5000); 
       return () => clearInterval(interval);
     }
-  }, [isAuthorized, fetchUsers, fetchLogs]);
+  }, [isAuthorized, fetchUsers, fetchLogs, fetchR2Usage]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -587,6 +616,95 @@ export const AdminPage: React.FC = () => {
 
         {/* Sidebar Status */}
         < div className="lg:col-span-4 xl:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-[clamp(1rem,2.5vw,2.5rem)]" >
+          {/* R2 Usage Widget */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card p-6 space-y-4 shadow-xl relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+               <Activity className="w-24 h-24 rotate-12" />
+            </div>
+            <h3 className="text-xs font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.4em] flex items-center gap-2 border-b border-gray-200 dark:border-white/5 pb-3 relative z-10">
+              <Activity className="w-4 h-4 text-orange-500 dark:text-orange-400" /> 雲端資源配額
+            </h3>
+            
+            {r2Usage ? (
+              <div className="space-y-4 relative z-10">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold text-gray-500 dark:text-white/40">
+                    <span>Class A (寫入/刪除)</span>
+                    <span>{((r2Usage.usage.requests_class_a / r2Usage.limits.class_a) * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (r2Usage.usage.requests_class_a / r2Usage.limits.class_a) * 100)}%` }}
+                      className={cn("h-full rounded-full",
+                        (r2Usage.usage.requests_class_a / r2Usage.limits.class_a) > 0.9 ? "bg-red-500" : "bg-orange-500"
+                      )}
+                    />
+                  </div>
+                  <div className="text-[9px] text-right font-mono text-gray-400 dark:text-white/20">
+                    {r2Usage.usage.requests_class_a.toLocaleString()} / {r2Usage.limits.class_a.toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold text-gray-500 dark:text-white/40">
+                    <span>Class B (讀取)</span>
+                    <span>{((r2Usage.usage.requests_class_b / r2Usage.limits.class_b) * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (r2Usage.usage.requests_class_b / r2Usage.limits.class_b) * 100)}%` }}
+                      className="h-full bg-blue-500 rounded-full"
+                    />
+                  </div>
+                  <div className="text-[9px] text-right font-mono text-gray-400 dark:text-white/20">
+                    {r2Usage.usage.requests_class_b.toLocaleString()} / {r2Usage.limits.class_b.toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold text-gray-500 dark:text-white/40">
+                     <span>暫存數據量 (Staged)</span>
+                     <span>{(r2Usage.usage.storage_bytes_approx / (1024 * 1024)).toFixed(2)} MB</span>
+                  </div>
+                   <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                     <motion.div 
+                       initial={{ width: 0 }}
+                       animate={{ width: `${Math.min(100, (r2Usage.usage.storage_bytes_approx / (r2Usage.limits.gb * 1024 * 1024 * 1024)) * 100)}%` }}
+                       className="h-full bg-violet-500 rounded-full"
+                     />
+                   </div>
+                   <div className="text-[9px] text-right font-mono text-gray-400 dark:text-white/20">
+                     請保持低於 1GB 以確保安全 (Max: {r2Usage.limits.gb} GB)
+                   </div>
+                </div>
+                
+                 <div className="pt-2 border-t border-gray-200 dark:border-white/5">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[9px] uppercase tracking-widest text-gray-500 dark:text-white/30 font-bold">目前用量狀態</span>
+                        <span className={cn("text-[10px] font-black tracking-widest px-2 py-0.5 rounded",
+                            (r2Usage.usage.requests_class_a >= r2Usage.limits.class_a || r2Usage.usage.requests_class_b >= r2Usage.limits.class_b)
+                            ? "bg-red-500/10 text-red-500"
+                            : "bg-green-500/10 text-green-500"
+                        )}>
+                            {(r2Usage.usage.requests_class_a >= r2Usage.limits.class_a || r2Usage.usage.requests_class_b >= r2Usage.limits.class_b) ? "QUOTA FULL" : "HEALTHY"}
+                        </span>
+                    </div>
+                </div>
+              </div>
+            ) : (
+               <div className="text-center py-4 text-xs text-gray-400 dark:text-white/30 animate-pulse">
+                   載入資源數據中...
+               </div>
+            )}
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}

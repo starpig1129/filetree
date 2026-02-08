@@ -189,6 +189,23 @@ async def admin_reset_default_password(
     return {"message": f"使用者 {username} 的密碼已重設為預設值。"}
 
 
+@router.get("/admin/r2-usage")
+async def get_r2_usage(master_key: str):
+    """Get current R2 usage statistics."""
+    if master_key != settings.security.master_key:
+        raise HTTPException(status_code=403, detail="Invalid master key")
+    
+    usage = r2_service.get_usage()
+    return {
+        "usage": usage,
+        "limits": {
+            "gb": settings.r2.monthly_limit_gb,
+            "class_a": settings.r2.monthly_limit_class_a,
+            "class_b": settings.r2.monthly_limit_class_b
+        }
+    }
+    
+
 @router.post("/admin/delete-user")
 async def admin_delete_user(
     request: Request,

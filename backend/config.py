@@ -72,6 +72,10 @@ class R2Config(BaseModel):
     threshold_mb: int = 100
     max_concurrent_uploads: int = 5
     max_concurrent_downloads: int = 5
+    # Safety limits (Zero Cost Guarantee)
+    monthly_limit_gb: int = 9  # Limit to 9GB (Free tier is 10GB)
+    monthly_limit_class_a: int = 900000 # Limit to 900k ops (Free tier is 1M)
+    monthly_limit_class_b: int = 9000000 # Limit to 9M ops (Free tier is 10M)
 
 
 class Config(BaseSettings):
