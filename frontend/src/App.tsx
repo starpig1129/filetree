@@ -9,6 +9,7 @@ import { Starfield } from './components/Starfield';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { cn } from './lib/utils';
 
 interface UserData {
   users?: Array<{ username: string; folder: string }>;
@@ -103,6 +104,11 @@ const MainLayout: React.FC<{
 }> = ({ users, config, loading }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const location = useLocation();
+
+  // Determine if we constitute a "dashboard" view (UserPage) that needs independent scrolling panes
+  // The Landing Page (/) and Help Page (/help) should behave like standard scrollable documents
+  const isDashboard = location.pathname !== '/' && location.pathname !== '/help';
 
   // Close mobile drawers on window resize to desktop
   useEffect(() => {
@@ -117,12 +123,19 @@ const MainLayout: React.FC<{
   }, []);
 
   return (
-    <div className="min-h-screen flex relative">
+    <div className="h-screen flex relative overflow-hidden bg-gray-50 dark:bg-space-black">
       {/* Left Sidebar - Navigation */}
       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       {/* Center Content */}
-      <main className="flex-1 min-w-0 p-4 lg:p-6 xl:p-8 overflow-y-auto">
+      {/* 
+        For Dashboard (UserPage): overflow-hidden (let page handle scroll zones), fixed height
+        For Others: overflow-y-auto (standard document scroll)
+      */}
+      <main className={cn(
+        "flex-1 min-w-0 flex flex-col p-4 lg:p-6 xl:p-8 transition-all duration-300",
+        isDashboard ? "overflow-hidden h-full" : "overflow-y-auto h-full"
+      )}>
         <MainContent users={users} config={config} loading={loading} />
       </main>
 
