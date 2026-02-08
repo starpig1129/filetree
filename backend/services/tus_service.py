@@ -6,7 +6,7 @@ import os
 import json
 import base64
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, AsyncIterator
 import aiofiles
 import aiofiles.os
 from backend.config import settings
@@ -114,26 +114,12 @@ class TusService:
             return json.loads(content)
 
     async def patch_upload(self, upload_id: str, offset: int, chunk: bytes) -> int:
-        """Append a chunk of data to the upload.
-
-        Args:
-            upload_id: Unique identifier for the upload.
-            offset: The offset at which to write the data.
-            chunk: The bytes to write.
-
-        Returns:
-            The new offset after writing.
-
-        Raises:
-            ValueError: If offset is incorrect or upload not found.
-        """
+        """Append a chunk of data to the upload."""
         info = await self.get_upload_info(upload_id)
         if not info:
             raise ValueError("Upload not found")
 
         if info['offset'] != offset:
-            # Tolerant offset check? Local clients might retry.
-            # Tus spec says 409 Conflict if offset mismatch.
             raise ValueError(f"Offset mismatch: expected {info['offset']}, got {offset}")
 
         async with aiofiles.open(self._get_data_path(upload_id), mode='ab') as f:
@@ -141,6 +127,27 @@ class TusService:
 
         info['offset'] += len(chunk)
 
+        async with aiofiles.open(self._get_info_path(upload_id), mode='w') as f:
+            await f.write(json.dumps(info))
+
+        return info['offset']
+
+    async def patch_upload_stream(self, upload_id: str, offset: int, stream: AsyncIterator[bytes]) -> int:
+        """Append a stream of data to the upload."""
+        info = await self.get_upload_info(upload_id)
+        if not info:
+            raise ValueError("Upload not found")
+
+        if info['offset'] != offset:
+             raise ValueError(f"Offset mismatch: expected {info['offset']}, got {offset}")
+
+        bytes_written = 0
+        async with aiofiles.open(self._get_data_path(upload_id), mode='ab') as f:
+            async for chunk in stream:
+                await f.write(chunk)
+                bytes_written += len(chunk)
+
+        info['offset'] += bytes_written
         async with aiofiles.open(self._get_info_path(upload_id), mode='w') as f:
             await f.write(json.dumps(info))
 
@@ -179,6 +186,53 @@ class TusService:
 
         return unique_name
 
+
+    async def concat_uploads(self, target_id: str, partial_ids: List[str], metadata_str: str) -> None:
+        """Concatenate multiple partial uploads into a final upload.
+
+        Args:
+            target_id: The ID of the final upload.
+            partial_ids: List of IDs of partial uploads to concatenate.
+            metadata_str: Metadata for the final upload.
+        """
+        # 1. Validate all partial uploads exist and are finished
+        total_length = 0
+        for pid in partial_ids:
+            info = await self.get_upload_info(pid)
+            if not info:
+                raise ValueError(f"Partial upload {pid} not found")
+            if info['offset'] != info['length']:
+                raise ValueError(f"Partial upload {pid} is not complete")
+            total_length += info['length']
+
+        # 2. Create the final upload info
+        # Reuse create_upload logic or manually create info
+        # We need to parse metadata here too
+        await self.create_upload(target_id, total_length, metadata_str)
+
+        # 3. Concatenate data
+        target_data_path = self._get_data_path(target_id)
+        # Clear the empty file created by create_upload
+        async with aiofiles.open(target_data_path, mode='wb') as f_target:
+            for pid in partial_ids:
+                source_data_path = self._get_data_path(pid)
+                async with aiofiles.open(source_data_path, mode='rb') as f_source:
+                    while True:
+                        chunk = await f_source.read(1024 * 1024) # 1MB buffer
+                        if not chunk:
+                            break
+                        await f_target.write(chunk)
+        
+        # 4. Update offset to reflect completion
+        info = await self.get_upload_info(target_id)
+        info['offset'] = total_length
+        async with aiofiles.open(self._get_info_path(target_id), mode='w') as f:
+            await f.write(json.dumps(info))
+
+        # 5. Cleanup partial uploads
+        for pid in partial_ids:
+            await aiofiles.os.remove(self._get_info_path(pid))
+            await aiofiles.os.remove(self._get_data_path(pid))
 
 # Singleton instance
 tus_service = TusService()

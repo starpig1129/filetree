@@ -76,8 +76,35 @@ class BatchActionRequest(BaseModel):
 class SystemConfig(BaseModel):
     """Public system configuration."""
     allowed_extensions: Optional[List[str]] = None
+    r2_enabled: bool = False
 
 class InitResponse(BaseModel):
     """Response for initial data load."""
     users: List[UserPublic]
     config: SystemConfig
+
+class UploadInitRequest(BaseModel):
+    filename: str
+    file_size: int
+    password: str
+
+class UploadInitResponse(BaseModel):
+    strategy: str  # "tus" or "r2"
+    tus_endpoint: Optional[str] = None
+    
+# Uppy AwsS3Multipart compatible schemas
+
+class UppyCreateMultipartRequest(BaseModel):
+    filename: str
+    type: str
+    metadata: Optional[dict] = None
+
+class UppySignPartRequest(BaseModel):
+    uploadId: str
+    key: str
+    partNumber: int
+
+class UppyCompleteMultipartRequest(BaseModel):
+    uploadId: Optional[str] = None
+    key: str
+    parts: List[dict]

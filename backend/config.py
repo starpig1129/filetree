@@ -62,12 +62,25 @@ class LogicConfig(BaseModel):
     allowed_extensions: Optional[list[str]] = None
 
 
+class R2Config(BaseModel):
+    """Cloudflare R2 storage settings."""
+    endpoint_url: str = ""
+    access_key_id: str = ""
+    secret_access_key: str = ""
+    bucket_name: str = ""
+    public_domain: str = ""
+    threshold_mb: int = 100
+    max_concurrent_uploads: int = 5
+    max_concurrent_downloads: int = 5
+
+
 class Config(BaseSettings):
     """Global configuration object."""
     server: ServerConfig = ServerConfig()
     paths: PathConfig = PathConfig()
     security: SecurityConfig = SecurityConfig()
     logic: LogicConfig = LogicConfig()
+    r2: R2Config = R2Config()
 
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",

@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck } from 'lucide-react';
+import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck, Rocket } from 'lucide-react';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { cn } from '../lib/utils';
 import Uppy from '@uppy/core';
 import UppyDashboard from '../components/UppyDashboard';
 import Tus from '@uppy/tus';
+import AwsS3 from '@uppy/aws-s3';
 
 // Uppy styles
 import '@uppy/core/css/style.min.css';
@@ -16,7 +17,10 @@ interface LandingPageProps {
   data: {
     users?: Array<{ username: string; folder: string }>;
     error?: string;
-    config?: { allowed_extensions?: string[] };
+    config?: { 
+      allowed_extensions?: string[];
+      r2_enabled?: boolean;
+    };
   };
 }
 
@@ -27,43 +31,105 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{ username: string, oldPwd: string } | null>(null);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
+  
+  // Turbo Mode (R2) state
+  const [turboMode, setTurboMode] = useState(false);
 
-  // Initialize Uppy
-  const [uppy] = useState(() => new Uppy({
-    id: 'filenexus-uploader',
-    autoProceed: false,
-    debug: true,
-    restrictions: {
-      maxFileSize: 10 * 1024 * 1024 * 1024, // 10GB
-      allowedFileTypes: data.config?.allowed_extensions || null
+  // Sync turboMode with config default
+  useEffect(() => {
+    if (data.config?.r2_enabled) {
+      setTurboMode(true);
     }
-  }).use(Tus, {
-    endpoint: '/api/upload/tus',
-    chunkSize: 5 * 1024 * 1024, // 5MB chunks (Cloudflare limit is 100MB)
-    retryDelays: [0, 1000, 3000, 5000],
-    removeFingerprintOnSuccess: true,
-  }));
+  }, [data.config]);
 
-  // Update Uppy restrictions when config changes
-  React.useEffect(() => {
-    if (data.config?.allowed_extensions) {
-      uppy.setOptions({
-        restrictions: {
-          maxFileSize: 10 * 1024 * 1024 * 1024,
-          allowedFileTypes: data.config.allowed_extensions
+  // Dynamic Uppy Instance
+  const [uppy, setUppy] = useState<Uppy | null>(null);
+
+  useEffect(() => {
+    // Clean up previous instance
+    if (uppy) {
+      uppy.destroy();
+    }
+
+    const u = new Uppy({
+      id: 'filenexus-uploader',
+      autoProceed: false,
+      debug: true,
+      restrictions: {
+        maxFileSize: 10 * 1024 * 1024 * 1024, // 10GB
+        allowedFileTypes: data.config?.allowed_extensions || null
+      }
+    });
+
+    if (turboMode) {
+      // R2 / S3 Multipart Strategy
+      u.use(AwsS3, {
+        shouldUseMultipart: true,
+        limit: 5,
+        createMultipartUpload: async (file: any) => {
+          const res = await fetch('/api/upload/r2/multipart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name,
+              type: file.type,
+              metadata: file.meta
+            }),
+          });
+          if (!res.ok) throw new Error('Failed to init upload');
+          return await res.json();
+        },
+        signPart: async (_file: any, { uploadId, key, partNumber }: any) => {
+          const res = await fetch(`/api/upload/r2/multipart/${uploadId}?key=${encodeURIComponent(key)}&partNumber=${partNumber}`);
+          if (!res.ok) throw new Error('Failed to sign part');
+          return await res.json();
+        },
+        completeMultipartUpload: async (_file: any, { uploadId, key, parts }: any) => {
+          const res = await fetch(`/api/upload/r2/multipart/${uploadId}/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, parts }),
+          });
+          if (!res.ok) throw new Error('Failed to complete upload');
+          return await res.json();
+        },
+        listParts: async (_file: any, { uploadId: _uId, key: _k }: any) => {
+          console.log('listParts not implemented, returning empty', _uId, _k);
+          return []; // Return empty list as we don't support resuming existing uploads for now
+        },
+        abortMultipartUpload: async (_file: any, { uploadId: _uId, key: _k }: any) => {
+           // Optional: Implement abort endpoint if needed
+           console.log('Abort not implemented on backend for now', _uId, _k);
         }
       });
+    } else {
+      // Fallback: Tus
+      u.use(Tus, {
+        endpoint: '/api/upload/tus',
+        chunkSize: 50 * 1024 * 1024,
+        retryDelays: [0, 1000, 3000, 5000],
+        removeFingerprintOnSuccess: true,
+        limit: 5,
+      });
     }
-  }, [data.config, uppy]);
 
-  // Sync password to metadata
-  React.useEffect(() => {
+    setUppy(u);
+
+    return () => {
+      u.destroy();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turboMode, data.config]); // Re-create when turboMode changes
+
+  // Update logic on existing uppy (meta, etc)
+  useEffect(() => {
+    if (!uppy) return;
+    
+    // Sync password
     uppy.setMeta({ password: formData.password });
-  }, [formData.password, uppy]);
-
-  // Handle success
-  React.useEffect(() => {
-    uppy.on('complete', async (result) => {
+    
+    // Event listeners
+    const handleComplete = async (result: any) => {
       if (result.successful && result.successful.length > 0) {
         try {
           const body = new FormData();
@@ -71,6 +137,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           const res = await fetch('/api/login', { method: 'POST', body });
           if (res.ok) {
             const user = await res.json();
+             // Just navigate, let server handle file movement if needed?
+             // For S3: Backend already moved file in complete_multipart.
+             // For Tus: Backend moved file in hook.
             if (user.first_login) {
               setFirstLoginUserInfo({ username: user.username, oldPwd: formData.password });
               setRedirectPath(`/${user.username}`);
@@ -84,18 +153,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           window.location.reload();
         }
       }
-    });
+    };
+    
+    uppy.on('complete', handleComplete);
+    
+    return () => {
+      uppy.off('complete', handleComplete);
+    };
+  }, [uppy, formData.password, navigate]);
 
-    uppy.on('error', (error) => {
-      console.error('Uppy Global Error:', error);
-      alert('上傳發生錯誤 (Global): ' + error.message);
-    });
-
-    uppy.on('upload-error', (file, error) => {
-      console.error('Upload error for file:', file?.name, error);
-      alert(`檔案 ${file?.name} 上傳失敗: ${error.message}`);
-    });
-  }, [uppy, data.users, formData.content, formData.password, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +190,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           alert(result.detail || '初始化失敗');
         }
       } else if (uploadType === 'file') {
-        if (uppy.getFiles().length === 0) {
+        if (!uppy || uppy.getFiles().length === 0) {
           alert('請先選擇檔案');
           setIsSyncing(false);
           return;
@@ -184,7 +250,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   資料上傳中心
                   <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-neural-violet animate-pulse shrink-0" />
                 </h2>
-                <p className="text-gray-500 dark:text-white/30 text-[clamp(0.45rem,0.8vw,0.56rem)] uppercase tracking-[0.25em] font-bold">File Synchronization Gateway</p>
+                
+                {data.config?.r2_enabled && uploadType === 'file' && (
+                  <div className="flex justify-center mt-2">
+                     <button 
+                       onClick={() => setTurboMode(!turboMode)}
+                       className={cn(
+                         "flex items-center gap-2 px-3 py-1 rounded-full text-[10px] uppercase tracking-wider border transition-all",
+                         turboMode 
+                           ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-quantum-cyan" 
+                           : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500"
+                       )}
+                     >
+                       <Rocket className={cn("w-3 h-3", turboMode && "text-cyan-500")} />
+                       Turbo Mode: {turboMode ? "ON" : "OFF"}
+                     </button>
+                  </div>
+                )}
+                
+                <p className="text-gray-500 dark:text-white/30 text-[clamp(0.45rem,0.8vw,0.56rem)] uppercase tracking-[0.25em] font-bold mt-2">File Synchronization Gateway</p>
               </div>
 
               {/* Selector & Form */}
@@ -231,18 +315,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                           />
                         ) : (
                           <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/2">
-                            <UppyDashboard
-                              uppy={uppy}
-                              className="w-full"
-                              props={{
-                                showProgressDetails: true,
-                                note: 'Supports chunked & resumable uploads (powered by Tus)',
-                                theme: 'dark',
-                                hideUploadButton: true,
-                                height: 300,
-                                width: '100%'
-                              }}
-                            />
+                             {uppy ? (
+                                <UppyDashboard
+                                  uppy={uppy}
+                                  className="w-full"
+                                  props={{
+                                    showProgressDetails: true,
+                                    note: turboMode 
+                                      ? 'Powered by Cloudflare R2 Acceleration (S3 Multipart)' 
+                                      : 'Supports chunked & resumable uploads (powered by Tus)',
+                                    theme: 'dark',
+                                    hideUploadButton: true,
+                                    height: 300,
+                                    width: '100%'
+                                  }}
+                                />
+                             ) : (
+                               <div className="h-75 flex items-center justify-center text-gray-500">初始化中...</div>
+                             )}
                           </div>
                         )}
                       </motion.div>
