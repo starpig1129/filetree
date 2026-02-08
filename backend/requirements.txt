@@ -8,3 +8,4 @@ aiofiles
 jinja2
 bcrypt
 bcrypt
+boto3
