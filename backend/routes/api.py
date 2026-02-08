@@ -25,8 +25,9 @@ from backend.schemas import (
     UploadInitRequest, UploadInitResponse, UppyCreateMultipartRequest, 
     UppySignPartRequest, UppyCompleteMultipartRequest
 )
+from backend.services.thumbnail_service import thumbnail_service
 from backend.core.auth import generate_salt, hash_password, verify_password
-from backend.core.rate_limit import login_limiter, admin_limiter
+from backend.core.rate_limit import limiter
 from backend.config import settings
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -57,6 +58,7 @@ async def init_data(request: Request):
 
 
 @router.post("/admin/create-user")
+@limiter.limit("5/minute")
 async def admin_create_user(
     request: Request,
     master_key: str = Form(...),
@@ -65,9 +67,7 @@ async def admin_create_user(
     folder: Optional[str] = Form(None)
 ):
     """Admin endpoint to create a user."""
-    # 0. Rate Limit
-    if not admin_limiter.is_allowed(request.client.host):
-        raise HTTPException(status_code=429, detail="請求太過頻繁，請稍後再試。")
+    # 0. Rate Limit handled by decorator
         
     # 1. Verify authority
     admin_service.verify_request(request, master_key)
@@ -226,11 +226,10 @@ async def admin_delete_user(
 
 
 @router.post("/login", response_model=UserCreate)
+@limiter.limit("5/minute")
 async def login(request: Request, password: str = Form(...)):
     """Verify password and return the associated user."""
-    # 0. Rate Limit
-    if not login_limiter.is_allowed(request.client.host):
-        raise HTTPException(status_code=429, detail="登入次數過多，請於一分鐘後再試。")
+    # 0. Rate Limit handled by decorator
 
     user = await user_service.get_user_by_password(password)
     if not user:
@@ -280,6 +279,7 @@ async def get_files(username: str):
 
 
 @router.post("/upload")
+@limiter.limit("20/minute")
 async def upload_files(
     request: Request,
     password: str = Form(...),
@@ -787,6 +787,41 @@ async def download_direct(
     if inline:
         return FileResponse(path=file_path)
     return FileResponse(path=file_path, filename=filename)
+
+
+@router.get("/thumbnail/{username}/{filename}")
+async def get_thumbnail(
+    username: str, 
+    filename: str,
+    token: Optional[str] = None
+):
+    """Get a thumbnail for a file."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Check locks
+    is_locked = user.is_locked or filename in getattr(user, 'locked_files', [])
+    if is_locked:
+        if not token:
+             raise HTTPException(status_code=403, detail="Locked resource")
+        
+        info = token_service.validate_token(token)
+        if not info or info.username != username:
+            if not (info and info.token_type == 'share' and info.filename == filename and info.username == username):
+                raise HTTPException(status_code=403, detail="Invalid token")
+
+    folder = file_service._get_user_folder(user.folder)
+    file_path = folder / filename
+    
+    thumb_path = await thumbnail_service.get_thumbnail(file_path)
+    
+    if thumb_path:
+        return FileResponse(path=thumb_path)
+    
+    # Fallback to generic icon or original if small?
+    # For now, 404 so frontend shows default icon
+    raise HTTPException(status_code=404, detail="Thumbnail not available")
 
 
 @router.post("/user/{username}/unlock")

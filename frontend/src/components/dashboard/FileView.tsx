@@ -183,21 +183,31 @@ export const FileView: React.FC<FileViewProps> = ({
                     )}
                   </div>
 
-                  {/* Thumbnail / Icon */}
-                  <div className="aspect-[4/3] w-full bg-gray-100/50 dark:bg-black/20 flex items-center justify-center overflow-hidden relative">
-                     {isImage ? (
+                     {/* Thumbnail / Icon */}
+                  <div className="relative w-full aspect-[4/3] bg-gray-100/50 dark:bg-black/20 flex items-center justify-center overflow-hidden">
+                     {(isImage || ['mp4', 'webm', 'mov'].includes(file.name.split('.').pop()?.toLowerCase() || '')) ? (
                        <img
-                         src={`/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`}
+                         src={`/api/thumbnail/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`}
                          alt={file.name}
                          loading="lazy"
                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                         onError={(e) => {
+                           // Fallback to icon if thumbnail fails
+                           e.currentTarget.style.display = 'none';
+                           e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                         }}
                        />
-                     ) : (
-                       <Icon className={cn(
-                         "w-12 h-12 transition-all duration-300",
-                         isLocked ? "text-gray-300 dark:text-gray-600 blur-sm" : "text-gray-400 dark:text-gray-500 group-hover:text-cyan-500 group-hover:scale-110"
-                       )} />
-                     )}
+                     ) : null}
+                     
+                     <div className={cn(
+                       "flex items-center justify-center w-full h-full absolute inset-0 transition-all duration-300",
+                       (isImage || ['mp4', 'webm', 'mov'].includes(file.name.split('.').pop()?.toLowerCase() || '')) ? "hidden" : "",
+                     )}>
+                        <Icon className={cn(
+                          "w-12 h-12",
+                          isLocked ? "text-gray-300 dark:text-gray-600 blur-sm" : "text-gray-400 dark:text-gray-500 group-hover:text-cyan-500 group-hover:scale-110"
+                        )} />
+                     </div>
                      {/* Hover Actions Overlay */}
                      {!isLocked && (
                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">

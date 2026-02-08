@@ -110,6 +110,15 @@ class FileService:
             
         async with aiofiles.open(folder / unique_name, mode='wb') as f:
             await f.write(content)
+        
+        # Trigger deduplication in background
+        from backend.services.dedup_service import dedup_service
+        try:
+            # We await here to ensure it's processed, or could use background task
+            # Awaiting is safer for now to ensure consistency
+            await dedup_service.deduplicate(folder / unique_name)
+        except Exception as e:
+            print(f"Dedup failed: {e}")
             
         return unique_name
 
