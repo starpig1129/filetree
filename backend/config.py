@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import (
     BaseSettings, 
     SettingsConfigDict, 
@@ -26,12 +26,25 @@ class ServerConfig(BaseModel):
     ssl_key: Optional[str] = None
 
 
+
+# Define project root relative to this config file (backend/config.py -> backend/ -> root/)
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+
 class PathConfig(BaseModel):
     """Path-specific settings."""
     upload_folder: Path = Path("data/uploads")
     user_info_file: Path = Path("data/user_info.json")
     tus_temp_folder: Path = Path("data/tus_temp")
-    static_dir: Path = Path("static/dist")
+    static_dir: Path = PROJECT_ROOT / "static/dist"
+
+    @model_validator(mode='after')
+    def resolve_relative_paths(self):
+        """Ensure all paths are absolute, resolving relative ones against PROJECT_ROOT."""
+        for field_name in self.model_fields:
+            value = getattr(self, field_name)
+            if isinstance(value, Path) and not value.is_absolute():
+                setattr(self, field_name, PROJECT_ROOT / value)
+        return self
 
 
 class SecurityConfig(BaseModel):
