@@ -92,6 +92,17 @@ class UserService:
             A list of UserPublic models.
         """
         users = await self._read_users()
+        # Filter out users who have explicitly set show_in_list to False
+        # Default to True for backward compatibility
+        return [UserPublic(**u) for u in users if u.get('show_in_list', True)]
+
+    async def list_all_users_for_admin(self) -> List[UserPublic]:
+        """List ALL users for admin panel (including hidden ones).
+
+        Returns:
+            A list of UserPublic models (safe to send to client).
+        """
+        users = await self._read_users()
         return [UserPublic(**u) for u in users]
 
     async def list_all_users(self) -> List[UserCreate]:

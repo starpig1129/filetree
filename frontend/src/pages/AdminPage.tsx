@@ -17,6 +17,8 @@ export const AdminPage: React.FC = () => {
     folder: string;
     is_locked: boolean;
     first_login: boolean;
+    data_retention_days?: number;
+    show_in_list?: boolean;
   }
 
   interface AuditLog {
@@ -52,6 +54,11 @@ export const AdminPage: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [resettingPwdUser, setResettingPwdUser] = useState<string | null>(null);
   const [newPwd, setNewPwd] = useState('');
+  
+  // Extra settings editing
+  const [editingSettingsUser, setEditingSettingsUser] = useState<string | null>(null);
+  const [editRetention, setEditRetention] = useState<string>('');
+  const [editShowInList, setEditShowInList] = useState<boolean>(true);
 
   const fetchUsers = React.useCallback(async () => {
     try {
@@ -97,8 +104,32 @@ export const AdminPage: React.FC = () => {
       const interval = setInterval(() => {
         fetchLogs();
         fetchR2Usage(); // Refresh usage periodically too
-      }, 5000); 
-      return () => clearInterval(interval);
+      }, 5000);
+      
+      // WebSocket for realtime user list updates
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      // Direct endpoint on app.py to bypass router issues
+      const wsUrl = `${protocol}//${window.location.host}/ws/global`;
+      const socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        console.log('Admin: Connected to global WS');
+      };
+
+      socket.onmessage = (event) => {
+        if (event.data === 'USER_LIST_UPDATE') {
+          fetchUsers();
+        }
+      };
+
+      socket.onclose = () => {
+        console.log('Admin: Global WS closed');
+      };
+      
+      return () => {
+        clearInterval(interval);
+        socket.close();
+      };
     }
   }, [isAuthorized, fetchUsers, fetchLogs, fetchR2Usage]);
 
@@ -188,6 +219,39 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleUpdateSettings = async (username: string) => {
+    setIsSyncing(true);
+    try {
+        const body = new FormData();
+        body.append('master_key', masterKey);
+        body.append('username', username);
+        
+        // Handle retention: empty string -> -1 (reset to default in backend)
+        const retentionParam = editRetention.trim() === '' ? '-1' : editRetention;
+        body.append('data_retention_days', retentionParam);
+        
+        body.append('show_in_list', String(editShowInList));
+
+        const res = await fetch('/api/admin/update-user', {
+            method: 'POST',
+            body
+        });
+
+        if (res.ok) {
+            setStatus({ type: 'success', msg: `節點 ${username} 設定已更新` });
+            setEditingSettingsUser(null);
+            fetchUsers();
+        } else {
+            const err = await res.json();
+            setStatus({ type: 'error', msg: err.detail || '設定更新失敗。' });
+        }
+    } catch {
+        setStatus({ type: 'error', msg: '網路連線失敗。' });
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
   const handleResetPassword = async (username: string) => {
     if (!newPwd) return;
 
@@ -239,7 +303,7 @@ export const AdminPage: React.FC = () => {
         const err = await res.json();
         setStatus({ type: 'error', msg: err.detail || '重置失敗。' });
       }
-    } catch (err) {
+    } catch {
       setStatus({ type: 'error', msg: '系統錯誤。' });
     } finally {
       setIsSyncing(false);
@@ -267,7 +331,7 @@ export const AdminPage: React.FC = () => {
         const err = await res.json();
         setStatus({ type: 'error', msg: err.detail || '刪除失敗。' });
       }
-    } catch (err) {
+    } catch {
       setStatus({ type: 'error', msg: '系統錯誤。' });
     } finally {
       setIsSyncing(false);
@@ -449,6 +513,8 @@ export const AdminPage: React.FC = () => {
                         <tr className="border-b border-gray-200 dark:border-white/10">
                           <th className="px-6 py-5 text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em]">節點狀態 / 代碼</th>
                           <th className="px-6 py-5 text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] hidden sm:table-cell">存取扇區</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] hidden md:table-cell">保留策略</th>
+                          <th className="px-6 py-5 text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] hidden md:table-cell">公開索引</th>
                           <th className="px-6 py-5 text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] text-right">管理指令</th>
                         </tr>
                       </thead>
@@ -485,9 +551,59 @@ export const AdminPage: React.FC = () => {
                                 <span>/uploads/{user.folder}</span>
                               </div>
                             </td>
+                              <td className="px-6 py-5 hidden md:table-cell">
+                                {editingSettingsUser === user.username ? (
+                                    <input 
+                                        type="number" 
+                                        placeholder="Default"
+                                        value={editRetention}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (val === '' || val === '-1' || parseInt(val) >= 0) {
+                                                setEditRetention(val);
+                                            }
+                                        }}
+                                        min="-1"
+                                        className="w-20 bg-gray-100 dark:bg-white/10 border border-cyan-300 dark:border-quantum-cyan/30 rounded px-2 py-1 text-xs text-gray-900 dark:text-white outline-none"
+                                    />
+                                ) : (
+                                    <span className="text-gray-500 dark:text-white/40 text-xs font-mono">
+                                        {user.data_retention_days ?? 'System Default'} Days
+                                    </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-5 hidden md:table-cell">
+                                {editingSettingsUser === user.username ? (
+                                    <button 
+                                        onClick={() => setEditShowInList(!editShowInList)}
+                                        className={cn(
+                                            "px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors",
+                                            editShowInList ? "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400" : "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40"
+                                        )}
+                                    >
+                                        {editShowInList ? "VISIBLE" : "HIDDEN"}
+                                    </button>
+                                ) : (
+                                    <span className={cn(
+                                        "text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded",
+                                        user.show_in_list !== false ? "bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400" : "bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-white/30"
+                                    )}>
+                                        {user.show_in_list !== false ? "VISIBLE" : "HIDDEN"}
+                                    </span>
+                                )}
+                              </td>
                             <td className="px-6 py-5">
                               <div className="flex items-center justify-end gap-2">
-                                {resettingPwdUser === user.username ? (
+                                {editingSettingsUser === user.username ? (
+                                      <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                                          <button onClick={() => handleUpdateSettings(user.username)} className="p-1.5 bg-cyan-100 dark:bg-quantum-cyan/20 text-cyan-700 dark:text-quantum-cyan rounded-md hover:bg-cyan-200 dark:hover:bg-quantum-cyan/30 transition-colors">
+                                            <Save className="w-4 h-4" />
+                                          </button>
+                                          <button onClick={() => setEditingSettingsUser(null)} className="p-1.5 bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 rounded-md hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                      </div>
+                                ) : resettingPwdUser === user.username ? (
                                   <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                     <input
                                       autoFocus
@@ -507,6 +623,17 @@ export const AdminPage: React.FC = () => {
                                   </div>
                                 ) : (
                                   <>
+                                    <button
+                                        onClick={() => { 
+                                            setEditingSettingsUser(user.username); 
+                                            setEditRetention(user.data_retention_days?.toString() || ''); 
+                                            setEditShowInList(user.show_in_list ?? true);
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-white/60 hover:border-cyan-500 dark:hover:border-quantum-cyan hover:text-cyan-700 dark:hover:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5 opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+                                        <span>設定</span>
+                                      </button>
                                     <button
                                       onClick={() => { setEditingUser(user.username); setEditName(user.username); }}
                                       className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-white/60 hover:border-cyan-500 dark:hover:border-quantum-cyan hover:text-cyan-700 dark:hover:text-quantum-cyan hover:bg-cyan-50 dark:hover:bg-quantum-cyan/5 transition-all flex items-center gap-2 group/btn"
