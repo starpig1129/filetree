@@ -413,7 +413,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       </div>
 
       {/* Top App Bar - Compact & Functional */}
-      <header className="shrink-0 px-4 py-3 lg:px-8 lg:py-5 flex flex-col gap-4 z-20">
+      <header className="shrink-0 px-4 pt-16 pb-3 lg:px-8 lg:py-5 flex flex-col gap-4 z-20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 lg:gap-4 group cursor-default">
             <div className="relative">
