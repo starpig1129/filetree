@@ -40,7 +40,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
   const refreshDashboard = React.useCallback(async (authToken: string) => {
     try {
-      const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}`);
+      const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}&t=${Date.now()}`);
       if (res.ok) {
         const newData = await res.json();
         setDashboardData(newData);
@@ -50,17 +50,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }
   }, [data.user?.username]);
 
-  // Sync props to local state if they change (e.g. navigation)
+  // Sync props to local state if they change (e.g. navigation), 
+  // but be careful not to overwrite valid local updates with stale props
+  // We only update if the username or basic structure changed, or if it's the first load
   React.useEffect(() => {
-    setDashboardData(data);
-  }, [data]);
+    if (data.user?.username !== dashboardData.user?.username) {
+       setDashboardData(data);
+    }
+  }, [data, dashboardData.user?.username]);
 
   // Real-time synchronization via WebSocket
   React.useEffect(() => {
-    if (!dashboardData.user?.username) return;
+    if (!data.user?.username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/${dashboardData.user.username}`;
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
     let socket: WebSocket | null = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
@@ -69,17 +73,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       }
     };
 
-    socket.onclose = () => {
-      // Small delay before reconnecting
-      setTimeout(() => {
-        socket = new WebSocket(wsUrl);
-      }, 5000);
-    };
-
     return () => {
-      if (socket) socket.close();
+      if (socket) {
+        socket.close();
+        socket = null;
+      }
     };
-  }, [dashboardData.user?.username, token, refreshDashboard]);
+  }, [data.user?.username, token, refreshDashboard]);
 
   const toggleSelectItem = (type: 'file' | 'url', id: string) => {
     setSelectedItems(prev => {

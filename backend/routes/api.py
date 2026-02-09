@@ -1004,7 +1004,7 @@ async def get_user_dashboard(
     
     # We load files anyway to calculate usage (which is usually public info? or hide it too?)
     # Let's verify usage is safe to show? Usually yes. But filenames definitely no.
-    files = await file_service.get_user_files(user.folder)
+    files = await file_service.get_user_files(user.folder, retention_days=user.data_retention_days)
     
     locked_files_list = getattr(user, 'locked_files', [])
     
