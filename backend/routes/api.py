@@ -340,7 +340,7 @@ async def init_upload(request: Request, req: UploadInitRequest):
 
 @router.post("/upload/r2/multipart")
 @limiter.limit(TUS_LIMIT)
-async def create_multipart(req: UppyCreateMultipartRequest, request: Request):
+async def create_multipart(request: Request, req: UppyCreateMultipartRequest):
     """Initiate S3 Multipart Upload."""
     # Auth is tricky here. Uppy sends metadata, we can check password in it.
     password = req.metadata.get("password") if req.metadata else None
@@ -367,7 +367,7 @@ async def create_multipart(req: UppyCreateMultipartRequest, request: Request):
 
 @router.get("/upload/r2/multipart/{uploadId}")
 @limiter.limit(TUS_LIMIT)
-async def sign_part(uploadId: str, key: str, partNumber: int, request: Request):
+async def sign_part(request: Request, uploadId: str, key: str, partNumber: int):
     """Sign a part for upload."""
     if not r2_service._client:
         raise HTTPException(status_code=503, detail="R2 service unavailable")
@@ -391,14 +391,14 @@ async def sign_part(uploadId: str, key: str, partNumber: int, request: Request):
 @router.post("/upload/r2/multipart/{uploadId}/complete")
 @limiter.limit(TUS_LIMIT)
 async def complete_multipart(
+    request: Request,
     uploadId: str, 
-    request: UppyCompleteMultipartRequest,
-    background_tasks: BackgroundTasks,
-    req: Request
+    body: UppyCompleteMultipartRequest,
+    background_tasks: BackgroundTasks
 ):
     """Complete upload and trigger local download."""
-    key = request.key
-    raw_parts = request.parts
+    key = body.key
+    raw_parts = body.parts
     
     if not r2_service._client:
         raise HTTPException(status_code=503, detail="R2 service unavailable")
