@@ -54,6 +54,9 @@ class R2Service:
                     logger.info("New month detected. Resetting R2 usage stats.")
                     return default_usage
                 return data
+        except json.JSONDecodeError:
+            logger.warning("R2 usage file is corrupted or empty. Resetting stats.")
+            return default_usage
         except Exception as e:
             logger.error(f"Failed to load R2 usage: {e}")
             return default_usage
