@@ -35,11 +35,13 @@
   --animate-neural-flow: neuralFlow 10s linear infinite;
 
   @keyframes quantumPulse {
+
     0%,
     100% {
       opacity: 0.8;
       filter: blur(0px);
     }
+
     50% {
       opacity: 1;
       filter: blur(1px);
@@ -51,6 +53,7 @@
     0% {
       background-position: 0% 50%;
     }
+
     100% {
       background-position: 200% 50%;
     }
@@ -58,11 +61,13 @@
 }
 
 @layer base {
+
   /* Dark mode (default) */
   body {
     @apply bg-space-black text-stellar-white min-h-screen font-interface selection:bg-quantum-cyan/30 overflow-x-hidden;
     background-color: #020205;
     background-attachment: fixed;
+
     &::before {
       content: "";
       @apply fixed inset-0 -z-30 opacity-20 pointer-events-none;
@@ -75,6 +80,7 @@
     @apply text-black;
     background-color: var(--color-light-bg);
     background-image: none;
+
     &::before {
       display: none;
     }
@@ -100,7 +106,7 @@
   }
 
   .btn-stellar {
-    @apply relative overflow-hidden bg-white/5 border border-white/10 hover:border-quantum-cyan/50 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)];
+    @apply relative overflow-hidden bg-white/5 border border-white/10 hover:border-quantum-cyan/50 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20;
   }
 
   [data-theme="light"] .btn-stellar {
@@ -141,6 +147,7 @@
 
 @layer utilities {
   @media (prefers-reduced-motion: reduce) {
+
     *,
     ::before,
     ::after {
@@ -149,6 +156,7 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+
     .Starfield {
       display: none;
     }
@@ -170,12 +178,15 @@
   .custom-scrollbar::-webkit-scrollbar {
     width: clamp(3px, 0.4vw, 6px);
   }
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-white/10 rounded-full hover:bg-quantum-cyan/30 transition-colors;
   }
+
   [data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-gray-300 hover:bg-gray-400;
   }
@@ -193,12 +204,14 @@
   }
 }
 
-/* Fix for horizontal overflow on some mobile browsers */
+/* Fix for overflow on mobile browsers */
 html,
 body {
-  overflow-x: hidden;
   width: 100%;
-  position: relative;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
 }
 
 /* Uppy Customization - Glassmorphism Theme */
@@ -212,7 +225,8 @@ body {
 
 [data-theme="light"] {
   --uppy-Color-text: var(--color-light-text);
-  --uppy-Dashboard-browse-color: #0891b2; /* cyan-700 */
+  --uppy-Dashboard-browse-color: #0891b2;
+  /* cyan-700 */
 }
 
 .uppy-Dashboard-inner {
@@ -267,7 +281,8 @@ body {
 }
 
 [data-theme="light"] .uppy-Dashboard-browse {
-  color: #0891b2 !important; /* cyan-700 */
+  color: #0891b2 !important;
+  /* cyan-700 */
 }
 
 .uppy-StatusBar {
@@ -310,7 +325,8 @@ body {
 
 .uppy-Dashboard-Item-status {
   color: rgba(255, 255, 255, 0.5) !important;
-  margin-top: 0 !important; /* Fix overlap issues */
+  margin-top: 0 !important;
+  /* Fix overlap issues */
   font-size: 11px !important;
 }
 

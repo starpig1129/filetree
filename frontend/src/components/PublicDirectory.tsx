@@ -15,10 +15,10 @@ interface PublicDirectoryProps {
   onToggle: () => void;
 }
 
-export const PublicDirectory: React.FC<PublicDirectoryProps> = ({ 
-  users, 
-  isOpen, 
-  onToggle 
+export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
+  users,
+  isOpen,
+  onToggle
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,8 +33,8 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
   }, []);
 
   // Extract current username from path (e.g., /starpig -> starpig)
-  const currentUsername = location.pathname === '/' || location.pathname === '/admin' 
-    ? null 
+  const currentUsername = location.pathname === '/' || location.pathname === '/admin'
+    ? null
     : location.pathname.slice(1);
 
   const handleUserClick = (username: string) => {

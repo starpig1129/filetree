@@ -106,9 +106,10 @@ const MainLayout: React.FC<{
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const location = useLocation();
 
-  // Determine if we constitute a "dashboard" view (UserPage) that needs independent scrolling panes
-  // The Landing Page (/) and Help Page (/help) should behave like standard scrollable documents
-  const isDashboard = location.pathname !== '/' && location.pathname !== '/help';
+  // Determine if we should disable scrolling on the main content area
+  // Only the Help Page (/help) should behave like a standard scrollable document
+  // Landing Page and User Pages should not scroll - only the right sidebar (PublicDirectory) scrolls
+  const isScrollableDocument = location.pathname === '/help';
 
   // Close mobile drawers on window resize to desktop
   useEffect(() => {
@@ -129,12 +130,12 @@ const MainLayout: React.FC<{
 
       {/* Center Content */}
       {/* 
-        For Dashboard (UserPage): overflow-hidden (let page handle scroll zones), fixed height
-        For Others: overflow-y-auto (standard document scroll)
+        For scrollable documents (Help): overflow-y-auto (standard document scroll)
+        For others (Landing/User): overflow-hidden (no scroll, let PublicDirectory handle its own scroll)
       */}
       <main className={cn(
-        "flex-1 min-w-0 flex flex-col p-4 lg:p-6 xl:p-8 transition-all duration-300",
-        isDashboard ? "overflow-hidden h-full" : "overflow-y-auto h-full"
+        "flex-1 min-w-0 flex flex-col p-2 lg:p-4 transition-all duration-300",
+        isScrollableDocument ? "overflow-y-auto h-full" : "overflow-hidden h-full"
       )}>
         <MainContent users={users} config={config} loading={loading} />
       </main>
@@ -197,9 +198,6 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
 
-        <footer className="text-center py-6 lg:py-12 text-gray-400 dark:text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
-          FileNexus - Secure File Bridge Hub
-        </footer>
       </div>
     </BrowserRouter>
   );
