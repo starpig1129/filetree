@@ -35,7 +35,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onCopy
 }) => {
   return (
-    <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-[2rem] border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
+    <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
 
       {/* Panel Header */}
@@ -104,8 +104,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   </div>
                 </div>
 
-                {/* Actions - Slide in on hover */}
-                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/60 backdrop-blur-sm rounded-lg p-1 shadow-sm">
+                {/* Actions - Slide in on hover (Desktop) / Always visible (Mobile) */}
+                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/60 backdrop-blur-sm rounded-lg p-1 shadow-sm">
                   {isAuthenticated && (
                     <>
                       <button onClick={() => onToggleSelect('url', url.url)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500">

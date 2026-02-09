@@ -471,8 +471,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       
       {/* Background Ambient Elements - Contained to avoid overflow issues */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[80px] opacity-60 dark:opacity-40 animate-pulse-slow" />
-        <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] bg-radial-gradient from-neural-violet/10 to-transparent blur-[80px] opacity-60 dark:opacity-40 animate-pulse-slow delay-1000" />
+        <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow" />
+        <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] bg-radial-gradient from-neural-violet/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow delay-1000" />
       </div>
 
       {/* Top App Bar - Compact & Functional */}

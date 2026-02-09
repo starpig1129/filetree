@@ -236,7 +236,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-8rem)] overflow-hidden flex flex-col items-center justify-center">
+    <div className="relative min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center">
 
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] max-w-300 max-h-200 bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block" />
@@ -303,7 +303,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   <button
                     onClick={() => setUploadType('url')}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[9px] sm:text-xs",
+                      "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[0.5625rem] sm:text-xs",
                       uploadType === 'url' ? "bg-white dark:bg-white/10 text-cyan-700 dark:text-quantum-cyan shadow-lg border border-gray-200 dark:border-white/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40"
                     )}
                   >
@@ -312,7 +312,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   <button
                     onClick={() => setUploadType('file')}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[9px] sm:text-xs",
+                      "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[0.5625rem] sm:text-xs",
                       uploadType === 'file' ? "bg-white dark:bg-white/10 text-cyan-700 dark:text-quantum-cyan shadow-lg border border-gray-200 dark:border-white/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40"
                     )}
                   >
@@ -330,7 +330,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                         exit={{ opacity: 0, scale: 0.98 }}
                         className="space-y-2"
                       >
-                        <label className="text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">資料源</label>
+                        <label className="text-[0.5625rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">資料源</label>
                         {uploadType === 'url' ? (
                           <textarea
                             required
@@ -366,7 +366,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">密碼</label>
+                    <label className="text-[0.5625rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">密碼</label>
                     <div className="relative">
                       <input
                         type="password"
