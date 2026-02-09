@@ -797,10 +797,12 @@ async def download_direct(
 
 
 @router.get("/thumbnail/{username}/{filename}")
+@limiter.limit(TUS_LIMIT)
 async def get_thumbnail(
     username: str, 
     filename: str,
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    request: Request = None
 ):
     """Get a thumbnail for a file."""
     user = await user_service.get_user_by_name(username)

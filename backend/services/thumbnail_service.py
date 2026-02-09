@@ -73,9 +73,16 @@ class ThumbnailService:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
+                stderr=asyncio.subprocess.PIPE
             )
-            await proc.communicate()
+            try:
+                # Add timeout to prevent hanging
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+                if proc.returncode != 0:
+                    print(f"ffmpeg error: {stderr.decode()}")
+            except asyncio.TimeoutError:
+                proc.kill()
+                print(f"ffmpeg timeout for {input_path}")
             
         except Exception as e:
             print(f"Error generating video thumbnail for {input_path}: {e}")
