@@ -77,6 +77,14 @@ export const FileView: React.FC<FileViewProps> = ({
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<string | null>(null);
 
+  // Close mobile menu on click outside
+  React.useEffect(() => {
+    const handleClick = () => setMobileMenuOpen(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+
+
   const handleRename = async (oldName: string) => {
     if (!newName || newName === oldName || !onRename) {
       setRenamingFile(null);
@@ -173,7 +181,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     }
                   }}
                   className={cn(
-                    "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1",
+                    "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-2xl transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1",
                     isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                     isLocked && "opacity-75"
                   )}
@@ -234,12 +242,9 @@ export const FileView: React.FC<FileViewProps> = ({
                           isLocked ? "text-gray-300 dark:text-gray-600 blur-sm" : "text-gray-400 dark:text-gray-500 group-hover:text-cyan-500 group-hover:scale-110"
                         )} />
                      </div>
-                     {/* Hover Actions Overlay */}
+                     {/* Desktop ONLY Hover Actions Overlay */}
                      {!isLocked && (
-                       <div className={cn(
-                         "absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity flex items-center justify-center gap-2 z-20",
-                         mobileMenuOpen === file.name ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
-                       )}>
+                       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex items-center justify-center gap-2 z-20 pointer-events-none group-hover:pointer-events-auto">
                           <button 
                             onClick={(e) => { e.stopPropagation(); onShare(file.name); }} 
                             className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 hover:scale-110 transition-all shadow-lg" 
@@ -279,11 +284,117 @@ export const FileView: React.FC<FileViewProps> = ({
                      )}
                   </div>
 
+                  {/* Mobile Action Menu Dropdown - OUTSIDE thumbnail container */}
+                  <AnimatePresence>
+                    {mobileMenuOpen === file.name && (
+                      <>
+                        {/* Invisible backdrop to close menu */}
+                        <div className="fixed inset-0 z-30 lg:hidden" onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(null); }} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl p-2 flex flex-col gap-1 lg:hidden min-w-36 rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10"
+                        >
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); onShare(file.name); setMobileMenuOpen(null); }} 
+                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200 transition-colors"
+                          >
+                            <Share2 className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm font-bold">分享</span>
+                          </button>
+                          <a 
+                            href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
+                            onClick={() => setMobileMenuOpen(null)}
+                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200 transition-colors"
+                          >
+                            <Download className="w-4 h-4 text-green-500" />
+                            <span className="text-sm font-bold">下載</span>
+                          </a>
+                          {onRename && (
+                            <button
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setRenamingFile(file.name); 
+                                setNewName(file.name);
+                                setMobileMenuOpen(null);
+                              }}
+                              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200 transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4 text-cyan-500" />
+                              <span className="text-sm font-bold">重命名</span>
+                            </button>
+                          )}
+                          <div className="h-px bg-gray-100 dark:bg-white/5 my-1" />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(file.name); setMobileMenuOpen(null); }}
+                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="text-sm font-bold">刪除</span>
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Rename Overlay - OUTSIDE thumbnail container */}
+                  <AnimatePresence>
+                    {renamingFile === file.name && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute inset-x-0 inset-y-0 z-50 bg-white/98 dark:bg-gray-950/98 backdrop-blur-xl p-3 flex flex-col justify-center rounded-2xl border-2 border-cyan-500/20"
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 bg-cyan-500/10 text-cyan-500 rounded-lg">
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </div>
+                          <label className="text-[0.625rem] font-bold text-gray-400 dark:text-white/30 uppercase tracking-[0.2em]">重新命名</label>
+                        </div>
+                        
+                        <div className="relative mb-4">
+                          <input
+                            autoFocus
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleRename(file.name);
+                              if (e.key === 'Escape') setRenamingFile(null);
+                            }}
+                            className="w-full text-xs font-medium p-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 dark:text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
+                            placeholder="輸入新名稱..."
+                          />
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setRenamingFile(null)}
+                            className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 text-[0.625rem] font-bold uppercase tracking-widest active:scale-95 transition-transform"
+                          >
+                            取消
+                          </button>
+                          <button 
+                            onClick={() => handleRename(file.name)}
+                            disabled={isRenaming}
+                            className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-[0.625rem] font-bold uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-cyan-500/20"
+                          >
+                            {isRenaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            確認
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Info Footer */}
                   <div className="p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
                     <div className="mb-2">
                        {renamingFile === file.name ? (
-                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                         <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                            <input
                              autoFocus
                              value={newName}
@@ -292,14 +403,26 @@ export const FileView: React.FC<FileViewProps> = ({
                                if (e.key === 'Enter') handleRename(file.name);
                                if (e.key === 'Escape') setRenamingFile(null);
                              }}
-                             className="w-full text-xs p-1 rounded border border-cyan-500/50 bg-white/50 dark:bg-black/20 outline-none"
+                             className="w-full text-sm p-2 rounded-lg border border-cyan-500/50 bg-white dark:bg-black/20 outline-none focus:ring-2 focus:ring-cyan-500/30"
                            />
-                           <button onClick={() => handleRename(file.name)} disabled={isRenaming} className="p-1 text-green-500 hover:bg-green-500/10 rounded">
-                             {isRenaming ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                           </button>
-                           <button onClick={() => setRenamingFile(null)} disabled={isRenaming} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
-                             <X className="w-3 h-3" />
-                           </button>
+                           <div className="flex gap-2">
+                             <button 
+                               onClick={() => handleRename(file.name)} 
+                               disabled={isRenaming} 
+                               className="flex-1 py-1.5 px-3 text-xs font-medium bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors flex items-center justify-center gap-1"
+                             >
+                               {isRenaming ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                               確認
+                             </button>
+                             <button 
+                               onClick={() => setRenamingFile(null)} 
+                               disabled={isRenaming} 
+                               className="flex-1 py-1.5 px-3 text-xs font-medium bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors flex items-center justify-center gap-1"
+                             >
+                               <X className="w-3 h-3" />
+                               取消
+                             </button>
+                           </div>
                          </div>
                        ) : (
                          <h3 className={cn("font-semibold text-sm truncate text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
