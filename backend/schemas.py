@@ -20,6 +20,8 @@ class UserBase(BaseModel):
     folder: str
     is_locked: bool = False
     first_login: bool = True
+    data_retention_days: Optional[int] = None
+    show_in_list: bool = True
 
 
 class UserCreate(UserBase):
@@ -34,6 +36,8 @@ class UserUpdate(BaseModel):
     """Schema for updating a user."""
     is_locked: Optional[bool] = None
     first_login: Optional[bool] = None
+    data_retention_days: Optional[int] = None
+    show_in_list: Optional[bool] = None
 
 
 class UserPublic(UserBase):
@@ -72,6 +76,12 @@ class BatchActionRequest(BaseModel):
     item_type: str  # 'file' or 'url'
     item_ids: List[str]
     action: str  # 'lock', 'unlock', 'delete'
+
+class RenameFileRequest(BaseModel):
+    """Schema for renaming a file."""
+    password: str
+    old_name: str
+    new_name: str
 
 class SystemConfig(BaseModel):
     """Public system configuration."""

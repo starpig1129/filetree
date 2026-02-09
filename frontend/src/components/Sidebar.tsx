@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         {/* Navigation Items */}
         <nav className="flex-1 space-y-2">
           <div className="px-3 mb-3">
-            <span className="text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em]">功能選單</span>
+            <span className="text-[0.5625rem] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em]">功能選單</span>
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;

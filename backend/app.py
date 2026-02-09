@@ -61,6 +61,22 @@ static_path = settings.paths.static_dir
 if not static_path.exists():
     print(f"Warning: Static directory {static_path} not found. Build the frontend first.")
 
+# WebSocket endpoint for global events - defined directly on app to bypass router issues
+from fastapi import WebSocket, WebSocketDisconnect
+from backend.routes.api import event_service
+
+@app.websocket("/ws/global")
+async def global_websocket_endpoint(websocket: WebSocket):
+    """Global WebSocket for system-wide updates (e.g. user list)."""
+    await event_service.connect_global(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        event_service.disconnect_global(websocket)
+    except Exception:
+        event_service.disconnect_global(websocket)
+
 @app.get("/{path:path}")
 async def serve_spa(request: Request, path: str):
     """Serve the SPA or static assets."""

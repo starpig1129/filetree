@@ -2,9 +2,9 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   File, FileText, Image as ImageIcon, Music, Video, 
-  Download, Share2, Trash2, 
+  Download, Share2, Trash2, Edit3,
   Lock, Unlock, CheckSquare, Square, 
-  AlertCircle, Clock, Cpu 
+  AlertCircle, Clock, Cpu, X, Check, Loader2, MoreVertical
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -31,6 +31,7 @@ interface FileViewProps {
   onPreview: (file: { name: string; size: string; url: string }) => void;
   onShare: (filename: string) => void;
   onDelete: (filename: string) => void;
+  onRename?: (oldName: string, newName: string) => Promise<boolean>;
 }
 
 const getFileIcon = (filename: string) => {
@@ -68,10 +69,35 @@ export const FileView: React.FC<FileViewProps> = ({
   onBatchAction,
   onPreview,
   onShare,
-  onDelete
+  onDelete,
+  onRename
 }) => {
+  const [renamingFile, setRenamingFile] = React.useState<string | null>(null);
+  const [newName, setNewName] = React.useState('');
+  const [isRenaming, setIsRenaming] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState<string | null>(null);
+
+  const handleRename = async (oldName: string) => {
+    if (!newName || newName === oldName || !onRename) {
+      setRenamingFile(null);
+      return;
+    }
+    
+    setIsRenaming(true);
+    try {
+      const success = await onRename(oldName, newName);
+      if (success) {
+        setRenamingFile(null);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   return (
-    <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-[2rem] border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
+    <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
       
       {/* Panel Header */}
@@ -154,7 +180,7 @@ export const FileView: React.FC<FileViewProps> = ({
                 >
                   {/* Selection Checkbox (Absolute) */}
                   {!isLocked && (
-                    <div className="absolute top-3 left-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-3 left-3 z-30 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                        <button
                          onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
                          className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-sm hover:scale-110 transition-transform"
@@ -170,7 +196,7 @@ export const FileView: React.FC<FileViewProps> = ({
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleLock('file', file.name, !!file.is_locked); }}
                         className={cn(
-                          "p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm opacity-0 group-hover:opacity-100",
+                          "p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100",
                           file.is_locked ? "bg-violet-500/10 text-violet-500 opacity-100" : "bg-white/80 dark:bg-black/50 text-gray-400 hover:text-gray-600"
                         )}
                       >
@@ -187,7 +213,7 @@ export const FileView: React.FC<FileViewProps> = ({
                   <div className="relative w-full aspect-[4/3] bg-gray-100/50 dark:bg-black/20 flex items-center justify-center overflow-hidden">
                      {(isImage || ['mp4', 'webm', 'mov'].includes(file.name.split('.').pop()?.toLowerCase() || '')) ? (
                        <img
-                         src={`/api/thumbnail/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`}
+                         src={`/api/thumbnail/${username}/${encodeURIComponent(file.name)}?v=2${token ? `&token=${token}` : ''}`}
                          alt={file.name}
                          loading="lazy"
                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -210,7 +236,10 @@ export const FileView: React.FC<FileViewProps> = ({
                      </div>
                      {/* Hover Actions Overlay */}
                      {!isLocked && (
-                       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                       <div className={cn(
+                         "absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity flex items-center justify-center gap-2 z-20",
+                         mobileMenuOpen === file.name ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
+                       )}>
                           <button 
                             onClick={(e) => { e.stopPropagation(); onShare(file.name); }} 
                             className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 hover:scale-110 transition-all shadow-lg" 
@@ -233,6 +262,19 @@ export const FileView: React.FC<FileViewProps> = ({
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          {onRename && (
+                            <button
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setRenamingFile(file.name); 
+                                setNewName(file.name); 
+                              }}
+                              className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 hover:scale-110 transition-all shadow-lg"
+                              title="Rename"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
                        </div>
                      )}
                   </div>
@@ -240,14 +282,48 @@ export const FileView: React.FC<FileViewProps> = ({
                   {/* Info Footer */}
                   <div className="p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
                     <div className="mb-2">
-                       <h3 className={cn("font-semibold text-sm truncate text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
-                       <div className="flex items-center gap-2 mt-1">
+                       {renamingFile === file.name ? (
+                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                           <input
+                             autoFocus
+                             value={newName}
+                             onChange={(e) => setNewName(e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') handleRename(file.name);
+                               if (e.key === 'Escape') setRenamingFile(null);
+                             }}
+                             className="w-full text-xs p-1 rounded border border-cyan-500/50 bg-white/50 dark:bg-black/20 outline-none"
+                           />
+                           <button onClick={() => handleRename(file.name)} disabled={isRenaming} className="p-1 text-green-500 hover:bg-green-500/10 rounded">
+                             {isRenaming ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                           </button>
+                           <button onClick={() => setRenamingFile(null)} disabled={isRenaming} className="p-1 text-red-500 hover:bg-red-500/10 rounded">
+                             <X className="w-3 h-3" />
+                           </button>
+                         </div>
+                       ) : (
+                         <h3 className={cn("font-semibold text-sm truncate text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
+                       )}
+                       <div className="flex items-center gap-2 mt-1 justify-between">
                          <span className="text-[10px] font-bold text-gray-400 dark:text-white/30 uppercase tracking-wider">{file.size} MB</span>
+                         
+                         {/* Mobile Menu Trigger */}
+                         <button 
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setMobileMenuOpen(mobileMenuOpen === file.name ? null : file.name);
+                           }}
+                           className="lg:hidden p-1 -mr-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                         >
+                           <MoreVertical className="w-4 h-4" />
+                         </button>
                        </div>
                     </div>
                     <div className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5", getLifecycleColor(file))}>
                       {file.expired ? (
                         <><AlertCircle className="w-3 h-3" /> 已過期</>
+                      ) : file.remaining_days < 0 ? (
+                        <><Clock className="w-3 h-3" /> 永久保留</>
                       ) : (
                         <><Clock className="w-3 h-3" /> 剩餘 {file.remaining_days} 天</>
                       )}

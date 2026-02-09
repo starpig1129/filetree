@@ -179,14 +179,14 @@ const FilePreviewContent: React.FC<{
         <div className="w-full h-full flex flex-col">
           <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
             <div className={cn(
-              "text-[9px] uppercase font-bold tracking-[0.2em]",
+              "text-[0.5625rem] uppercase font-bold tracking-[0.2em]",
               officeViewer === 'microsoft' ? "text-blue-400" : "text-amber-400"
             )}>
               正在使用 {officeViewer === 'microsoft' ? 'Microsoft Office' : 'Google Docs'} 引擎載入預覽
             </div>
             <button
               onClick={() => setOfficeViewer(v => v === 'microsoft' ? 'google' : 'microsoft')}
-              className="text-[9px] px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/10 text-white/40 transition-colors"
+              className="text-[0.5625rem] px-2 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/10 text-white/40 transition-colors"
             >
               切換引擎
             </button>
@@ -269,7 +269,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                 <div className="min-w-0">
                   <h3 className="text-white/90 font-bold truncate text-lg tracking-tight">
                     {file.name}
-                    <span className="text-[8px] opacity-10 ml-2 font-mono">v2.1.5</span>
+                    <span className="text-[0.5rem] opacity-10 ml-2 font-mono">v2.1.5</span>
                   </h3>
                   <p className="text-white/30 text-xs uppercase tracking-widest font-bold">{file.size} </p>
                 </div>

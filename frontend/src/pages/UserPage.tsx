@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import {
   Lock, Unlock,
-  Cpu, Zap, Activity, X
+  Cpu, Zap, Activity, X, Settings
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
@@ -15,7 +15,7 @@ import type { UrlItem } from '../components/dashboard/UrlView';
 
 interface UserPageProps {
   data: {
-    user?: { username: string; is_locked?: boolean; first_login?: boolean };
+    user?: { username: string; is_locked?: boolean; first_login?: boolean; show_in_list?: boolean };
     usage?: number;
     files?: FileItem[];
     urls?: UrlItem[];
@@ -30,6 +30,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{ name: string, size: string, url: string } | null>(null);
@@ -39,7 +40,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
   const refreshDashboard = React.useCallback(async (authToken: string) => {
     try {
-      const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}`);
+      const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}&t=${Date.now()}`);
       if (res.ok) {
         const newData = await res.json();
         setDashboardData(newData);
@@ -49,17 +50,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }
   }, [data.user?.username]);
 
-  // Sync props to local state if they change (e.g. navigation)
+  // Sync props to local state if they change (e.g. navigation), 
+  // but be careful not to overwrite valid local updates with stale props
+  // We only update if the username or basic structure changed, or if it's the first load
   React.useEffect(() => {
-    setDashboardData(data);
-  }, [data]);
+    if (data.user?.username !== dashboardData.user?.username) {
+       setDashboardData(data);
+    }
+  }, [data, dashboardData.user?.username]);
 
   // Real-time synchronization via WebSocket
   React.useEffect(() => {
-    if (!dashboardData.user?.username) return;
+    if (!data.user?.username) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/${dashboardData.user.username}`;
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
     let socket: WebSocket | null = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
@@ -68,17 +73,13 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       }
     };
 
-    socket.onclose = () => {
-      // Small delay before reconnecting
-      setTimeout(() => {
-        socket = new WebSocket(wsUrl);
-      }, 5000);
-    };
-
     return () => {
-      if (socket) socket.close();
+      if (socket) {
+        socket.close();
+        socket = null;
+      }
     };
-  }, [dashboardData.user?.username, token, refreshDashboard]);
+  }, [data.user?.username, token, refreshDashboard]);
 
   const toggleSelectItem = (type: 'file' | 'url', id: string) => {
     setSelectedItems(prev => {
@@ -281,6 +282,68 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }
   };
 
+  const handleRename = async (oldName: string, newName: string): Promise<boolean> => {
+    if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return false;
+    }
+
+    try {
+        const body = new FormData();
+        body.append('password', password);
+        body.append('old_name', oldName);
+        body.append('new_name', newName);
+
+        const res = await fetch(`/api/user/${data.user?.username}/rename-file`, {
+            method: 'POST',
+            body
+        });
+
+        if (res.ok) {
+            // Optimistic update
+            setDashboardData(prev => ({
+                ...prev,
+                files: prev.files?.map(f => f.name === oldName ? { ...f, name: newName } : f)
+            }));
+            return true;
+        } else {
+            const err = await res.json();
+            alert(err.detail || "重新命名失敗");
+            return false;
+        }
+    } catch (e) {
+        console.error(e);
+        alert("系統錯誤");
+        return false;
+    }
+  };
+
+  const handleUpdateProfile = async (showInList: boolean) => {
+      if (!isAuthenticated) return;
+      try {
+          const body = new FormData();
+          body.append('username', data.user?.username || '');
+          body.append('password', password);
+          body.append('show_in_list', String(showInList));
+          
+          const res = await fetch('/api/user/update-profile', {
+              method: 'POST',
+              body
+          });
+          
+          if (res.ok) {
+              setDashboardData(prev => ({
+                  ...prev,
+                  user: { ...prev.user!, show_in_list: showInList }
+              }));
+          } else {
+              alert('更新失敗');
+          }
+      } catch {
+          alert('連線錯誤');
+      }
+  };
+
   const handleShare = async (filename: string) => {
     try {
       const body = new FormData();
@@ -408,12 +471,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       
       {/* Background Ambient Elements - Contained to avoid overflow issues */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[80px] opacity-60 dark:opacity-40 animate-pulse-slow" />
-        <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] bg-radial-gradient from-neural-violet/10 to-transparent blur-[80px] opacity-60 dark:opacity-40 animate-pulse-slow delay-1000" />
+        <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow" />
+        <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] bg-radial-gradient from-neural-violet/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow delay-1000" />
       </div>
 
       {/* Top App Bar - Compact & Functional */}
-      <header className="shrink-0 px-4 py-3 lg:px-8 lg:py-5 flex flex-col gap-4 z-20">
+      <header className="shrink-0 px-4 pt-16 pb-3 lg:px-8 lg:py-5 flex flex-col gap-4 z-20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 lg:gap-4 group cursor-default">
             <div className="relative">
@@ -422,7 +485,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               <div className="text-cyan-600 dark:text-quantum-cyan font-bold">FN</div>
               </div>
             </div>
-            <div>
+              <div>
               <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
                 {dashboardData.user?.username}
                 <span className="text-cyan-600 dark:text-quantum-cyan opacity-80 font-light hidden sm:inline">FileNexus</span>
@@ -463,6 +526,15 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                   <span className="hidden sm:inline">LOCKED</span>
                 </>
               )}
+            </button>
+
+            {/* Settings Button */}
+            <button
+              onClick={() => isAuthenticated ? setShowSettingsModal(true) : setShowAuthModal(true)}
+              className="p-2.5 rounded-xl bg-white/80 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-lg hover:bg-gray-50 dark:hover:bg-white/10 transition-all"
+              title="使用者設定"
+            >
+              <Settings className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
         </div>
@@ -526,6 +598,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 onPreview={(file) => setPreviewFile(file)}
                 onShare={handleShare}
                 onDelete={handleDelete}
+                onRename={handleRename}
               />
             </motion.div>
           ) : (
@@ -710,6 +783,73 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettingsModal && (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                onClick={() => setShowSettingsModal(false)}
+            >
+                <motion.div
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 20 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
+                >
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <Settings className="w-5 h-5" />
+                            使用者設定
+                        </h2>
+                        <button onClick={() => setShowSettingsModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <div className="space-y-6">
+                         <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                            <div>
+                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">公開目錄索引</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    允許您的個人頁面顯示在首頁的公開列表中。
+                                </p>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleUpdateProfile(true)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        dashboardData.user?.show_in_list !== false
+                                            ? "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 ring-2 ring-green-500/50"
+                                            : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
+                                    )}
+                                >
+                                    顯示
+                                </button>
+                                <button
+                                    onClick={() => handleUpdateProfile(false)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        dashboardData.user?.show_in_list === false
+                                            ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 ring-2 ring-red-500/50"
+                                            : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
+                                    )}
+                                >
+                                    隱藏
+                                </button>
+                            </div>
+                         </div>
+                    </div>
+                </motion.div>
+            </motion.div>
         )}
       </AnimatePresence>
 

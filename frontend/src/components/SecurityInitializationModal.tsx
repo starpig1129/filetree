@@ -62,19 +62,19 @@ export const SecurityInitializationModal: React.FC<SecurityInitializationModalPr
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="glass-card p-10 w-full max-w-md relative z-10 space-y-8 border-violet-300 dark:border-neural-violet/30 shadow-[0_0_80px_rgba(139,92,246,0.2)] dark:shadow-[0_0_80px_rgba(139,92,246,0.4)]"
+            className="glass-card p-10 w-full max-w-md relative z-10 space-y-8 border-violet-300 dark:border-neural-violet/30 shadow-[0_0_5rem_rgba(139,92,246,0.2)] dark:shadow-[0_0_5rem_rgba(139,92,246,0.4)]"
           >
             <div className="text-center space-y-3">
               <ShieldCheck className="w-16 h-16 text-violet-600 dark:text-neural-violet mx-auto animate-pulse" />
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tighter">啟動安全性初始化</h2>
-              <p className="text-gray-600 dark:text-white/40 text-[10px] uppercase font-black tracking-[0.2em] leading-relaxed">
+              <p className="text-gray-600 dark:text-white/40 text-[0.625rem] uppercase font-black tracking-[0.2em] leading-relaxed">
                 偵測到初始訪問或重置狀態，為了確保數據隔離，<br />請立即設定您的專屬傳輸密鑰。
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-violet-700 dark:text-neural-violet uppercase tracking-widest ml-2">New Security Key / 新密鑰</label>
+                <label className="text-[0.625rem] font-black text-violet-700 dark:text-neural-violet uppercase tracking-widest ml-2">New Security Key / 新密鑰</label>
                 <input
                   type="password"
                   required

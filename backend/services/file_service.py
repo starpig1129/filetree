@@ -35,15 +35,18 @@ class FileService:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    async def get_user_files(self, folder_name: str) -> List[FileInfo]:
+    async def get_user_files(self, folder_name: str, retention_days: int = None) -> List[FileInfo]:
         """Fetch all files in a user's folder with metadata.
 
         Args:
             folder_name: The user's folder name.
+            retention_days: Optional custom retention period. Defaults to config if None.
 
         Returns:
             A list of FileInfo schemas.
         """
+        if retention_days is None:
+            retention_days = settings.logic.file_retention_days
         folder = self._get_user_folder(folder_name)
         files = []
 
@@ -52,18 +55,29 @@ class FileService:
             if item.is_file():
                 stat = item.stat()
                 created_time = datetime.fromtimestamp(stat.st_mtime)
-                expiry_time = created_time + timedelta(days=settings.logic.file_retention_days)
-                remaining = expiry_time - datetime.now()
+                expiry_time = created_time + timedelta(days=retention_days)
+                if retention_days == 0:
+                    remaining_days = -1
+                    remaining_hours = 0
+                    remaining_minutes = 0
+                    expired = False
+                else:
+                    expiry_time = created_time + timedelta(days=retention_days)
+                    remaining = expiry_time - datetime.now()
+                    remaining_days = max(0, remaining.days)
+                    remaining_hours = max(0, remaining.seconds // 3600)
+                    remaining_minutes = max(0, (remaining.seconds % 3600) // 60)
+                    expired = remaining.total_seconds() <= 0
 
                 files.append(FileInfo(
                     name=item.name,
                     size=round(stat.st_size / (1024 * 1024), 2),
                     size_bytes=stat.st_size,
                     created=created_time.strftime('%Y-%m-%d %H:%M:%S'),
-                    remaining_days=max(0, remaining.days),
-                    remaining_hours=max(0, remaining.seconds // 3600),
-                    remaining_minutes=max(0, (remaining.seconds % 3600) // 60),
-                    expired=remaining.total_seconds() <= 0
+                    remaining_days=remaining_days,
+                    remaining_hours=remaining_hours,
+                    remaining_minutes=remaining_minutes,
+                    expired=expired
                 ))
 
         return sorted(files, key=lambda x: x.name)
@@ -121,6 +135,34 @@ class FileService:
             print(f"Dedup failed: {e}")
             
         return unique_name
+
+    async def rename_file(self, folder_name: str, old_name: str, new_name: str) -> bool:
+        """Rename a file.
+
+        Args:
+            folder_name: The user's folder.
+            old_name: Current filename.
+            new_name: New filename.
+
+        Returns:
+            True if successful, False if file doesn't exist or new name taken.
+        """
+        # Security: Prevent path traversal
+        old_name = os.path.basename(old_name)
+        new_name = os.path.basename(new_name)
+        
+        folder = self._get_user_folder(folder_name)
+        old_path = folder / old_name
+        new_path = folder / new_name
+        
+        if not old_path.exists() or not old_path.is_file():
+            return False
+            
+        if new_path.exists():
+            return False
+            
+        await aiofiles.os.rename(old_path, new_path)
+        return True
 
 
 # Singleton instance

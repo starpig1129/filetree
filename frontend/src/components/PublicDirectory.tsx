@@ -135,7 +135,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
               })
             ) : (
               <div className="text-center py-6 border border-dashed border-gray-300 dark:border-white/5 rounded-2xl opacity-50">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-white/50">無活躍節點</p>
+                <p className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-white/50">無活躍節點</p>
               </div>
             )}
           </AnimatePresence>
