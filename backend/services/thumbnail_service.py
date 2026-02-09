@@ -1,6 +1,7 @@
 
 import os
 import hashlib
+import shutil
 import subprocess
 from pathlib import Path
 from PIL import Image, ImageOps
@@ -12,6 +13,10 @@ class ThumbnailService:
         self.cache_dir = settings.paths.tus_temp_folder.parent / "cache" / "thumbnails"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.thumb_size = (300, 300)
+        # Check if ffmpeg is available at startup
+        self._ffmpeg_available = shutil.which("ffmpeg") is not None
+        if not self._ffmpeg_available:
+            print("WARNING: ffmpeg not found. Video thumbnails will be unavailable.")
 
     def _get_cache_path(self, file_path: Path) -> Path:
         """Generate a unique cache path based on file content hash (or path+mtime)"""
@@ -35,9 +40,12 @@ class ThumbnailService:
         if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']:
             await self._generate_image_thumbnail(file_path, cache_path)
         elif ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
+            # Skip video thumbnails if ffmpeg is not available
+            if not self._ffmpeg_available:
+                return None
             await self._generate_video_thumbnail(file_path, cache_path)
         else:
-            return None # No thumbnail for other types
+            return None  # No thumbnail for other types
 
         return str(cache_path) if cache_path.exists() else None
 
@@ -59,14 +67,16 @@ class ThumbnailService:
             img.save(output_path, "JPEG", quality=80)
 
     async def _generate_video_thumbnail(self, input_path: Path, output_path: Path):
+        """Generate a video thumbnail using ffmpeg with a timeout."""
         try:
             # Use ffmpeg to extract first frame
             cmd = [
                 'ffmpeg',
+                '-y',  # Overwrite output file without asking
                 '-i', str(input_path),
-                '-ss', '00:00:00',
+                '-ss', '00:00:01',  # Seek to 1 second for a better frame
                 '-vframes', '1',
-                '-vf', f'scale={self.thumb_size[0]}:-1', # maintain aspect ratio
+                '-vf', f'scale={self.thumb_size[0]}:-1',  # maintain aspect ratio
                 str(output_path)
             ]
             

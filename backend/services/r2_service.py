@@ -3,6 +3,8 @@ Service for Cloudflare R2 (S3 compatible) storage operations.
 Handles multipart uploads, presigned URLs, and cleanup.
 """
 
+import json
+
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
