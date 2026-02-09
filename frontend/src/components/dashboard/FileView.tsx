@@ -365,6 +365,9 @@ export const FileView: React.FC<FileViewProps> = ({
                               if (e.key === 'Enter') handleRename(file.name);
                               if (e.key === 'Escape') setRenamingFile(null);
                             }}
+                            // Prevent mobile parent interactions from blocking caret movement/selection
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                             className="w-full text-xs font-medium p-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 dark:text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
                             placeholder="輸入新名稱..."
                           />
