@@ -597,6 +597,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 onBatchAction={handleBatchAction}
                 onPreview={(file) => setPreviewFile(file)}
                 onShare={handleShare}
+                onQrCode={setQrUrl}
                 onDelete={handleDelete}
                 onRename={handleRename}
               />

@@ -4,7 +4,7 @@ import {
   File, FileText, Image as ImageIcon, Music, Video, 
   Download, Share2, Trash2, Edit3,
   Lock, Unlock, CheckSquare, Square, 
-  AlertCircle, Clock, Cpu, X, Check, Loader2, MoreVertical
+  AlertCircle, Clock, Cpu, X, Check, Loader2, MoreVertical, QrCode
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -30,6 +30,7 @@ interface FileViewProps {
   onBatchAction: (action: 'delete' | 'lock' | 'unlock') => void;
   onPreview: (file: { name: string; size: string; url: string }) => void;
   onShare: (filename: string) => void;
+  onQrCode: (url: string) => void;
   onDelete: (filename: string) => void;
   onRename?: (oldName: string, newName: string) => Promise<boolean>;
 }
@@ -69,6 +70,7 @@ export const FileView: React.FC<FileViewProps> = ({
   onBatchAction,
   onPreview,
   onShare,
+  onQrCode,
   onDelete,
   onRename
 }) => {
@@ -252,6 +254,17 @@ export const FileView: React.FC<FileViewProps> = ({
                           >
                             <Share2 className="w-4 h-4" />
                           </button>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
+                              onQrCode(url);
+                            }} 
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 hover:scale-110 transition-all shadow-lg" 
+                            title="QR Code"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
                           <a 
                             href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`} 
                             onClick={(e) => e.stopPropagation()} 
@@ -303,6 +316,18 @@ export const FileView: React.FC<FileViewProps> = ({
                           >
                             <Share2 className="w-4 h-4 text-blue-500" />
                             <span className="text-sm font-bold">分享</span>
+                          </button>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
+                              onQrCode(url);
+                              setMobileMenuOpen(null);
+                            }} 
+                            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-200 transition-colors"
+                          >
+                            <QrCode className="w-4 h-4 text-violet-500" />
+                            <span className="text-sm font-bold">QR Code</span>
                           </button>
                           <a 
                             href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
