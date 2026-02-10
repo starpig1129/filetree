@@ -51,8 +51,9 @@ app.add_middleware(
 )
 
 # Include API routes
-app.include_router(api_router)
-app.include_router(tus_router)  # TUS resumable upload endpoints
+# TUS router MUST be registered FIRST to prevent conflicts with old TUS endpoints in api.py
+app.include_router(tus_router)  # TUS resumable upload endpoints (NEW)
+app.include_router(api_router)  # Legacy routes (contains old TUS endpoints - commented out)
 
 # Serve the React build (SPA)
 # 1. First, try to serve specific files from static/dist

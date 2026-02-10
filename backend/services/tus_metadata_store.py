@@ -17,31 +17,26 @@ logger = logging.getLogger(__name__)
 
 
 class TusMetadataStore:
-    """
-    Stores TUS upload metadata including fingerprints, offsets, and R2 upload IDs.
-    
-    This enables refresh-resume by mapping file fingerprints to existing uploads.
-    """
+    """Stores TUS upload metadata for fingerprint-based resume detection."""
     
     def __init__(self, db_path: str = "data/tus_metadata.db"):
-        """
-        Initialize the metadata store.
+        """Initialize the metadata store.
         
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file.
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
     
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database schema."""
         with self._get_connection() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS tus_uploads (
                     id TEXT PRIMARY KEY,
                     fingerprint TEXT NOT NULL,
-                    user_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
                     r2_upload_id TEXT NOT NULL,
                     r2_key TEXT NOT NULL,
                     offset INTEGER NOT NULL DEFAULT 0,
@@ -53,17 +48,15 @@ class TusMetadataStore:
                     status TEXT NOT NULL DEFAULT 'active',
                     created_at TIMESTAMP NOT NULL,
                     updated_at TIMESTAMP NOT NULL,
-                    UNIQUE(fingerprint, user_id)
+                    UNIQUE(fingerprint, username)
                 )
             """)
             
-            # Index for fast fingerprint lookup
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_fingerprint_user 
-                ON tus_uploads(fingerprint, user_id)
+                ON tus_uploads(fingerprint, username)
             """)
             
-            # Index for cleanup of old uploads
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_created_at 
                 ON tus_uploads(created_at)
@@ -85,70 +78,65 @@ class TusMetadataStore:
         self,
         upload_id: str,
         fingerprint: str,
-        user_id: int,
+        username: str,
         r2_upload_id: str,
         r2_key: str,
         size: int,
         filename: str,
         content_type: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Create a new upload record.
+    ) -> Optional[Dict[str, Any]]:
+        """Create a new upload record.
         
         Args:
-            upload_id: TUS upload ID
-            fingerprint: File fingerprint for resume detection
-            user_id: User ID
-            r2_upload_id: R2 multipart upload ID
-            r2_key: R2 object key
-            size: Total file size
-            filename: Original filename
-            content_type: MIME type
-            metadata: Additional metadata
+            upload_id: TUS upload ID.
+            fingerprint: File fingerprint for resume detection.
+            username: Username of the uploader.
+            r2_upload_id: R2 multipart upload ID.
+            r2_key: R2 object key.
+            size: Total file size in bytes.
+            filename: Original filename.
+            content_type: MIME type.
+            metadata: Additional metadata dict.
         
         Returns:
-            Created upload record
+            Created upload record dict, or None on failure.
         """
         now = datetime.utcnow()
         
         with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO tus_uploads (
-                    id, fingerprint, user_id, r2_upload_id, r2_key,
-                    offset, size, filename, content_type, metadata,
-                    parts, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                upload_id,
-                fingerprint,
-                user_id,
-                r2_upload_id,
-                r2_key,
-                0,  # initial offset
-                size,
-                filename,
-                content_type,
-                json.dumps(metadata or {}),
-                json.dumps([]),  # empty parts list
-                'active',
-                now,
-                now
-            ))
-            conn.commit()
+            try:
+                conn.execute("""
+                    INSERT OR REPLACE INTO tus_uploads (
+                        id, fingerprint, username, r2_upload_id, r2_key,
+                        offset, size, filename, content_type, metadata,
+                        parts, status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    upload_id,
+                    fingerprint,
+                    username,
+                    r2_upload_id,
+                    r2_key,
+                    0,
+                    size,
+                    filename,
+                    content_type,
+                    json.dumps(metadata or {}),
+                    json.dumps([]),
+                    'active',
+                    now,
+                    now
+                ))
+                conn.commit()
+            except Exception as e:
+                logger.error(f"Failed to create upload record: {e}")
+                return None
         
         return self.get_upload(upload_id)
     
     def get_upload(self, upload_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get upload record by ID.
-        
-        Args:
-            upload_id: TUS upload ID
-        
-        Returns:
-            Upload record or None if not found
-        """
+        """Get upload record by ID."""
         with self._get_connection() as conn:
             row = conn.execute(
                 "SELECT * FROM tus_uploads WHERE id = ?",
@@ -163,27 +151,24 @@ class TusMetadataStore:
     def get_upload_by_fingerprint(
         self,
         fingerprint: str,
-        user_id: int
+        username: str
     ) -> Optional[Dict[str, Any]]:
-        """
-        Get active upload by fingerprint and user.
-        
-        This enables resume after page refresh.
+        """Get active upload by fingerprint and username (enables refresh-resume).
         
         Args:
-            fingerprint: File fingerprint
-            user_id: User ID
+            fingerprint: File fingerprint.
+            username: Username.
         
         Returns:
-            Upload record or None if not found
+            Upload record dict or None.
         """
         with self._get_connection() as conn:
             row = conn.execute("""
                 SELECT * FROM tus_uploads 
-                WHERE fingerprint = ? AND user_id = ? AND status = 'active'
+                WHERE fingerprint = ? AND username = ? AND status = 'active'
                 ORDER BY created_at DESC
                 LIMIT 1
-            """, (fingerprint, user_id)).fetchone()
+            """, (fingerprint, username)).fetchone()
             
             if not row:
                 return None
@@ -196,17 +181,7 @@ class TusMetadataStore:
         offset: int,
         parts: Optional[List[Dict[str, Any]]] = None
     ) -> bool:
-        """
-        Update upload offset and parts.
-        
-        Args:
-            upload_id: TUS upload ID
-            offset: New offset (bytes uploaded)
-            parts: Updated parts list
-        
-        Returns:
-            True if updated, False if not found
-        """
+        """Update upload offset and parts list."""
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 UPDATE tus_uploads 
@@ -222,15 +197,7 @@ class TusMetadataStore:
             return cursor.rowcount > 0
     
     def mark_completed(self, upload_id: str) -> bool:
-        """
-        Mark upload as completed.
-        
-        Args:
-            upload_id: TUS upload ID
-        
-        Returns:
-            True if updated, False if not found
-        """
+        """Mark upload as completed."""
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 UPDATE tus_uploads 
@@ -241,15 +208,7 @@ class TusMetadataStore:
             return cursor.rowcount > 0
     
     def mark_aborted(self, upload_id: str) -> bool:
-        """
-        Mark upload as aborted.
-        
-        Args:
-            upload_id: TUS upload ID
-        
-        Returns:
-            True if updated, False if not found
-        """
+        """Mark upload as aborted."""
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 UPDATE tus_uploads 
@@ -260,15 +219,7 @@ class TusMetadataStore:
             return cursor.rowcount > 0
     
     def delete_upload(self, upload_id: str) -> bool:
-        """
-        Delete upload record.
-        
-        Args:
-            upload_id: TUS upload ID
-        
-        Returns:
-            True if deleted, False if not found
-        """
+        """Delete upload record."""
         with self._get_connection() as conn:
             cursor = conn.execute(
                 "DELETE FROM tus_uploads WHERE id = ?",
@@ -278,15 +229,7 @@ class TusMetadataStore:
             return cursor.rowcount > 0
     
     def cleanup_old_uploads(self, days: int = 7) -> int:
-        """
-        Clean up old completed/aborted uploads.
-        
-        Args:
-            days: Delete uploads older than this many days
-        
-        Returns:
-            Number of deleted records
-        """
+        """Clean up old completed/aborted uploads."""
         cutoff = datetime.utcnow().timestamp() - (days * 24 * 3600)
         
         with self._get_connection() as conn:
@@ -303,7 +246,7 @@ class TusMetadataStore:
         return {
             'id': row['id'],
             'fingerprint': row['fingerprint'],
-            'user_id': row['user_id'],
+            'username': row['username'],
             'r2_upload_id': row['r2_upload_id'],
             'r2_key': row['r2_key'],
             'offset': row['offset'],

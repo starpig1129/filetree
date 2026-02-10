@@ -282,7 +282,7 @@ class R2Service:
         if not self._client:
             return None
         
-        if not self._check_quota(class_a=1, bytes_added=len(data)):
+        if not self._check_quota(class_a=1):
             return None
         
         try:

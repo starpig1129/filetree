@@ -18,7 +18,7 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 # TUS Protocol Constants
 TUS_VERSION = "1.0.0"
@@ -83,7 +83,7 @@ async def create_tus_upload(
     logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user.username}")
     
     # Check for existing upload (resume)
-    existing = metadata_store.get_upload_by_fingerprint(fingerprint, user.id)
+    existing = metadata_store.get_upload_by_fingerprint(fingerprint, user.username)
     
     if existing and existing['status'] == 'active':
         logger.info(f"TUS Resume: Found existing upload {existing['id']}, offset={existing['offset']}")
@@ -107,7 +107,7 @@ async def create_tus_upload(
     metadata_store.create_upload(
         upload_id=upload_id,
         fingerprint=fingerprint,
-        user_id=user.id,
+        username=user.username,
         r2_upload_id=r2_result['UploadId'],
         r2_key=r2_result['Key'],
         size=upload_length,
