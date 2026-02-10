@@ -55,7 +55,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   // We only update if the username or basic structure changed, or if it's the first load
   React.useEffect(() => {
     if (data.user?.username !== dashboardData.user?.username) {
-       setDashboardData(data);
+      setDashboardData(data);
     }
   }, [data, dashboardData.user?.username]);
 
@@ -284,64 +284,64 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
   const handleRename = async (oldName: string, newName: string): Promise<boolean> => {
     if (!isAuthenticated) {
-        setShowAuthModal(true);
-        return false;
+      setShowAuthModal(true);
+      return false;
     }
 
     try {
-        const body = new FormData();
-        body.append('password', password);
-        body.append('old_name', oldName);
-        body.append('new_name', newName);
+      const body = new FormData();
+      body.append('password', password);
+      body.append('old_name', oldName);
+      body.append('new_name', newName);
 
-        const res = await fetch(`/api/user/${data.user?.username}/rename-file`, {
-            method: 'POST',
-            body
-        });
+      const res = await fetch(`/api/user/${data.user?.username}/rename-file`, {
+        method: 'POST',
+        body
+      });
 
-        if (res.ok) {
-            // Optimistic update
-            setDashboardData(prev => ({
-                ...prev,
-                files: prev.files?.map(f => f.name === oldName ? { ...f, name: newName } : f)
-            }));
-            return true;
-        } else {
-            const err = await res.json();
-            alert(err.detail || "重新命名失敗");
-            return false;
-        }
-    } catch (e) {
-        console.error(e);
-        alert("系統錯誤");
+      if (res.ok) {
+        // Optimistic update
+        setDashboardData(prev => ({
+          ...prev,
+          files: prev.files?.map(f => f.name === oldName ? { ...f, name: newName } : f)
+        }));
+        return true;
+      } else {
+        const err = await res.json();
+        alert(err.detail || "重新命名失敗");
         return false;
+      }
+    } catch (e) {
+      console.error(e);
+      alert("系統錯誤");
+      return false;
     }
   };
 
   const handleUpdateProfile = async (showInList: boolean) => {
-      if (!isAuthenticated) return;
-      try {
-          const body = new FormData();
-          body.append('username', data.user?.username || '');
-          body.append('password', password);
-          body.append('show_in_list', String(showInList));
-          
-          const res = await fetch('/api/user/update-profile', {
-              method: 'POST',
-              body
-          });
-          
-          if (res.ok) {
-              setDashboardData(prev => ({
-                  ...prev,
-                  user: { ...prev.user!, show_in_list: showInList }
-              }));
-          } else {
-              alert('更新失敗');
-          }
-      } catch {
-          alert('連線錯誤');
+    if (!isAuthenticated) return;
+    try {
+      const body = new FormData();
+      body.append('username', data.user?.username || '');
+      body.append('password', password);
+      body.append('show_in_list', String(showInList));
+
+      const res = await fetch('/api/user/update-profile', {
+        method: 'POST',
+        body
+      });
+
+      if (res.ok) {
+        setDashboardData(prev => ({
+          ...prev,
+          user: { ...prev.user!, show_in_list: showInList }
+        }));
+      } else {
+        alert('更新失敗');
       }
+    } catch {
+      alert('連線錯誤');
+    }
   };
 
   const handleShare = async (filename: string) => {
@@ -466,9 +466,36 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   };
 
 
+  const handleSelectAll = (type: 'file' | 'url', selectAll: boolean) => {
+    if (selectAll) {
+      if (type === 'file') {
+        const selectableFiles = dashboardData.files
+          ?.filter(f => !f.is_locked || isAuthenticated)
+          .map(f => ({ type: 'file' as const, id: f.name })) || [];
+
+        setSelectedItems(prev => {
+          // Filter out existing files to avoid duplicates (though we are replacing relevant ones)
+          const others = prev.filter(i => i.type !== 'file');
+          return [...others, ...selectableFiles];
+        });
+      } else {
+        const selectableUrls = dashboardData.urls
+          ?.filter(u => !u.is_locked || isAuthenticated)
+          .map(u => ({ type: 'url' as const, id: u.url })) || [];
+
+        setSelectedItems(prev => {
+          const others = prev.filter(i => i.type !== 'url');
+          return [...others, ...selectableUrls];
+        });
+      }
+    } else {
+      setSelectedItems(prev => prev.filter(i => i.type !== type));
+    }
+  };
+
   return (
     <div className="h-full flex flex-col relative text-gray-900 dark:text-gray-100 font-sans selection:bg-cyan-500/30">
-      
+
       {/* Background Ambient Elements - Contained to avoid overflow issues */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow" />
@@ -482,10 +509,10 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             <div className="relative">
               <div className="absolute inset-0 bg-cyan-500/20 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="p-2 sm:p-2.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg relative">
-              <div className="text-cyan-600 dark:text-quantum-cyan font-bold">FN</div>
+                <div className="text-cyan-600 dark:text-quantum-cyan font-bold">FN</div>
               </div>
             </div>
-              <div>
+            <div>
               <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
                 {dashboardData.user?.username}
                 <span className="text-cyan-600 dark:text-quantum-cyan opacity-80 font-light hidden sm:inline">FileNexus</span>
@@ -509,8 +536,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
               className={cn(
                 "p-2.5 sm:px-5 sm:py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-sm shadow-lg backdrop-blur-md border",
-                isAuthenticated 
-                  ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20" 
+                isAuthenticated
+                  ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20"
                   : "bg-white/80 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
               )}
               title={isAuthenticated ? "鎖定工作階段" : "解鎖隱私內容"}
@@ -541,36 +568,36 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('files')}
-              className={cn(
-                "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 relative overflow-hidden",
-                activeTab === 'files' 
-                  ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-quantum-cyan shadow-lg shadow-cyan-500/10 ring-1 ring-black/5 dark:ring-white/10" 
-                  : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
-              )}
-            >
-              <Cpu className="w-4 h-4" />
-              檔案列表
-              {activeTab === 'files' && (
-                <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('urls')}
-              className={cn(
-                "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 relative overflow-hidden",
-                activeTab === 'urls' 
-                  ? "bg-white dark:bg-white/10 text-violet-600 dark:text-violet-400 shadow-lg shadow-violet-500/10 ring-1 ring-black/5 dark:ring-white/10" 
-                  : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
-              )}
-            >
-              <Zap className="w-4 h-4" />
-              筆記 / 連結
-              {activeTab === 'urls' && (
-                <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500" />
-              )}
-            </button>
+          <button
+            onClick={() => setActiveTab('files')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 relative overflow-hidden",
+              activeTab === 'files'
+                ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-quantum-cyan shadow-lg shadow-cyan-500/10 ring-1 ring-black/5 dark:ring-white/10"
+                : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
+            )}
+          >
+            <Cpu className="w-4 h-4" />
+            檔案列表
+            {activeTab === 'files' && (
+              <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('urls')}
+            className={cn(
+              "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 relative overflow-hidden",
+              activeTab === 'urls'
+                ? "bg-white dark:bg-white/10 text-violet-600 dark:text-violet-400 shadow-lg shadow-violet-500/10 ring-1 ring-black/5 dark:ring-white/10"
+                : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
+            )}
+          >
+            <Zap className="w-4 h-4" />
+            筆記 / 連結
+            {activeTab === 'urls' && (
+              <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500" />
+            )}
+          </button>
         </div>
       </header>
 
@@ -578,14 +605,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       <main className="flex-1 min-h-0 px-2 pb-2 lg:px-6 lg:pb-6 relative z-10 overflow-hidden">
         <AnimatePresence mode="wait">
           {activeTab === 'files' ? (
-            <motion.div 
+            <motion.div
               key="files"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               className="h-full"
             >
-              <FileView 
+              <FileView
                 files={dashboardData.files || []}
                 username={dashboardData.user?.username || ''}
                 token={token}
@@ -593,6 +620,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 isAuthenticated={isAuthenticated}
                 isBatchSyncing={isBatchSyncing}
                 onToggleSelect={toggleSelectItem}
+                onSelectAll={(selectAll) => handleSelectAll('file', selectAll)}
                 onToggleLock={toggleItemLock}
                 onBatchAction={handleBatchAction}
                 onPreview={(file) => setPreviewFile(file)}
@@ -603,7 +631,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               />
             </motion.div>
           ) : (
-            <motion.div 
+            <motion.div
               key="urls"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -615,6 +643,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 selectedItems={selectedItems}
                 isAuthenticated={isAuthenticated}
                 onToggleSelect={toggleSelectItem}
+                onSelectAll={(selectAll) => handleSelectAll('url', selectAll)}
                 onToggleLock={toggleItemLock}
                 onQrCode={setQrUrl}
                 onDelete={handleUrlDelete}
@@ -641,7 +670,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-cyan-500 to-violet-500" />
-              
+
               <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Lock className="w-8 h-8 text-cyan-600 dark:text-quantum-cyan" />
@@ -701,24 +730,24 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 <h3 className="text-xl font-bold text-gray-900 mb-1">掃描 QR Code</h3>
                 <p className="text-sm text-gray-500 break-all line-clamp-2">{qrUrl}</p>
               </div>
-              
+
               <div className="bg-white p-2 rounded-xl border-2 border-dashed border-gray-200 inline-block mb-6">
-                 <QRCodeSVG value={qrUrl} size={200} />
+                <QRCodeSVG value={qrUrl} size={200} />
               </div>
 
               <div className="flex gap-3">
-                 <button
-                   onClick={() => setQrUrl(null)}
-                   className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                 >
-                   關閉
-                 </button>
-                 <button
-                   onClick={() => { navigator.clipboard.writeText(qrUrl); alert("連結已複製"); setQrUrl(null); }}
-                   className="flex-1 py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 shadow-lg shadow-cyan-500/30 transition-colors"
-                 >
-                   複製連結
-                 </button>
+                <button
+                  onClick={() => setQrUrl(null)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                  關閉
+                </button>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(qrUrl); alert("連結已複製"); setQrUrl(null); }}
+                  className="flex-1 py-3 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 shadow-lg shadow-cyan-500/30 transition-colors"
+                >
+                  複製連結
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -790,67 +819,67 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       {/* Settings Modal */}
       <AnimatePresence>
         {showSettingsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSettingsModal(false)}
+          >
             <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                onClick={() => setShowSettingsModal(false)}
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
             >
-                <motion.div
-                    initial={{ scale: 0.9, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.9, y: 20 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
-                >
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <Settings className="w-5 h-5" />
-                            使用者設定
-                        </h2>
-                        <button onClick={() => setShowSettingsModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  使用者設定
+                </h2>
+                <button onClick={() => setShowSettingsModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                    <div className="space-y-6">
-                         <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
-                            <div>
-                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">公開目錄索引</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                    允許您的個人頁面顯示在首頁的公開列表中。
-                                </p>
-                            </div>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">公開目錄索引</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      允許您的個人頁面顯示在首頁的公開列表中。
+                    </p>
+                  </div>
 
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleUpdateProfile(true)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                        dashboardData.user?.show_in_list !== false
-                                            ? "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 ring-2 ring-green-500/50"
-                                            : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
-                                    )}
-                                >
-                                    顯示
-                                </button>
-                                <button
-                                    onClick={() => handleUpdateProfile(false)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                        dashboardData.user?.show_in_list === false
-                                            ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 ring-2 ring-red-500/50"
-                                            : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
-                                    )}
-                                >
-                                    隱藏
-                                </button>
-                            </div>
-                         </div>
-                    </div>
-                </motion.div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleUpdateProfile(true)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                        dashboardData.user?.show_in_list !== false
+                          ? "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 ring-2 ring-green-500/50"
+                          : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
+                      )}
+                    >
+                      顯示
+                    </button>
+                    <button
+                      onClick={() => handleUpdateProfile(false)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                        dashboardData.user?.show_in_list === false
+                          ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 ring-2 ring-red-500/50"
+                          : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
+                      )}
+                    >
+                      隱藏
+                    </button>
+                  </div>
+                </div>
+              </div>
             </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

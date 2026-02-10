@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Zap, FileText, Link as LinkIcon, 
-  CheckSquare, Square, Lock, Unlock, 
-  Copy, QrCode, Trash2 
+import {
+  Zap, FileText, Link as LinkIcon,
+  CheckSquare, Square, Lock, Unlock,
+  Copy, QrCode, Trash2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -22,6 +22,7 @@ interface UrlViewProps {
   onQrCode: (url: string) => void;
   onDelete: (url: string) => void;
   onCopy: (text: string) => void;
+  onSelectAll: (selectAll: boolean) => void;
 }
 
 export const UrlView: React.FC<UrlViewProps> = ({
@@ -32,8 +33,12 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onToggleLock,
   onQrCode,
   onDelete,
-  onCopy
+  onCopy,
+  onSelectAll
 }) => {
+  const selectableUrls = urls?.filter(u => !u.is_locked || isAuthenticated) || [];
+  const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
+
   return (
     <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
@@ -41,6 +46,17 @@ export const UrlView: React.FC<UrlViewProps> = ({
       {/* Panel Header */}
       <div className="shrink-0 px-6 py-4 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => onSelectAll(!isAllSelected)}
+            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+            title={isAllSelected ? "取消全選" : "全選"}
+          >
+            {isAllSelected ? (
+              <CheckSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+            ) : (
+              <Square className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            )}
+          </button>
           <div className="p-2 bg-violet-500/10 rounded-lg text-violet-600 dark:text-violet-400">
             <Zap className="w-5 h-5" />
           </div>
@@ -73,34 +89,34 @@ export const UrlView: React.FC<UrlViewProps> = ({
                 <div className="flex items-start justify-between gap-3">
                   {/* URL Icon */}
                   <div className="shrink-0 mt-0.5">
-                      {isLink ? (
-                          <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500">
-                              <LinkIcon className="w-4 h-4" />
-                          </div>
-                      ) : (
-                          <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-500">
-                              <FileText className="w-4 h-4" />
-                          </div>
-                      )}
+                    {isLink ? (
+                      <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500">
+                        <LinkIcon className="w-4 h-4" />
+                      </div>
+                    ) : (
+                      <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-500">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                      {isLink && !isLocked ? (
-                        <a 
-                          href={url.url.startsWith('www') ? `https://${url.url}` : url.url} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className={cn("block text-sm font-medium truncate mb-1 hover:underline text-blue-600 dark:text-blue-400")}
-                        >
-                          {url.url}
-                        </a>
-                      ) : (
-                        <div className={cn("text-sm font-medium break-all line-clamp-2 mb-1 text-gray-700 dark:text-gray-200", isLocked && "blur-sm opacity-50")}>
-                          {url.url}
-                        </div>
-                      )}
-                      <p className="text-[10px] text-gray-400 font-mono">{url.created}</p>
+                    {isLink && !isLocked ? (
+                      <a
+                        href={url.url.startsWith('www') ? `https://${url.url}` : url.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cn("block text-sm font-medium truncate mb-1 hover:underline text-blue-600 dark:text-blue-400")}
+                      >
+                        {url.url}
+                      </a>
+                    ) : (
+                      <div className={cn("text-sm font-medium break-all line-clamp-2 mb-1 text-gray-700 dark:text-gray-200", isLocked && "blur-sm opacity-50")}>
+                        {url.url}
+                      </div>
+                    )}
+                    <p className="text-[10px] text-gray-400 font-mono">{url.created}</p>
                   </div>
                 </div>
 
@@ -112,7 +128,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-cyan-500" /> : <Square className="w-3.5 h-3.5" />}
                       </button>
                       <button onClick={() => onToggleLock('url', url.url, !!url.is_locked)} className={cn("p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md", url.is_locked ? "text-violet-500" : "text-gray-500")}>
-                          {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                        {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
                       </button>
                     </>
                   )}
@@ -125,8 +141,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         <QrCode className="w-3.5 h-3.5" />
                       </button>
                       {isAuthenticated && (
-                        <button 
-                          onClick={() => onDelete(url.url)} 
+                        <button
+                          onClick={() => onDelete(url.url)}
                           className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md text-gray-400 hover:text-red-500"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -136,7 +152,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   )}
                   {/* Always show lock icon if locked and not authenticated */}
                   {isLocked && !isAuthenticated && (
-                      <Lock className="w-3.5 h-3.5 text-gray-400 m-1.5" />
+                    <Lock className="w-3.5 h-3.5 text-gray-400 m-1.5" />
                   )}
                 </div>
               </motion.div>
