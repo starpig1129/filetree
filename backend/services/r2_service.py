@@ -332,7 +332,28 @@ class R2Service:
             'parts': parts
         }
 
+    def download_file(self, object_name: str, local_path: Path) -> bool:
+        """Download file from R2 to local path."""
+        if not self._client:
+            return False
+            
+        try:
+            # Ensure parent dir exists
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            logger.info(f"Downloading {object_name} from R2 to {local_path}...")
+            self._client.download_file(
+                settings.r2.bucket_name,
+                object_name,
+                str(local_path)
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error downloading file from R2: {e}")
+            return False
+
     def upload_file(self, local_path: Path, object_name: str) -> bool:
+
         """Upload a local file to R2 (for acceleration downloads)."""
         if not self._client:
             return False

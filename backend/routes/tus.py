@@ -13,8 +13,15 @@ import logging
 
 from backend.services.user_service import user_service
 from backend.services.r2_service import r2_service
+from backend.services.file_service import file_service
+from backend.services.audit_service import AuditService
+from backend.services.event_service import EventService
 from backend.services.tus_metadata_store import TusMetadataStore
 from backend.config import settings
+
+from starlette.concurrency import run_in_threadpool
+from fastapi import BackgroundTasks
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +31,10 @@ router = APIRouter(prefix="/api")
 TUS_VERSION = "1.0.0"
 CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks (aligned with R2 Multipart)
 
-# Initialize metadata store
+# Initialize services
 metadata_store = TusMetadataStore()
+audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, "audit_logs.json"))
+event_service = EventService()
 
 
 def parse_tus_metadata(metadata_header: Optional[str]) -> dict:
@@ -54,6 +63,57 @@ def calculate_fingerprint(filename: str, size: int, modified: Optional[str] = No
     if modified:
         parts.append(modified)
     return '-'.join(parts)
+
+
+async def finalize_upload_task(upload: dict):
+    """Background task to finalize upload: download from R2, move to user folder, notify."""
+    upload_id = upload['id']
+    username = upload['username']
+    filename = upload['filename']
+    r2_key = upload['r2_key']
+    
+    logger.info(f"Finalizing TUS upload {upload_id} for user {username}...")
+    
+    try:
+        # 1. Download from R2 to local temp
+        temp_path = settings.paths.tus_temp_folder / f"final_{upload_id}_{filename}"
+        
+        # Download (sync in threadpool)
+        download_success = await run_in_threadpool(
+            r2_service.download_file, 
+            r2_key, 
+            temp_path
+        )
+        
+        if not download_success:
+            logger.error(f"Failed to download resolved file from R2: {r2_key}")
+            return
+
+        # 2. Import to user folder (dedup & move)
+        final_name = await file_service.import_file(temp_path, username, filename)
+        
+        if not final_name:
+            logger.error(f"Failed to import file to user folder: {filename}")
+            return
+            
+        logger.info(f"File imported successfully as: {final_name}")
+
+        # 3. Clean up R2 (fire and forget inside this task)
+        # We perform delete in threadpool to avoid blocking event loop
+        await run_in_threadpool(r2_service.delete_file, r2_key)
+        
+        # 4. Notify & Audit
+        await audit_service.log_event(
+            username, 
+            "FILE_UPLOAD_TUS", 
+            f"TUS Upload completed via R2: {final_name}", 
+            ip="TUS_BG_TASK"
+        )
+        await event_service.notify_user_update(username)
+        
+    except Exception as e:
+        logger.error(f"Error in finalize_upload_task for {upload_id}: {e}")
+
 
 
 @router.post("/upload/tus")
@@ -154,6 +214,7 @@ async def get_tus_upload_offset(
 async def upload_tus_chunk(
     upload_id: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     upload_offset: int = Header(..., alias="Upload-Offset"),
     content_length: int = Header(..., alias="Content-Length"),
     tus_resumable: str = Header(TUS_VERSION, alias="Tus-Resumable")
@@ -210,6 +271,8 @@ async def upload_tus_chunk(
         
         if complete_result:
             metadata_store.mark_completed(upload_id)
+            # Trigger background finalization
+            background_tasks.add_task(finalize_upload_task, upload)
         else:
             raise HTTPException(status_code=500, detail="Failed to complete R2 upload")
     
