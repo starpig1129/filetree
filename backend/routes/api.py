@@ -102,6 +102,7 @@ async def admin_create_user(
     path.mkdir(parents=True, exist_ok=True)
     
     await audit_service.log_event("admin", "USER_CREATE", f"Created user {username}", ip=get_client_ip(request))
+    await event_service.notify_global_update("USER_LIST_UPDATE")
     return {"message": f"使用者 {username} 建立成功", "status": "success"}
 
 
@@ -134,9 +135,9 @@ async def admin_reset_password(
 
 @router.get("/admin/users", response_model=List[UserPublic])
 async def admin_list_users(request: Request, master_key: str):
-    """Admin endpoint to list all users with full public details."""
+    """Admin endpoint to list all users (including hidden ones)."""
     admin_service.verify_request(request, master_key)
-    return await user_service.list_public_users()
+    return await user_service.list_all_users_for_admin()
 
 
 @router.post("/admin/update-user")
@@ -145,7 +146,9 @@ async def admin_update_user(
     master_key: str = Form(...),
     username: str = Form(...),
     new_username: Optional[str] = Form(None),
-    is_locked: Optional[bool] = Form(None)
+    is_locked: Optional[bool] = Form(None),
+    data_retention_days: Optional[int] = Form(None),
+    show_in_list: Optional[bool] = Form(None)
 ):
     """Admin endpoint to update user profile (rename, lock)."""
     admin_service.verify_request(request, master_key)
@@ -156,6 +159,22 @@ async def admin_update_user(
             new_username=new_username, 
             is_locked=is_locked
         )
+        
+        # Handle new fields separately for now as update_user_profile signature is fixed
+        # Or we should update user_service.update_user_profile to handle these?
+        # Let's use user_service.update_user for these simple fields
+        update_data = {}
+        if data_retention_days is not None:
+             if data_retention_days < -1:
+                 raise HTTPException(status_code=400, detail="保留天數不能為負數（-1 除外）。")
+             # Allow -1 to reset to None (system default)
+             update_data['data_retention_days'] = None if data_retention_days == -1 else data_retention_days
+        if show_in_list is not None:
+            update_data['show_in_list'] = show_in_list
+            
+        if update_data:
+            await user_service.update_user(new_username or username, update_data)
+
         if not success:
             raise HTTPException(status_code=404, detail="找不到該使用者。")
     except ValueError as e:
@@ -164,8 +183,13 @@ async def admin_update_user(
     await audit_service.log_event("admin", "USER_UPDATE", f"Admin updated user: {username}", ip=get_client_ip(request))
     if new_username:
         await event_service.notify_user_update(new_username) # Notify new username
+        await event_service.notify_global_update("USER_LIST_UPDATE")
     else:
         await event_service.notify_user_update(username)
+        # Check if show_in_list was updated or name was updated (redundant with new_username check above)
+        # Ideally we check what actually changed. `show_in_list` changes affect global list.
+        if show_in_list is not None:
+             await event_service.notify_global_update("USER_LIST_UPDATE")
     
     return {"message": "使用者資料更新成功", "status": "success"}
 
@@ -221,6 +245,7 @@ async def admin_delete_user(
     
     await audit_service.log_event("admin", "USER_DELETE", f"Admin deleted user: {username}", ip=get_client_ip(request))
     await event_service.notify_user_update(username) # Notify for deletion
+    await event_service.notify_global_update("USER_LIST_UPDATE")
     
     return {"message": f"使用者 {username} 及其數據已完全移除。"}
 
@@ -269,13 +294,37 @@ async def change_password(
     raise HTTPException(status_code=500, detail="密碼更新失敗")
 
 
+@router.post("/user/update-profile")
+async def update_own_profile(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    show_in_list: bool = Form(...)
+):
+    """User endpoint to update their own profile settings."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    
+    # Verify password
+    if not verify_password(password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    
+    await user_service.update_user(username, {"show_in_list": show_in_list})
+    
+    await audit_service.log_event(username, "PROFILE_UPDATE", f"User updated profile visibility to {show_in_list}", ip=get_client_ip(request))
+    await event_service.notify_user_update(username)
+    await event_service.notify_global_update("USER_LIST_UPDATE")
+    return {"message": "設定更新成功", "status": "success"}
+
+
 @router.get("/files/{username}", response_model=List[FileInfo])
 async def get_files(username: str):
     """List files for a specific user."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    return await file_service.get_user_files(user.folder)
+    return await file_service.get_user_files(user.folder, retention_days=user.data_retention_days)
 
 
 @router.post("/upload")
@@ -684,6 +733,48 @@ async def delete_file(request: Request, username: str, filename: str = Form(...)
     return {"message": "檔案已刪除"}
 
 
+@router.post("/user/{username}/rename-file")
+async def rename_file(
+    request: Request, 
+    # Use Body for JSON payload to support RenameFileRequest (cleaner) or Form for consistency?
+    # Existing endpoints use Form mostly. Let's stick to Form for consistency with other actions
+    # But wait, RenameFileRequest was defined in schemas. Using that implies JSON.
+    # Frontend usually sends JSON for complex actions.
+    # Let's use Form to match existing pattern for now (simple params), 
+    # OR switch to JSON. The `delete_file` uses Form.
+    username: str,
+    password: str = Form(...),
+    old_name: str = Form(...),
+    new_name: str = Form(...)
+):
+    """Rename a file."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+
+    # Verify password
+    if not verify_password(password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    # Check locks
+    if old_name in getattr(user, 'locked_files', []):
+         raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+
+    success = await file_service.rename_file(user.folder, old_name, new_name)
+    if not success:
+        raise HTTPException(status_code=400, detail="重新命名失敗（檔案不存在或名稱重複）")
+    
+    # Update locks if necessary
+    if old_name in getattr(user, 'locked_files', []):
+        # Allow rename of locked file? Above block prevents it.
+        # If we allowed it, we'd need to update the lock list.
+        pass
+
+    await audit_service.log_event(username, "FILE_RENAME", f"Renamed {old_name} to {new_name}", ip=get_client_ip(request))
+    await event_service.notify_user_update(username)
+    return {"message": "檔案重新命名成功"}
+
+
 @router.post("/share/{username}/{filename}")
 async def create_share(
     username: str, 
@@ -797,10 +888,12 @@ async def download_direct(
 
 
 @router.get("/thumbnail/{username}/{filename}")
+@limiter.limit(TUS_LIMIT)
 async def get_thumbnail(
     username: str, 
     filename: str,
-    token: Optional[str] = None
+    token: Optional[str] = None,
+    request: Request = None
 ):
     """Get a thumbnail for a file."""
     user = await user_service.get_user_by_name(username)
@@ -911,7 +1004,7 @@ async def get_user_dashboard(
     
     # We load files anyway to calculate usage (which is usually public info? or hide it too?)
     # Let's verify usage is safe to show? Usually yes. But filenames definitely no.
-    files = await file_service.get_user_files(user.folder)
+    files = await file_service.get_user_files(user.folder, retention_days=user.data_retention_days)
     
     locked_files_list = getattr(user, 'locked_files', [])
     
@@ -945,7 +1038,8 @@ async def get_user_dashboard(
         "user": {
             "username": user.username, 
             "is_locked": is_locked_account,
-            "first_login": user.first_login
+            "first_login": user.first_login,
+            "show_in_list": user.show_in_list if hasattr(user, 'show_in_list') else True
         },
         "usage": usage_mb,
         "files": response_files,
@@ -1024,3 +1118,16 @@ async def websocket_endpoint(websocket: WebSocket, username: str):
         event_service.disconnect(username, websocket)
     except Exception:
         event_service.disconnect(username, websocket)
+
+
+@router.websocket("/ws/global")
+async def global_websocket_endpoint(websocket: WebSocket):
+    """Global WebSocket for system-wide updates (e.g. user list)."""
+    await event_service.connect_global(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        event_service.disconnect_global(websocket)
+    except Exception:
+        event_service.disconnect_global(websocket)

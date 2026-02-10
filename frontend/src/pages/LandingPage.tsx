@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck, Rocket } from 'lucide-react';
+import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck } from 'lucide-react';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { cn } from '../lib/utils';
 import Uppy from '@uppy/core';
@@ -236,7 +236,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   };
 
   return (
-    <div className="relative min-h-full overflow-y-auto flex flex-col items-center justify-center py-4">
+    <div className="relative min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center">
 
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] max-w-300 max-h-200 bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block" />
@@ -303,7 +303,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   <button
                     onClick={() => setUploadType('url')}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-4 rounded-md sm:rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] text-[8px] sm:text-xs",
+                      "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[9px] sm:text-xs",
                       uploadType === 'url' ? "bg-white dark:bg-white/10 text-cyan-700 dark:text-quantum-cyan shadow-lg border border-gray-200 dark:border-white/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40"
                     )}
                   >
@@ -312,7 +312,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   <button
                     onClick={() => setUploadType('file')}
                     className={cn(
-                      "flex-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-4 rounded-md sm:rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] text-[8px] sm:text-xs",
+                      "flex-1 flex items-center justify-center gap-2 py-3 sm:py-4 rounded-lg transition-all duration-300 cursor-pointer font-black uppercase tracking-[0.15em] text-[9px] sm:text-xs",
                       uploadType === 'file' ? "bg-white dark:bg-white/10 text-cyan-700 dark:text-quantum-cyan shadow-lg border border-gray-200 dark:border-white/10" : "text-gray-400 dark:text-white/20 hover:text-gray-600 dark:hover:text-white/40"
                     )}
                   >
@@ -320,8 +320,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-5">
-                  <div className="min-h-[clamp(5rem,10vh,9rem)] flex flex-col justify-center">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="min-h-[clamp(7rem,12vh,9rem)] flex flex-col justify-center">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={uploadType}
@@ -330,14 +330,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                         exit={{ opacity: 0, scale: 0.98 }}
                         className="space-y-2"
                       >
-                        <label className="text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">資料源</label>
+                        <label className="text-[0.5625rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">資料源</label>
                         {uploadType === 'url' ? (
                           <textarea
                             required
                             value={formData.content}
                             onChange={(e) => setFormData(p => ({ ...p, content: e.target.value }))}
                             placeholder="輸入網址或任何想保存的文字資訊..."
-                            className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg sm:rounded-xl px-3 sm:px-5 py-2.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/10 transition-all text-gray-900 dark:text-white text-sm sm:text-base font-medium shadow-inner min-h-[clamp(5rem,10vh,9rem)] resize-none placeholder:text-gray-400 dark:placeholder:text-white/30"
+                            className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-5 py-3.5 sm:py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/10 transition-all text-gray-900 dark:text-white text-sm sm:text-base font-medium shadow-inner min-h-[clamp(7rem,12vh,9rem)] resize-none placeholder:text-gray-400 dark:placeholder:text-white/30"
                           />
                         ) : (
                           <div className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/2">
@@ -348,8 +348,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                                 props={{
                                   showProgressDetails: true,
                                   note: turboMode
-                                    ? 'R2 Turbo'
-                                    : 'Resumable Upload',
+                                    ? 'Powered by Cloudflare R2 Acceleration (S3 Multipart)'
+                                    : 'Supports chunked & resumable uploads (powered by Tus)',
                                   theme: 'dark',
                                   hideUploadButton: true,
                                   height: 300,
@@ -365,8 +365,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                     </AnimatePresence>
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <label className="text-[8px] sm:text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] sm:tracking-[0.3em] ml-1 sm:ml-2 dark:opacity-50">密碼</label>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.3em] ml-2 dark:opacity-50">密碼</label>
                     <div className="relative">
                       <input
                         type="password"

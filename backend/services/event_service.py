@@ -7,6 +7,8 @@ class EventService:
     def __init__(self):
         # dictionary mapping username -> list of active websockets
         self.active_connections: Dict[str, List[WebSocket]] = {}
+        # global connections for system-wide events
+        self.global_connections: List[WebSocket] = []
 
     async def connect(self, username: str, websocket: WebSocket):
         """Accept a connection and track it for a specific user."""
@@ -38,3 +40,27 @@ class EventService:
             # Cleanup dead connections
             for dead in dead_connections:
                 self.disconnect(username, dead)
+
+    # --- Global Events ---
+    
+    async def connect_global(self, websocket: WebSocket):
+        """Accept and track a global listener."""
+        await websocket.accept()
+        self.global_connections.append(websocket)
+
+    def disconnect_global(self, websocket: WebSocket):
+        """Remove a global listener."""
+        if websocket in self.global_connections:
+            self.global_connections.remove(websocket)
+
+    async def notify_global_update(self, message: str):
+        """Broadcast a message to all global listeners."""
+        dead_connections = []
+        for connection in self.global_connections:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                dead_connections.append(connection)
+        
+        for dead in dead_connections:
+            self.disconnect_global(dead)

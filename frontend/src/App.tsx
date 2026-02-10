@@ -13,7 +13,7 @@ import { cn } from './lib/utils';
 
 interface UserData {
   users?: Array<{ username: string; folder: string }>;
-  user?: { username: string };
+  user?: { username: string; show_in_list?: boolean };
   usage?: number;
   files?: Array<{
     name: string;
@@ -161,15 +161,43 @@ const AppContent: React.FC = () => {
 
   // Fetch initial user list and config
   useEffect(() => {
-    fetch('/api/init')
-      .then((res) => res.json())
-      .then((data) => {
-        // data.users is array, data.config is object
-        setUsers(data.users || []);
-        setConfig(data.config || {});
-      })
-      .catch((err) => console.error('Fetch error:', err))
-      .finally(() => setLoading(false));
+    const fetchInit = () => {
+      fetch('/api/init')
+        .then((res) => res.json())
+        .then((data) => {
+          // data.users is array, data.config is object
+          setUsers(data.users || []);
+          setConfig(data.config || {});
+        })
+        .catch((err) => console.error('Fetch error:', err))
+        .finally(() => setLoading(false));
+    };
+
+    fetchInit();
+
+    // WebSocket for realtime user list updates
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // Direct endpoint on app.py to bypass router issues
+    const wsUrl = `${protocol}//${window.location.host}/ws/global`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      console.log('Connected to global WS');
+    };
+
+    socket.onmessage = (event) => {
+      if (event.data === 'USER_LIST_UPDATE') {
+        fetchInit();
+      }
+    };
+
+    socket.onclose = () => {
+      console.log('Global WS closed');
+    };
+
+    return () => {
+      if (socket) socket.close();
+    };
   }, []);
 
   return (
@@ -198,6 +226,9 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
 
+        <footer className="text-center py-6 lg:py-12 text-gray-400 dark:text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
+          FileNexus - Secure File Bridge Hub
+        </footer>
       </div>
     </BrowserRouter>
   );
