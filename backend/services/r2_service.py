@@ -10,7 +10,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import threading
 import time
 import os
@@ -184,6 +184,29 @@ class R2Service:
             return None
         
         try:
+            # [CHANGED STRATEGY - 2026-02-11]
+            # Instead of trying to resume (which doesn't work reliably without GoldenRetriever),
+            # we abort any existing uploads for this key and start fresh.
+            # This prevents zombie uploads and ensures clean state.
+            active_uploads = self._client.list_multipart_uploads(
+                Bucket=settings.r2.bucket_name,
+                Prefix=object_name
+            )
+            
+            if 'Uploads' in active_uploads:
+                for upload in active_uploads['Uploads']:
+                    if upload['Key'] == object_name:
+                        logger.info(f"Aborting existing multipart upload for {object_name}: {upload['UploadId']}")
+                        try:
+                            self._client.abort_multipart_upload(
+                                Bucket=settings.r2.bucket_name,
+                                Key=object_name,
+                                UploadId=upload['UploadId']
+                            )
+                        except ClientError as abort_error:
+                            logger.warning(f"Failed to abort existing upload: {abort_error}")
+
+            # Create new upload
             response = self._client.create_multipart_upload(
                 Bucket=settings.r2.bucket_name,
                 Key=object_name,
@@ -209,6 +232,105 @@ class R2Service:
             logger.info(f"Deleted file from R2: {object_name}")
         except ClientError as e:
             logger.error(f"Error deleting file from R2: {e}")
+
+    def list_parts(self, upload_id: str, key: str) -> List[Dict[str, Any]]:
+        """List parts of an active multipart upload."""
+        if not self._client:
+            return []
+        
+        if not self._check_quota(class_b=1): # ListParts is Class B (Read)
+            return []
+
+        try:
+            # Note: MaxParts is 1000 by default. 
+            # If we need more, we need pagination (IsTruncated).
+            # For now, assuming < 1000 parts (5GB @ 5MB parts)
+            response = self._client.list_parts(
+                Bucket=settings.r2.bucket_name,
+                Key=key,
+                UploadId=upload_id
+            )
+            self._increment_usage(class_b=1)
+            parts = response.get('Parts', [])
+            return parts
+        except ClientError as e:
+            logger.error(f"Error listing parts: {e}")
+            return []
+    
+    def upload_part_direct(
+        self,
+        upload_id: str,
+        key: str,
+        part_number: int,
+        data: bytes
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Upload a part directly (for TUS integration).
+        
+        Unlike the presigned URL approach, this uploads the part directly
+        from the backend, which is needed for TUS PATCH requests.
+        
+        Args:
+            upload_id: R2 multipart upload ID
+            key: R2 object key
+            part_number: Part number (1-indexed)
+            data: Part data bytes
+        
+        Returns:
+            Dict with ETag and PartNumber, or None on error
+        """
+        if not self._client:
+            return None
+        
+        if not self._check_quota(class_a=1, bytes_added=len(data)):
+            return None
+        
+        try:
+            response = self._client.upload_part(
+                Bucket=settings.r2.bucket_name,
+                Key=key,
+                UploadId=upload_id,
+                PartNumber=part_number,
+                Body=data
+            )
+            self._increment_usage(class_a=1, bytes_added=len(data))
+            
+            return {
+                'ETag': response['ETag'],
+                'PartNumber': part_number
+            }
+        except ClientError as e:
+            logger.error(f"Error uploading part {part_number}: {e}")
+            return None
+    
+    def get_upload_progress(
+        self,
+        upload_id: str,
+        key: str
+    ) -> Dict[str, Any]:
+        """
+        Get upload progress information.
+        
+        Args:
+            upload_id: R2 multipart upload ID
+            key: R2 object key
+        
+        Returns:
+            Dict with offset (bytes uploaded) and parts list
+        """
+        parts = self.list_parts(upload_id, key)
+        
+        if not parts:
+            return {'offset': 0, 'parts': []}
+        
+        # Calculate total bytes uploaded
+        # Assuming each part is CHUNK_SIZE except possibly the last one
+        offset = sum(part.get('Size', 0) for part in parts)
+        
+        return {
+            'offset': offset,
+            'parts': parts
+        }
 
     def upload_file(self, local_path: Path, object_name: str) -> bool:
         """Upload a local file to R2 (for acceleration downloads)."""

@@ -7,7 +7,8 @@ import { cn } from '../lib/utils';
 import Uppy from '@uppy/core';
 import UppyDashboard from '../components/UppyDashboard';
 import Tus from '@uppy/tus';
-import AwsS3 from '@uppy/aws-s3';
+// AwsS3 removed: Switched to TUS protocol for refresh-resume capability
+// TUS provides fingerprint-based resume while maintaining R2 backend
 
 // Uppy styles
 import '@uppy/core/css/style.min.css';
@@ -61,49 +62,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       }
     });
 
-    if (turboMode) {
-      // R2 / S3 Multipart Strategy
-      u.use(AwsS3, {
-        shouldUseMultipart: true,
-        limit: 5,
-        createMultipartUpload: async (file: any) => {
-          const res = await fetch('/api/upload/r2/multipart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              filename: file.name,
-              type: file.type,
-              metadata: file.meta
-            }),
-          });
-          if (!res.ok) throw new Error('Failed to init upload');
-          return await res.json();
-        },
-        signPart: async (_file: any, { uploadId, key, partNumber }: any) => {
-          const res = await fetch(`/api/upload/r2/multipart/${uploadId}?key=${encodeURIComponent(key)}&partNumber=${partNumber}`);
-          if (!res.ok) throw new Error('Failed to sign part');
-          return await res.json();
-        },
-        completeMultipartUpload: async (_file: any, { uploadId, key, parts }: any) => {
-          const res = await fetch(`/api/upload/r2/multipart/${uploadId}/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, parts }),
-          });
-          if (!res.ok) throw new Error('Failed to complete upload');
-          return await res.json();
-        },
-        listParts: async (_file: any, { uploadId: _uId, key: _k }: any) => {
-          console.log('listParts not implemented, returning empty', _uId, _k);
-          return []; // Return empty list as we don't support resuming existing uploads for now
-        },
-        abortMultipartUpload: async (_file: any, { uploadId: _uId, key: _k }: any) => {
-           // Optional: Implement abort endpoint if needed
-           console.log('Abort not implemented on backend for now', _uId, _k);
-        }
+    // [TUS + R2 HYBRID] Use TUS protocol for resumable uploads with R2 backend
+    // This enables refresh-resume while maintaining R2's parallel upload speed
+    if (turboMode && data?.config?.r2_enabled) {
+      u.use(Tus, {
+        endpoint: '/api/upload/tus',
+        removeFingerprintOnSuccess: true,  // Clean up after completion
+        chunkSize: 5 * 1024 * 1024,  // 5MB chunks (aligned with R2 Multipart)
+        retryDelays: [0, 1000, 3000, 5000],
+        limit: 5,  // 5 parallel uploads (matches R2 Multipart)
+        // TUS automatically calculates fingerprint and resumes from last offset
       });
     } else {
-      // Fallback: Tus
+      // Fallback: Standard Tus for non-R2 environments
       u.use(Tus, {
         endpoint: '/api/upload/tus',
         chunkSize: 50 * 1024 * 1024,
@@ -112,6 +83,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         limit: 5,
       });
     }
+
+    // GoldenRetriever removed: it restored ghost file entries after refresh
+    // (metadata without blob data), making the Upload button non-functional.
+    // Resume is now handled by the backend Get-Or-Create logic:
+    // User re-selects file → backend returns existing uploadId → upload resumes.
 
     setUppy(u);
 

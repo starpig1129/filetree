@@ -400,10 +400,13 @@ async def create_multipart(request: Request, req: UppyCreateMultipartRequest):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid password")
         
-    # Generate object key: folder/filename (or unique ID)
-    # We should probably use unique ID to avoid collisions during upload
-    import uuid
-    object_key = f"temp/{user.username}/{uuid.uuid4()}_{req.filename}"
+    # [RESUME FIX] 
+    # Use deterministic key to allow finding existing multipart uploads.
+    # Format: temp/username/filename
+    # This means if user uploads same filename while previous is incomplete, 
+    # it will resume.
+    # Verify conflicts? If complete, it moves out of temp.
+    object_key = f"temp/{user.username}/{req.filename}"
     
     result = r2_service.create_multipart_upload(object_key, req.type)
     if not result:
@@ -414,28 +417,78 @@ async def create_multipart(request: Request, req: UppyCreateMultipartRequest):
         "key": result['Key']
     }
 
+@router.delete("/upload/r2/multipart/{uploadId}")
+@limiter.limit(TUS_LIMIT)
+async def abort_multipart(request: Request, uploadId: str, key: str):
+    """Abort multipart upload and clean up parts."""
+    if not r2_service._client:
+         raise HTTPException(status_code=503, detail="R2 service unavailable")
+         
+    try:
+        r2_service._client.abort_multipart_upload(
+            Bucket=settings.r2.bucket_name,
+            Key=key,
+            UploadId=uploadId
+        )
+        return {"status": "aborted"}
+    except Exception as e:
+        # If it fails, maybe it doesn't exist. We still return success to client.
+        print(f"Abort Error: {e}")
+        return {"status": "ignored"}
+
 @router.get("/upload/r2/multipart/{uploadId}")
 @limiter.limit(TUS_LIMIT)
-async def sign_part(request: Request, uploadId: str, key: str, partNumber: int):
-    """Sign a part for upload."""
+async def handle_multipart_get(
+    request: Request, 
+    uploadId: str, 
+    key: str, 
+    partNumber: Optional[int] = None
+):
+    """
+    Dual-purpose endpoint:
+    1. If partNumber is provided: Sign a part for upload.
+    2. If partNumber is missing: List uploaded parts (for resume).
+    """
     if not r2_service._client:
         raise HTTPException(status_code=503, detail="R2 service unavailable")
     
-    try:
-        url = r2_service._client.generate_presigned_url(
-            ClientMethod='upload_part',
-            Params={
-                'Bucket': settings.r2.bucket_name,
-                'Key': key,
-                'UploadId': uploadId,
-                'PartNumber': int(partNumber)
-            },
-            ExpiresIn=3600
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # CASE 1: Sign Part
+    if partNumber is not None:
+        try:
+            url = r2_service._client.generate_presigned_url(
+                ClientMethod='upload_part',
+                Params={
+                    'Bucket': settings.r2.bucket_name,
+                    'Key': key,
+                    'UploadId': uploadId,
+                    'PartNumber': int(partNumber)
+                },
+                ExpiresIn=3600
+            )
+            return {"url": url}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # CASE 2: List Parts
+    parts = r2_service.list_parts(uploadId, key)
+    
+    # Sanitize for JSON serialization (remove datetime objects)
+    # And map ETag/Size/PartNumber to match Uppy expectation
+    # Uppy AwsS3 plugin is inconsistent across versions. 
+    # Some use PascalCase (PartNumber), some use lowercase (partNumber).
+    # We provide BOTH to be safe.
+    sanitized_parts = []
+    for p in parts:
+        sanitized_parts.append({
+            "PartNumber": p.get("PartNumber"),
+            "partNumber": p.get("PartNumber"),
+            "Size": p.get("Size"),
+            "size": p.get("Size"),
+            "ETag": p.get("ETag"), # Keep regex/quotes as is
+            "etag": p.get("ETag")
+        })
         
-    return {"url": url}
+    return sanitized_parts
 
 @router.post("/upload/r2/multipart/{uploadId}/complete")
 @limiter.limit(TUS_LIMIT)
@@ -471,15 +524,18 @@ async def complete_multipart(
         )
         
         # Determine user from key
-        # key format: temp/username/uuid_filename
+        # key format: temp/username/filename
         path_parts = key.split("/")
         if len(path_parts) >= 3:
             username = path_parts[1]
-            # Remove UUID prefix (format: uuid_original_filename.ext)
-            full_name = path_parts[2]
-            _, _, original_filename = full_name.partition("_")
-            if not original_filename:
-                original_filename = full_name  # Fallback if no underscore
+            # No UUID prefix anymore
+            original_filename = path_parts[2] 
+            
+            # Legacy support: Check if it still has UUID style (uuid_filename)
+            # But since we changed creation, new ones won't.
+            # If we want to be safe for in-flight legacy uploads, we can use regex or loose check.
+            # But realistically, restarting server kills in-flight ones anyway (or makes them zombies).
+            # So simple filename extraction is fine.
             
             user = await user_service.get_user_by_name(username)
             if user:

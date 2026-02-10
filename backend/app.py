@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.routes.api import router as api_router
+from backend.routes.tus import router as tus_router
 
 
 def suppress_connection_reset_error(loop, context):
@@ -51,6 +52,7 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(api_router)
+app.include_router(tus_router)  # TUS resumable upload endpoints
 
 # Serve the React build (SPA)
 # 1. First, try to serve specific files from static/dist
@@ -91,9 +93,13 @@ async def serve_spa(request: Request, path: str):
         return FileResponse(file_path)
     
     # Otherwise, return index.html for SPA routing
+    # IMPORTANT: no-cache for index.html to prevent stale JS bundle references
     index_path = static_path / "index.html"
     if index_path.exists():
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     
     return {"detail": "Not Found"}
 
