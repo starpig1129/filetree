@@ -1,18 +1,20 @@
 """
 TUS Protocol Endpoints for Resumable Uploads
 
-Implements TUS 1.0.0 protocol with R2 Multipart backend.
-Enables refresh-resume while maintaining R2's parallel upload speed.
+Implements TUS 1.0.0 protocol with Local Filesystem backend.
+Enables refresh-resume and efficient direct-to-disk uploads.
 """
 
-from fastapi import APIRouter, Request, Response, HTTPException, Header
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, Response
+from starlette.requests import ClientDisconnect
+from fastapi import HTTPException, Header, status
 from typing import Optional
 import uuid
 import base64
 import logging
 
 from backend.services.user_service import user_service
-from backend.services.r2_service import r2_service
 from backend.services.file_service import file_service
 from backend.services.audit_service import AuditService
 from backend.services.event_service import EventService
@@ -22,6 +24,7 @@ from backend.config import settings
 from starlette.concurrency import run_in_threadpool
 from fastapi import BackgroundTasks
 import os
+import aiofiles
 
 logger = logging.getLogger(__name__)
 
@@ -65,31 +68,27 @@ def calculate_fingerprint(filename: str, size: int, modified: Optional[str] = No
     return '-'.join(parts)
 
 
-async def finalize_upload_task(upload: dict):
-    """Background task to finalize upload: download from R2, move to user folder, notify."""
+
+
+
+async def finalize_upload_local(upload: dict):
+    """Finalize upload: move from temp to user folder, notify."""
     upload_id = upload['id']
     username = upload['username']
     filename = upload['filename']
-    r2_key = upload['r2_key']
     
-    logger.info(f"Finalizing TUS upload {upload_id} for user {username}...")
+    logger.info(f"Finalizing Local TUS upload {upload_id} for user {username}...")
     
     try:
-        # 1. Download from R2 to local temp
-        temp_path = settings.paths.tus_temp_folder / f"final_{upload_id}_{filename}"
+        # 1. Path to temp file
+        temp_path = settings.paths.tus_temp_folder / upload_id
         
-        # Download (sync in threadpool)
-        download_success = await run_in_threadpool(
-            r2_service.download_file, 
-            r2_key, 
-            temp_path
-        )
-        
-        if not download_success:
-            logger.error(f"Failed to download resolved file from R2: {r2_key}")
-            return
+        if not temp_path.exists():
+             logger.error(f"Temp file not found: {temp_path}")
+             return
 
         # 2. Import to user folder (dedup & move)
+        # This is an instant move on same filesystem
         final_name = await file_service.import_file(temp_path, username, filename)
         
         if not final_name:
@@ -98,21 +97,17 @@ async def finalize_upload_task(upload: dict):
             
         logger.info(f"File imported successfully as: {final_name}")
 
-        # 3. Clean up R2 (fire and forget inside this task)
-        # We perform delete in threadpool to avoid blocking event loop
-        await run_in_threadpool(r2_service.delete_file, r2_key)
-        
-        # 4. Notify & Audit
+        # 3. Notify & Audit
         await audit_service.log_event(
             username, 
             "FILE_UPLOAD_TUS", 
-            f"TUS Upload completed via R2: {final_name}", 
-            ip="TUS_BG_TASK"
+            f"TUS Upload completed (Local): {final_name}", 
+            ip="TUS_LOCAL"
         )
         await event_service.notify_user_update(username)
         
     except Exception as e:
-        logger.error(f"Error in finalize_upload_task for {upload_id}: {e}")
+        logger.error(f"Error in finalize_upload_local for {upload_id}: {e}")
 
 
 
@@ -124,68 +119,84 @@ async def create_tus_upload(
     tus_resumable: str = Header(TUS_VERSION, alias="Tus-Resumable")
 ):
     """TUS POST - Create new upload or return existing one for resume."""
-    # Parse metadata
-    metadata = parse_tus_metadata(upload_metadata)
-    filename = metadata.get('filename', 'unnamed')
-    content_type = metadata.get('filetype', 'application/octet-stream')
-    password = metadata.get('password')
-    
-    # Authenticate
-    if not password:
-        raise HTTPException(status_code=401, detail="Missing password in metadata")
-    
-    user = await user_service.get_user_by_password(password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid password")
-    
-    # Calculate fingerprint
-    fingerprint = calculate_fingerprint(filename, upload_length, metadata.get('lastModified'))
-    logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user.username}")
-    
-    # Check for existing upload (resume)
-    existing = metadata_store.get_upload_by_fingerprint(fingerprint, user.username)
-    
-    if existing and existing['status'] == 'active':
-        logger.info(f"TUS Resume: Found existing upload {existing['id']}, offset={existing['offset']}")
+    try:
+        # Parse metadata
+        metadata = parse_tus_metadata(upload_metadata)
+        filename = metadata.get('filename', 'unnamed')
+        content_type = metadata.get('filetype', 'application/octet-stream')
+        password = metadata.get('password')
+        
+        # Authenticate
+        if not password:
+            raise HTTPException(status_code=401, detail="Missing password in metadata")
+        
+        user = await user_service.get_user_by_password(password)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid password")
+        
+        # Calculate fingerprint
+        fingerprint = calculate_fingerprint(filename, upload_length, metadata.get('lastModified'))
+        logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user.username}")
+        
+        # Check for existing upload (resume)
+        existing = metadata_store.get_upload_by_fingerprint(fingerprint, user.username)
+        
+        if existing and existing['status'] == 'active':
+            logger.info(f"TUS Resume: Found existing upload {existing['id']}, offset={existing['offset']}")
+            return Response(
+                status_code=200,
+                headers={
+                    "Location": f"{request.base_url}api/upload/tus/{existing['id']}",
+                    "Tus-Resumable": TUS_VERSION,
+                    "Upload-Offset": str(existing['offset']),
+                    "Content-Length": "0"
+                }
+            )
+        
+        # Create new upload
+        upload_id = str(uuid.uuid4())
+        
+        # Create empty file
+        file_path = settings.paths.tus_temp_folder / upload_id
+        try:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.touch()
+        except Exception as e:
+            logger.error(f"Failed to create temp file: {e}")
+            raise HTTPException(status_code=500, detail="Failed to initialize upload storage")
+
+        # Store metadata
+        created = metadata_store.create_upload(
+            upload_id=upload_id,
+            fingerprint=fingerprint,
+            username=user.username,
+            size=upload_length,
+            filename=filename,
+            content_type=content_type,
+            metadata=metadata
+        )
+        
+        if not created:
+             # Cleanup
+             file_path.unlink(missing_ok=True)
+             raise HTTPException(status_code=500, detail="Failed to create upload session")
+            
+        logger.info(f"Created Local TUS upload: {upload_id} for {filename}")
+        
         return Response(
-            status_code=200,
+            status_code=status.HTTP_201_CREATED,
             headers={
-                "Location": f"/api/upload/tus/{existing['id']}",
+                "Location": f"{request.base_url}api/upload/tus/{upload_id}",
                 "Tus-Resumable": TUS_VERSION,
-                "Upload-Offset": str(existing['offset'])
+                "Upload-Offset": "0",
+                "Content-Length": "0"
             }
         )
-    
-    # Create new upload
-    upload_id = str(uuid.uuid4())
-    object_key = f"temp/{user.username}/{filename}"
-    
-    r2_result = r2_service.create_multipart_upload(object_key, content_type)
-    if not r2_result:
-        raise HTTPException(status_code=500, detail="Failed to initialize R2 upload")
-    
-    metadata_store.create_upload(
-        upload_id=upload_id,
-        fingerprint=fingerprint,
-        username=user.username,
-        r2_upload_id=r2_result['UploadId'],
-        r2_key=r2_result['Key'],
-        size=upload_length,
-        filename=filename,
-        content_type=content_type,
-        metadata=metadata
-    )
-    
-    logger.info(f"TUS Created: upload_id={upload_id}, r2_upload_id={r2_result['UploadId']}")
-    
-    return Response(
-        status_code=201,
-        headers={
-            "Location": f"/api/upload/tus/{upload_id}",
-            "Tus-Resumable": TUS_VERSION,
-            "Upload-Offset": "0"
-        }
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"TUS Create Error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.head("/upload/tus/{upload_id}")
@@ -205,7 +216,8 @@ async def get_tus_upload_offset(
             "Tus-Resumable": TUS_VERSION,
             "Upload-Offset": str(upload['offset']),
             "Upload-Length": str(upload['size']),
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Content-Length": "0"
         }
     )
 
@@ -226,61 +238,57 @@ async def upload_tus_chunk(
         raise HTTPException(status_code=404, detail="Upload not found")
     
     # Verify offset
-    if upload['offset'] != upload_offset:
+    current_offset = upload['offset']
+    if upload_offset != current_offset:
         raise HTTPException(
-            status_code=409,
-            detail=f"Offset mismatch: expected {upload['offset']}, got {upload_offset}"
-        )
-    
-    # Read chunk
-    chunk_data = await request.body()
-    if len(chunk_data) != content_length:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Content-Length mismatch: expected {content_length}, got {len(chunk_data)}"
-        )
-    
-    # Upload to R2
-    part_number = (upload_offset // CHUNK_SIZE) + 1
-    logger.info(f"TUS Upload: upload_id={upload_id}, part={part_number}, offset={upload_offset}")
-    
-    part_result = r2_service.upload_part_direct(
-        upload_id=upload['r2_upload_id'],
-        key=upload['r2_key'],
-        part_number=part_number,
-        data=chunk_data
-    )
-    
-    if not part_result:
-        raise HTTPException(status_code=500, detail="Failed to upload part to R2")
-    
-    # Update metadata
-    new_offset = upload_offset + len(chunk_data)
-    current_parts = upload.get('parts', [])
-    current_parts.append(part_result)
-    metadata_store.update_offset(upload_id, new_offset, current_parts)
-    
-    # Complete if done
-    if new_offset >= upload['size']:
-        logger.info(f"TUS Complete: upload_id={upload_id}")
-        complete_result = r2_service.complete_multipart_upload(
-            upload['r2_upload_id'],
-            upload['r2_key'],
-            current_parts
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Offset mismatch. Expected {current_offset}, got {upload_offset}"
         )
         
-        if complete_result:
-            metadata_store.mark_completed(upload_id)
-            # Trigger background finalization
-            background_tasks.add_task(finalize_upload_task, upload)
-        else:
-            raise HTTPException(status_code=500, detail="Failed to complete R2 upload")
+    # File path
+    file_path = settings.paths.tus_temp_folder / upload_id
+    if not file_path.exists():
+         raise HTTPException(status_code=404, detail="Upload file not found on server")
+
+    # Read chunk
+    try:
+        chunk = await request.body()
+    except ClientDisconnect:
+        logger.warning(f"Client disconnected during upload of {upload_id}")
+        return Response(status_code=499) # Client Closed Request
+
+    chunk_size = len(chunk)
+    
+    # Check strict size
+    if current_offset + chunk_size > upload['size']:
+         raise HTTPException(status_code=400, detail="Upload exceeds total size")
+
+    # Append to file
+    try:
+        async with aiofiles.open(file_path, 'ab') as f:
+            await f.write(chunk)
+    except Exception as e:
+        logger.error(f"Write error for {upload_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to write chunk")
+
+    # Update metadata
+    new_offset = current_offset + chunk_size
+    metadata_store.update_offset(upload_id, new_offset, parts=[]) # Parts no longer needed for local
+    
+    logger.info(f"TUS Chunk {upload_id}: +{chunk_size} bytes, new_offset={new_offset}")
+
+    # Complete if done
+    if new_offset == upload['size']:
+        logger.info(f"TUS Complete (Local): {upload_id}")
+        metadata_store.mark_completed(upload_id)
+        # Trigger finalization (can be awaited or background, strictly speaking instant move is fast enough)
+        background_tasks.add_task(finalize_upload_local, upload)
     
     return Response(
-        status_code=204,
+        status_code=status.HTTP_204_NO_CONTENT,
         headers={
-            "Tus-Resumable": TUS_VERSION,
-            "Upload-Offset": str(new_offset)
+            "Upload-Offset": str(new_offset),
+            "Tus-Resumable": TUS_VERSION
         }
     )
 
@@ -298,17 +306,16 @@ async def cancel_tus_upload(
     
     logger.info(f"TUS Delete: upload_id={upload_id}")
     
-    # Abort R2 upload
-    try:
-        r2_service._client.abort_multipart_upload(
-            Bucket=settings.r2.bucket_name,
-            Key=upload['r2_key'],
-            UploadId=upload['r2_upload_id']
-        )
-    except Exception as e:
-        logger.warning(f"Failed to abort R2 upload: {e}")
-    
+    # Abort local upload
     metadata_store.mark_aborted(upload_id)
+    
+    file_path = settings.paths.tus_temp_folder / upload_id
+    if file_path.exists():
+        try:
+            file_path.unlink()
+            logger.info(f"Deleted temp file for aborted upload: {upload_id}")
+        except Exception as e:
+            logger.error(f"Failed to delete temp file: {e}")
     
     return Response(
         status_code=204,

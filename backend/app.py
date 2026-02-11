@@ -48,6 +48,17 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "Tus-Resumable", 
+        "Tus-Version", 
+        "Tus-Extension", 
+        "Tus-Max-Size", 
+        "Upload-Offset", 
+        "Upload-Length", 
+        "Upload-Metadata", 
+        "Location",
+        "Content-Length"
+    ]
 )
 
 # Include API routes
@@ -118,5 +129,5 @@ if __name__ == "__main__":
         port=settings.server.port,
         reload=settings.server.debug,
         timeout_graceful_shutdown=0,  # Force immediate shutdown
-        timeout_keep_alive=0  # Don't wait for keep-alive connections
+        timeout_keep_alive=60  # Enable keep-alive for TUS
     )

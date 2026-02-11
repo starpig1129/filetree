@@ -37,8 +37,6 @@ class TusMetadataStore:
                     id TEXT PRIMARY KEY,
                     fingerprint TEXT NOT NULL,
                     username TEXT NOT NULL,
-                    r2_upload_id TEXT NOT NULL,
-                    r2_key TEXT NOT NULL,
                     offset INTEGER NOT NULL DEFAULT 0,
                     size INTEGER NOT NULL,
                     filename TEXT NOT NULL,
@@ -67,7 +65,8 @@ class TusMetadataStore:
     @contextmanager
     def _get_connection(self):
         """Get database connection with context manager."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = sqlite3.connect(str(self.db_path), timeout=30.0) # Increase timeout
+        conn.execute("PRAGMA journal_mode=WAL") # Enable WAL mode for concurrency
         conn.row_factory = sqlite3.Row
         try:
             yield conn
@@ -79,8 +78,6 @@ class TusMetadataStore:
         upload_id: str,
         fingerprint: str,
         username: str,
-        r2_upload_id: str,
-        r2_key: str,
         size: int,
         filename: str,
         content_type: Optional[str] = None,
@@ -92,8 +89,6 @@ class TusMetadataStore:
             upload_id: TUS upload ID.
             fingerprint: File fingerprint for resume detection.
             username: Username of the uploader.
-            r2_upload_id: R2 multipart upload ID.
-            r2_key: R2 object key.
             size: Total file size in bytes.
             filename: Original filename.
             content_type: MIME type.
@@ -108,16 +103,14 @@ class TusMetadataStore:
             try:
                 conn.execute("""
                     INSERT OR REPLACE INTO tus_uploads (
-                        id, fingerprint, username, r2_upload_id, r2_key,
+                        id, fingerprint, username,
                         offset, size, filename, content_type, metadata,
                         parts, status, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     upload_id,
                     fingerprint,
                     username,
-                    r2_upload_id,
-                    r2_key,
                     0,
                     size,
                     filename,
@@ -247,8 +240,7 @@ class TusMetadataStore:
             'id': row['id'],
             'fingerprint': row['fingerprint'],
             'username': row['username'],
-            'r2_upload_id': row['r2_upload_id'],
-            'r2_key': row['r2_key'],
+            # r2_upload_id and r2_key are legacy/unused, omitted from dict
             'offset': row['offset'],
             'size': row['size'],
             'filename': row['filename'],

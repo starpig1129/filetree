@@ -33,15 +33,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{ username: string, oldPwd: string } | null>(null);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   
-  // Turbo Mode (R2) state
-  const [turboMode, setTurboMode] = useState(false);
 
-  // Sync turboMode with config default
-  useEffect(() => {
-    if (data.config?.r2_enabled) {
-      setTurboMode(true);
-    }
-  }, [data.config]);
 
   // Dynamic Uppy Instance
   const [uppy, setUppy] = useState<Uppy | null>(null);
@@ -62,27 +54,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       }
     });
 
-    // [TUS + R2 HYBRID] Use TUS protocol for resumable uploads with R2 backend
-    // This enables refresh-resume while maintaining R2's parallel upload speed
-    if (turboMode && data?.config?.r2_enabled) {
-      u.use(Tus, {
-        endpoint: '/api/upload/tus',
-        removeFingerprintOnSuccess: true,  // Clean up after completion
-        chunkSize: 5 * 1024 * 1024,  // 5MB chunks (aligned with R2 Multipart)
-        retryDelays: [0, 1000, 3000, 5000],
-        limit: 5,  // 5 parallel uploads (matches R2 Multipart)
-        // TUS automatically calculates fingerprint and resumes from last offset
-      });
-    } else {
-      // Fallback: Standard Tus for non-R2 environments
-      u.use(Tus, {
-        endpoint: '/api/upload/tus',
-        chunkSize: 50 * 1024 * 1024,
-        retryDelays: [0, 1000, 3000, 5000],
-        removeFingerprintOnSuccess: true,
-        limit: 5,
-      });
-    }
+    // Use TUS protocol for resumable uploads
+    // Optimized for local high-speed network (Direct-to-Disk)
+    u.use(Tus, {
+      endpoint: '/api/upload/tus',
+      chunkSize: 5 * 1024 * 1024, // 50MB chunks for high speed
+      retryDelays: [0, 1000, 3000, 5000],
+      removeFingerprintOnSuccess: true,
+      limit: 5,
+    });
 
     // GoldenRetriever removed: it restored ghost file entries after refresh
     // (metadata without blob data), making the Upload button non-functional.
@@ -95,7 +75,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       u.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turboMode, data.config]); // Re-create when turboMode changes
+  }, [data.config]); // Re-create when config changes
 
   // Update logic on existing uppy (meta, etc)
   useEffect(() => {
@@ -181,31 +161,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           await uppy.upload();
         } catch (err: any) {
           console.error("Upload failed:", err);
-          // Auto-fallback: If Turbo Mode is on and it failed, try switching to TUS
-          if (turboMode) {
-            console.warn("Turbo Mode (R2) failed. Falling back to Standard Mode (TUS)...");
-            // Disable Turbo Mode
-            setTurboMode(false);
-            // Wait for useEffect to recreate Uppy instance with TUS
-            // This is tricky because React state updates are async.
-            // We need to trigger a retry after state update.
-            // Actually, simply setting turboMode(false) will reset Uppy. 
-            // The user will have to click upload again? Or we can hack it?
-            // Better UX: Show specific alert asking user to retry.
-            alert('高速上傳通道暫時無法使用，系統將自動切換至標準模式。請再次點擊「開始同步」按鈕。');
-            setTurboMode(false); // This triggers useEffect -> new Uppy (Tus)
-            setIsSyncing(false);
-            return;
-          }
-          throw err; // Re-throw if not turbo mode or other error
+          throw err; 
         }
       }
     } catch (err) {
       console.error(err);
-      // alert('上傳失敗，請檢查網路或密碼。'); // Don't show generic alert if we handled fallback
-      if (!turboMode) {
-          alert('上傳失敗，請檢查網路或密碼。');
-      }
+      alert('上傳失敗，請檢查網路或密碼。');
     } finally {
       setIsSyncing(false);
     }
@@ -308,9 +269,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                                   className="w-full h-full"
                                   props={{
                                     showProgressDetails: true,
-                                    note: turboMode 
-                                      ? 'Powered by Cloudflare R2 Acceleration (S3 Multipart)' 
-                                      : 'Supports chunked & resumable uploads (powered by Tus)',
+                                    note: 'Supports chunked & resumable uploads (powered by Tus)',
                                     theme: 'dark',
                                     hideUploadButton: true,
                                     height: 200,

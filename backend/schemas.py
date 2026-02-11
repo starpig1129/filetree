@@ -102,19 +102,4 @@ class UploadInitResponse(BaseModel):
     strategy: str  # "tus" or "r2"
     tus_endpoint: Optional[str] = None
     
-# Uppy AwsS3Multipart compatible schemas
 
-class UppyCreateMultipartRequest(BaseModel):
-    filename: str
-    type: str
-    metadata: Optional[dict] = None
-
-class UppySignPartRequest(BaseModel):
-    uploadId: str
-    key: str
-    partNumber: int
-
-class UppyCompleteMultipartRequest(BaseModel):
-    uploadId: Optional[str] = None
-    key: str
-    parts: List[dict]
