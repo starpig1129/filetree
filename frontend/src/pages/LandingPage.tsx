@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck } from 'lucide-react';
+import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck, Rocket } from 'lucide-react';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { cn } from '../lib/utils';
 import Uppy from '@uppy/core';

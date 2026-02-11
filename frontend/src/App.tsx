@@ -226,7 +226,7 @@ const AppContent: React.FC = () => {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
 
-        <footer className="text-center py-6 lg:py-12 text-gray-400 dark:text-white/20 text-[10px] font-bold tracking-[0.3em] uppercase relative z-10">
+        <footer className="text-center py-0 lg:py-2 text-gray-400 dark:text-white/20 text-[0.625rem] font-bold tracking-[0.3em] uppercase fixed bottom-4 w-full z-10">
           FileNexus - Secure File Bridge Hub
         </footer>
       </div>
