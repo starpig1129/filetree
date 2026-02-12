@@ -163,7 +163,50 @@ class FileService:
             
         await aiofiles.os.rename(old_path, new_path)
         return True
+    async def import_file(self, source_path: Path, folder_name: str, filename: str) -> Optional[str]:
+        """Import a file from a local path into the user's folder (move).
 
+        Args:
+            source_path: Path to the source file (will be moved).
+            folder_name: The user's folder.
+            filename: The original filename.
+
+        Returns:
+            The final unique filename, or None on failure.
+        """
+        # Security: Prevent path traversal
+        filename = os.path.basename(filename)
+        folder = self._get_user_folder(folder_name)
+        
+        if not source_path.exists():
+            return None
+            
+        name, ext = os.path.splitext(filename)
+        counter = 1
+        unique_name = filename
+        
+        while (folder / unique_name).exists():
+            unique_name = f"{name}_{counter}{ext}"
+            counter += 1
+            
+        target_path = folder / unique_name
+        
+        try:
+            # Move the file
+            await aiofiles.os.rename(source_path, target_path)
+            
+            # Trigger deduplication
+            from backend.services.dedup_service import dedup_service
+            try:
+                await dedup_service.deduplicate(target_path)
+            except Exception as e:
+                # Log but don't fail the upload
+                print(f"Dedup failed for imported file {unique_name}: {e}")
+                
+            return unique_name
+        except Exception as e:
+            print(f"Failed to import file: {e}")
+            return None
 
 # Singleton instance
 file_service = FileService()

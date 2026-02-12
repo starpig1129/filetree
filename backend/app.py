@@ -11,6 +11,45 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.routes.api import router as api_router
+from backend.routes.tus import router as tus_router
+from backend.routes.tus import cleanup_expired_uploads
+from contextlib import asynccontextmanager
+from starlette.concurrency import run_in_threadpool
+import logging
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Run cleanup immediately
+    try:
+        logger.info("Startup: Running stale upload cleanup...")
+        await run_in_threadpool(cleanup_expired_uploads)
+    except Exception as e:
+        logger.error(f"Startup cleanup failed: {e}")
+
+    # Start periodic background task
+    async def periodic_cleanup():
+        while True:
+            await asyncio.sleep(36000)  # Run every 10 hour
+            try:
+                logger.info("Periodic: Running stale upload cleanup...")
+                await run_in_threadpool(cleanup_expired_uploads)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Periodic cleanup failed: {e}")
+
+    cleanup_task = asyncio.create_task(periodic_cleanup())
+    
+    yield
+    
+    # Shutdown: Cancel cleanup task
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
 
 
 def suppress_connection_reset_error(loop, context):
@@ -32,7 +71,8 @@ from backend.core.rate_limit import limiter
 app = FastAPI(
     title="FileNexus API",
     description="High-performance file management backend with FastAPI",
-    version="2.2.0"
+    version="2.2.0",
+    lifespan=lifespan
 )
 
 # Set up Rate Limiter
@@ -47,10 +87,23 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "Tus-Resumable", 
+        "Tus-Version", 
+        "Tus-Extension", 
+        "Tus-Max-Size", 
+        "Upload-Offset", 
+        "Upload-Length", 
+        "Upload-Metadata", 
+        "Location",
+        "Content-Length"
+    ]
 )
 
 # Include API routes
-app.include_router(api_router)
+# TUS router MUST be registered FIRST to prevent conflicts with old TUS endpoints in api.py
+app.include_router(tus_router)  # TUS resumable upload endpoints (NEW)
+app.include_router(api_router)  # Legacy routes (contains old TUS endpoints - commented out)
 
 # Serve the React build (SPA)
 # 1. First, try to serve specific files from static/dist
@@ -91,9 +144,13 @@ async def serve_spa(request: Request, path: str):
         return FileResponse(file_path)
     
     # Otherwise, return index.html for SPA routing
+    # IMPORTANT: no-cache for index.html to prevent stale JS bundle references
     index_path = static_path / "index.html"
     if index_path.exists():
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     
     return {"detail": "Not Found"}
 
@@ -111,5 +168,5 @@ if __name__ == "__main__":
         port=settings.server.port,
         reload=settings.server.debug,
         timeout_graceful_shutdown=0,  # Force immediate shutdown
-        timeout_keep_alive=0  # Don't wait for keep-alive connections
+        timeout_keep_alive=60  # Enable keep-alive for TUS
     )

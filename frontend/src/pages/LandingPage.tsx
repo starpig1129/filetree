@@ -7,7 +7,8 @@ import { cn } from '../lib/utils';
 import Uppy from '@uppy/core';
 import UppyDashboard from '../components/UppyDashboard';
 import Tus from '@uppy/tus';
-import AwsS3 from '@uppy/aws-s3';
+// AwsS3 removed: Switched to TUS protocol for refresh-resume capability
+// TUS provides fingerprint-based resume while maintaining R2 backend
 
 // Uppy styles
 import '@uppy/core/css/style.min.css';
@@ -32,15 +33,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{ username: string, oldPwd: string } | null>(null);
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
   
-  // Turbo Mode (R2) state
-  const [turboMode, setTurboMode] = useState(false);
 
-  // Sync turboMode with config default
-  useEffect(() => {
-    if (data.config?.r2_enabled) {
-      setTurboMode(true);
-    }
-  }, [data.config]);
 
   // Dynamic Uppy Instance
   const [uppy, setUppy] = useState<Uppy | null>(null);
@@ -61,57 +54,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       }
     });
 
-    if (turboMode) {
-      // R2 / S3 Multipart Strategy
-      u.use(AwsS3, {
-        shouldUseMultipart: true,
-        limit: 5,
-        createMultipartUpload: async (file: any) => {
-          const res = await fetch('/api/upload/r2/multipart', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              filename: file.name,
-              type: file.type,
-              metadata: file.meta
-            }),
-          });
-          if (!res.ok) throw new Error('Failed to init upload');
-          return await res.json();
-        },
-        signPart: async (_file: any, { uploadId, key, partNumber }: any) => {
-          const res = await fetch(`/api/upload/r2/multipart/${uploadId}?key=${encodeURIComponent(key)}&partNumber=${partNumber}`);
-          if (!res.ok) throw new Error('Failed to sign part');
-          return await res.json();
-        },
-        completeMultipartUpload: async (_file: any, { uploadId, key, parts }: any) => {
-          const res = await fetch(`/api/upload/r2/multipart/${uploadId}/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, parts }),
-          });
-          if (!res.ok) throw new Error('Failed to complete upload');
-          return await res.json();
-        },
-        listParts: async (_file: any, { uploadId: _uId, key: _k }: any) => {
-          console.log('listParts not implemented, returning empty', _uId, _k);
-          return []; // Return empty list as we don't support resuming existing uploads for now
-        },
-        abortMultipartUpload: async (_file: any, { uploadId: _uId, key: _k }: any) => {
-           // Optional: Implement abort endpoint if needed
-           console.log('Abort not implemented on backend for now', _uId, _k);
-        }
-      });
-    } else {
-      // Fallback: Tus
-      u.use(Tus, {
-        endpoint: '/api/upload/tus',
-        chunkSize: 50 * 1024 * 1024,
-        retryDelays: [0, 1000, 3000, 5000],
-        removeFingerprintOnSuccess: true,
-        limit: 5,
-      });
-    }
+    // Use TUS protocol for resumable uploads
+    // Optimized for local high-speed network (Direct-to-Disk)
+    u.use(Tus, {
+      endpoint: '/api/upload/tus',
+      chunkSize: 5 * 1024 * 1024, // 50MB chunks for high speed
+      retryDelays: [0, 1000, 3000, 5000],
+      removeFingerprintOnSuccess: true,
+      limit: 5,
+    });
+
+    // GoldenRetriever removed: it restored ghost file entries after refresh
+    // (metadata without blob data), making the Upload button non-functional.
+    // Resume is now handled by the backend Get-Or-Create logic:
+    // User re-selects file → backend returns existing uploadId → upload resumes.
 
     setUppy(u);
 
@@ -119,7 +75,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       u.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turboMode, data.config]); // Re-create when turboMode changes
+  }, [data.config]); // Re-create when config changes
 
   // Update logic on existing uppy (meta, etc)
   useEffect(() => {
@@ -205,31 +161,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           await uppy.upload();
         } catch (err: any) {
           console.error("Upload failed:", err);
-          // Auto-fallback: If Turbo Mode is on and it failed, try switching to TUS
-          if (turboMode) {
-            console.warn("Turbo Mode (R2) failed. Falling back to Standard Mode (TUS)...");
-            // Disable Turbo Mode
-            setTurboMode(false);
-            // Wait for useEffect to recreate Uppy instance with TUS
-            // This is tricky because React state updates are async.
-            // We need to trigger a retry after state update.
-            // Actually, simply setting turboMode(false) will reset Uppy. 
-            // The user will have to click upload again? Or we can hack it?
-            // Better UX: Show specific alert asking user to retry.
-            alert('高速上傳通道暫時無法使用，系統將自動切換至標準模式。請再次點擊「開始同步」按鈕。');
-            setTurboMode(false); // This triggers useEffect -> new Uppy (Tus)
-            setIsSyncing(false);
-            return;
-          }
-          throw err; // Re-throw if not turbo mode or other error
+          throw err; 
         }
       }
     } catch (err) {
       console.error(err);
-      // alert('上傳失敗，請檢查網路或密碼。'); // Don't show generic alert if we handled fallback
-      if (!turboMode) {
-          alert('上傳失敗，請檢查網路或密碼。');
-      }
+      alert('上傳失敗，請檢查網路或密碼。');
     } finally {
       setIsSyncing(false);
     }
@@ -332,9 +269,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                                   className="w-full h-full"
                                   props={{
                                     showProgressDetails: true,
-                                    note: turboMode 
-                                      ? 'Powered by Cloudflare R2 Acceleration (S3 Multipart)' 
-                                      : 'Supports chunked & resumable uploads (powered by Tus)',
+                                    note: 'Supports chunked & resumable uploads (powered by Tus)',
                                     theme: 'dark',
                                     hideUploadButton: true,
                                     height: 200,
