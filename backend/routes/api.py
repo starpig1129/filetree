@@ -79,20 +79,22 @@ async def admin_create_user(
     password = username
     
     salt = generate_salt()
-    users = await user_service._read_users()
     
-    new_user = {
-        'username': username,
-        'folder': folder or username,
-        'salt': salt,
-        'hashed_password': hash_password(password, salt),
-        'first_login': True,
-        'is_locked': False,
-        'urls': []
-    }
-    
-    users.append(new_user)
-    await user_service._write_users(users)
+    async with user_service.lock:
+        users = await user_service._read_users()
+        
+        new_user = {
+            'username': username,
+            'folder': folder or username,
+            'salt': salt,
+            'hashed_password': hash_password(password, salt),
+            'first_login': True,
+            'is_locked': False,
+            'urls': []
+        }
+        
+        users.append(new_user)
+        await user_service._write_users(users)
     
     # Ensure folder existence
     path = settings.paths.upload_folder / new_user['folder']
@@ -362,10 +364,10 @@ async def upload_url(
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
     current_urls = user.urls
-    current_urls.insert(0, URLRecord(url=url, created=datetime.now()))
+    new_record = URLRecord(url=url, created=datetime.now())
     
-    # Store as dicts back to JSON
-    await user_service.update_user(user.username, {"urls": [u.dict() for u in current_urls[:30]]})
+    # Use atomic add to prevent race conditions
+    await user_service.add_user_url(user.username, new_record.dict())
     
     await audit_service.log_event(user.username, "NOTE_CREATE", f"Created a secure note/link: {url}", ip=get_client_ip(request))
     await event_service.notify_user_update(user.username)
@@ -607,26 +609,27 @@ async def toggle_item_lock(username: str, data: ToggleLockRequest):
     if not verify_password(data.password, user.salt, user.hashed_password):
         raise HTTPException(status_code=401, detail="密碼驗證失敗")
     
-    users = await user_service._read_users()
-    for u in users:
-        if u['username'] == username:
-            if data.item_type == 'file':
-                locked_files = u.get('locked_files', [])
-                if data.is_locked:
-                    if data.item_id not in locked_files:
-                        locked_files.append(data.item_id)
-                else:
-                    locked_files = [f for f in locked_files if f != data.item_id]
-                u['locked_files'] = locked_files
-            elif data.item_type == 'url':
-                for url_rec in u.get('urls', []):
-                    if url_rec['url'] == data.item_id:
-                        url_rec['is_locked'] = data.is_locked
-                        break
-            
-            await user_service._write_users(users)
-            await event_service.notify_user_update(username)
-            return {"status": "success", "message": "鎖定狀態已更新"}
+    async with user_service.lock:
+        users = await user_service._read_users()
+        for u in users:
+            if u['username'] == username:
+                if data.item_type == 'file':
+                    locked_files = u.get('locked_files', [])
+                    if data.is_locked:
+                        if data.item_id not in locked_files:
+                            locked_files.append(data.item_id)
+                    else:
+                        locked_files = [f for f in locked_files if f != data.item_id]
+                    u['locked_files'] = locked_files
+                elif data.item_type == 'url':
+                    for url_rec in u.get('urls', []):
+                        if url_rec['url'] == data.item_id:
+                            url_rec['is_locked'] = data.is_locked
+                            break
+                
+                await user_service._write_users(users)
+                await event_service.notify_user_update(username)
+                return {"status": "success", "message": "鎖定狀態已更新"}
             
     raise HTTPException(status_code=500, detail="寫入數據失敗")
 

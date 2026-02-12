@@ -13,19 +13,31 @@ export const UppyDashboard: React.FC<UppyDashboardProps> = ({ uppy, className, p
 
   useEffect(() => {
     if (containerRef.current) {
-      uppy.use(DashboardPlugin, {
-        target: containerRef.current,
-        inline: true,
-        width: '100%',
-        height: 450,
-        ...props
-      });
+      try {
+        // Ensure we don't add the plugin if it's already there or if uppy is destroyed
+        const existingPlugin = uppy.getPlugin('Dashboard');
+        if (!existingPlugin) {
+             uppy.use(DashboardPlugin, {
+                target: containerRef.current,
+                inline: true,
+                width: '100%',
+                height: 450,
+                ...props
+            });
+        }
+      } catch (err) {
+        console.warn('UppyDashboard initialization warning:', err);
+      }
     }
 
     return () => {
-      const plugin = uppy.getPlugin('Dashboard');
-      if (plugin) {
-        uppy.removePlugin(plugin);
+      try {
+        const plugin = uppy.getPlugin('Dashboard');
+        if (plugin) {
+          uppy.removePlugin(plugin);
+        }
+      } catch (err) {
+        console.warn('UppyDashboard cleanup warning:', err);
       }
     };
   }, [uppy, props]);

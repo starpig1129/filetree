@@ -3,6 +3,8 @@ User management service for handling JSON-based user storage.
 """
 
 import json
+import asyncio
+import uuid
 from pathlib import Path
 from typing import List, Optional
 import aiofiles
@@ -21,6 +23,12 @@ class UserService:
             data_path: Path to the user JSON file.
         """
         self.data_path = data_path
+        self._lock = asyncio.Lock()
+
+    @property
+    def lock(self):
+        """Expose lock for external atomic operations."""
+        return self._lock
 
     async def _read_users(self) -> List[dict]:
         """Read users from the JSON file.
@@ -40,7 +48,8 @@ class UserService:
         Args:
             users: List of user dictionaries to save.
         """
-        temp_path = self.data_path.with_suffix(".tmp")
+        # Use UUID to prevent filename collisions during concurrent writes
+        temp_path = self.data_path.with_suffix(f".{uuid.uuid4()}.tmp")
         try:
             async with aiofiles.open(temp_path, mode='w', encoding='utf-8') as f:
                 await f.write(json.dumps(users, indent=4, ensure_ascii=False, default=str))
@@ -124,13 +133,14 @@ class UserService:
         Returns:
             True if successful, False if user not found.
         """
-        users = await self._read_users()
-        for user in users:
-            if user['username'] == username:
-                user.update(update_data)
-                await self._write_users(users)
-                return True
-        return False
+        async with self._lock:
+            users = await self._read_users()
+            for user in users:
+                if user['username'] == username:
+                    user.update(update_data)
+                    await self._write_users(users)
+                    return True
+            return False
 
     async def update_user_profile(self, old_username: str, new_username: Optional[str] = None, is_locked: Optional[bool] = None) -> bool:
         """Advanced user update including renaming and folder sync.
@@ -143,41 +153,42 @@ class UserService:
         Returns:
             True if successful.
         """
-        users = await self._read_users()
-        user_idx = -1
-        for i, u in enumerate(users):
-            if u['username'] == old_username:
-                user_idx = i
-                break
-        
-        if user_idx == -1:
-            return False
-
-        user = users[user_idx]
-        
-        # 1. Handle Rename
-        if new_username and new_username != old_username:
-            # Check collision
-            if any(u['username'] == new_username for u in users):
-                raise ValueError(f"節點代碼 {new_username} 已被佔用。")
+        async with self._lock:
+            users = await self._read_users()
+            user_idx = -1
+            for i, u in enumerate(users):
+                if u['username'] == old_username:
+                    user_idx = i
+                    break
             
-            # Sync folder if it was named after the user
-            old_folder = user.get('folder', old_username)
-            if old_folder == old_username:
-                old_path = settings.paths.upload_folder / old_folder
-                new_path = settings.paths.upload_folder / new_username
-                if old_path.exists() and not new_path.exists():
-                    old_path.rename(new_path)
-                    user['folder'] = new_username
+            if user_idx == -1:
+                return False
+
+            user = users[user_idx]
             
-            user['username'] = new_username
+            # 1. Handle Rename
+            if new_username and new_username != old_username:
+                # Check collision
+                if any(u['username'] == new_username for u in users):
+                    raise ValueError(f"節點代碼 {new_username} 已被佔用。")
+                
+                # Sync folder if it was named after the user
+                old_folder = user.get('folder', old_username)
+                if old_folder == old_username:
+                    old_path = settings.paths.upload_folder / old_folder
+                    new_path = settings.paths.upload_folder / new_username
+                    if old_path.exists() and not new_path.exists():
+                        old_path.rename(new_path)
+                        user['folder'] = new_username
+                
+                user['username'] = new_username
 
-        # 2. Handle Lock
-        if is_locked is not None:
-            user['is_locked'] = is_locked
+            # 2. Handle Lock
+            if is_locked is not None:
+                user['is_locked'] = is_locked
 
-        await self._write_users(users)
-        return True
+            await self._write_users(users)
+            return True
 
     async def reset_password(self, username: str, new_password: str) -> bool:
         """Reset a user's password.
@@ -189,16 +200,17 @@ class UserService:
         Returns:
             True if successful, False if user not found.
         """
-        users = await self._read_users()
-        for user in users:
-            if user['username'] == username:
-                salt = generate_salt()
-                user['salt'] = salt
-                user['hashed_password'] = hash_password(new_password, salt)
-                user['first_login'] = True
-                await self._write_users(users)
-                return True
-        return False
+        async with self._lock:
+            users = await self._read_users()
+            for user in users:
+                if user['username'] == username:
+                    salt = generate_salt()
+                    user['salt'] = salt
+                    user['hashed_password'] = hash_password(new_password, salt)
+                    user['first_login'] = True
+                    await self._write_users(users)
+                    return True
+            return False
 
     async def delete_user(self, username: str) -> bool:
         """Delete a user and their associated data.
@@ -209,31 +221,56 @@ class UserService:
         Returns:
             True if successful, False if not found.
         """
-        users = await self._read_users()
-        user_to_delete = None
-        for i, u in enumerate(users):
-            if u['username'] == username:
-                user_to_delete = users.pop(i)
-                break
+        async with self._lock:
+            users = await self._read_users()
+            user_to_delete = None
+            for i, u in enumerate(users):
+                if u['username'] == username:
+                    user_to_delete = users.pop(i)
+                    break
+            
+            if not user_to_delete:
+                return False
+
+            # Clean up storage folder if it matches conventions
+            folder = user_to_delete.get('folder')
+            if folder:
+                folder_path = settings.paths.upload_folder / folder
+                if folder_path.exists() and folder_path.is_dir():
+                    import shutil
+                    # Use a separate thread for blocking IO? 
+                    # For simplicity in this scale, we'll do it directly or use aiofiles if possible.
+                    # shutil.rmtree is blocking, so we wrap it.
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(None, shutil.rmtree, folder_path)
+
+            await self._write_users(users)
+            return True
+
+
+    async def add_user_url(self, username: str, url_record: dict) -> bool:
+        """Atomically add a URL to the user's list.
+
+        Args:
+            username: The user to update.
+            url_record: The URL record dict (from URLRecord.dict()).
         
-        if not user_to_delete:
+        Returns:
+            True if successful.
+        """
+        async with self._lock:
+            users = await self._read_users()
+            for user in users:
+                if user['username'] == username:
+                    current_urls = user.get('urls', [])
+                    # Insert at beginning
+                    current_urls.insert(0, url_record)
+                    # Limit to 30
+                    user['urls'] = current_urls[:30]
+                    await self._write_users(users)
+                    return True
             return False
-
-        # Clean up storage folder if it matches conventions
-        folder = user_to_delete.get('folder')
-        if folder:
-            folder_path = settings.paths.upload_folder / folder
-            if folder_path.exists() and folder_path.is_dir():
-                import shutil
-                # Use a separate thread for blocking IO? 
-                # For simplicity in this scale, we'll do it directly or use aiofiles if possible.
-                # shutil.rmtree is blocking, so we wrap it.
-                import asyncio
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, shutil.rmtree, folder_path)
-
-        await self._write_users(users)
-        return True
 
 
 # Singleton instance
