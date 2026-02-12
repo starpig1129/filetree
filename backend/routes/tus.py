@@ -323,6 +323,29 @@ async def cancel_tus_upload(
     )
 
 
+def cleanup_expired_uploads():
+    """Cleanup stale TUS uploads (DB + Files)."""
+    try:
+        # 1 day expiration
+        expired_ids = metadata_store.cleanup_stale_uploads(days=1)
+        
+        count = 0
+        for uid in expired_ids:
+            file_path = settings.paths.tus_temp_folder / uid
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Failed to delete stale file {uid}: {e}")
+        
+        if expired_ids:
+            logger.info(f"Cleaned up {len(expired_ids)} stale uploads and {count} files.")
+            
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
+
+
 @router.options("/upload/tus")
 @router.options("/upload/tus/{upload_id}")
 async def tus_options(request: Request):
