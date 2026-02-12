@@ -20,6 +20,7 @@ from backend.services.audit_service import AuditService
 from backend.services.event_service import EventService
 from backend.services.tus_metadata_store import TusMetadataStore
 from backend.config import settings
+from backend.core.rate_limit import limiter 
 
 from starlette.concurrency import run_in_threadpool
 from fastapi import BackgroundTasks
@@ -112,6 +113,7 @@ async def finalize_upload_local(upload: dict):
 
 
 @router.post("/upload/tus")
+@limiter.limit(settings.rate_limit.tus_limit)
 async def create_tus_upload(
     request: Request,
     upload_length: int = Header(..., alias="Upload-Length"),
@@ -200,7 +202,9 @@ async def create_tus_upload(
 
 
 @router.head("/upload/tus/{upload_id}")
+@limiter.limit(settings.rate_limit.tus_limit)
 async def get_tus_upload_offset(
+    request: Request,
     upload_id: str,
     tus_resumable: str = Header(TUS_VERSION, alias="Tus-Resumable")
 ):
@@ -223,6 +227,7 @@ async def get_tus_upload_offset(
 
 
 @router.patch("/upload/tus/{upload_id}")
+@limiter.limit(settings.rate_limit.tus_limit)
 async def upload_tus_chunk(
     upload_id: str,
     request: Request,
@@ -294,7 +299,9 @@ async def upload_tus_chunk(
 
 
 @router.delete("/upload/tus/{upload_id}")
+@limiter.limit(settings.rate_limit.tus_limit)
 async def cancel_tus_upload(
+    request: Request,
     upload_id: str,
     tus_resumable: str = Header(TUS_VERSION, alias="Tus-Resumable")
 ):
@@ -348,6 +355,7 @@ def cleanup_expired_uploads():
 
 @router.options("/upload/tus")
 @router.options("/upload/tus/{upload_id}")
+@limiter.limit(settings.rate_limit.tus_limit)
 async def tus_options(request: Request):
     """TUS OPTIONS - Advertise server capabilities."""
     return Response(
@@ -356,6 +364,6 @@ async def tus_options(request: Request):
             "Tus-Resumable": TUS_VERSION,
             "Tus-Version": TUS_VERSION,
             "Tus-Extension": "creation,termination",
-            "Tus-Max-Size": str(10 * 1024 * 1024 * 1024),  # 10GB
+            # "Tus-Max-Size": str(10 * 1024 * 1024 * 1024),  # 10GB - REMOVED for clarity
         }
     )
