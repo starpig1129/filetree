@@ -104,7 +104,7 @@ export const NotFoundPage: React.FC = () => {
                                 <img
                                     src={meme.url}
                                     alt={meme.title}
-                                    className="w-full max-h-[400px] object-contain"
+                                    className="w-full max-h-100 object-contain"
                                     loading="lazy"
                                 />
                             </div>

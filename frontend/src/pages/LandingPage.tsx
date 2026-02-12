@@ -30,7 +30,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   
   // Pending lists
   const [pendingNotes, setPendingNotes] = useState<string[]>([]);
-  const [pendingFiles, setPendingFiles] = useState<any[]>([]); 
+  // eslint-disable-next-line
+  const [pendingFiles, setPendingFiles] = useState<import('@uppy/core').UppyFile<any, any>[]>([]); 
   
   const [isSyncing, setIsSyncing] = useState(false);
   const [firstLoginUserInfo, setFirstLoginUserInfo] = useState<{ username: string, oldPwd: string } | null>(null);
@@ -137,7 +138,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     }
 
     // Add current input if not empty
-    let finalNotes = [...pendingNotes];
+    const finalNotes = [...pendingNotes];
     if (inputText.trim()) {
       finalNotes.push(inputText.trim());
     }
@@ -194,9 +195,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         setIsSyncing(false);
       }
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err.message || '作業失敗，請檢查網路或密碼。');
+      const errorMessage = err instanceof Error ? err.message : '作業失敗，請檢查網路或密碼。';
+      alert(errorMessage);
       setIsSyncing(false);
     }
   };
@@ -253,9 +255,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
 
   return (
-    // Outer container: Fix width to 100vw but use overflow-hidden to clip scrollbars
-    // Note: w-full is better than w-screen to respect parent constraints
-    <div className="relative h-[100dvh] w-full max-w-[100vw] overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-black">
+    // Outer container: Allow scrolling on mobile.
+    // min-h-dvh ensures it covers the viewport. 
+    // pb-safe handles mobile notches.
+    <div className="relative min-h-dvh w-full max-w-[100vw] overflow-y-auto bg-gray-50 dark:bg-black custom-scrollbar pb-10 sm:pb-20">
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block pointer-events-none" />
 
@@ -265,7 +268,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           <motion.div
             key="drag-overlay"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99] bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
+            className="fixed inset-0 z-99 bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
           >
             <div className="bg-white/90 dark:bg-black/80 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
               <UploadCloud className="w-16 h-16 text-cyan-600 animate-bounce" />
@@ -275,13 +278,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         )}
       </AnimatePresence>
 
-      {/* TRIPTYCH LAYOUT - FLEXBOX for Tight Coupling 
-          Use max-w-full to prevent overflow
+      {/* TRIPTYCH LAYOUT - FLEXBOX 
+          Mobile: justify-start + py-10 to ensure content starts at top and is scrollable.
+          LG: justify-center + h-screen (contained) if content permits.
       */}
-      <div className="w-full h-full flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6 px-4 md:px-6 relative z-10 box-border">
+      <div className="w-full min-h-full flex flex-col lg:flex-row items-center justify-start lg:justify-center gap-6 lg:gap-8 px-4 md:px-10 py-10 lg:py-0 relative z-10 box-border">
         
         {/* --- [LEFT WING] Pending Notes --- */}
-        <div className="order-2 lg:order-1 w-full lg:w-[260px] xl:w-[320px] flex flex-col h-[30vh] lg:h-[600px] transition-opacity duration-300 lg:opacity-60 lg:hover:opacity-100 min-w-0 shrink-0">
+        <div className="order-2 lg:order-1 w-full lg:w-64 xl:w-80 flex flex-col h-auto min-h-48 lg:h-[600px] transition-opacity duration-300 lg:opacity-60 lg:hover:opacity-100 min-w-0 shrink-0">
            
            <div className="glass-card h-full p-4 lg:p-6 rounded-3xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/5 flex flex-col shadow-lg relative group overflow-hidden">
               <div className="flex items-center justify-between mb-4">
@@ -386,7 +390,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                           onChange={(e) => setInputText(e.target.value)}
                           onKeyDown={handleKeyDown}
                           placeholder="輸入內容..."
-                          className="w-full h-24 lg:h-32 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-cyan-500/50 focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white/90 text-lg font-medium shadow-inner resize-none placeholder:text-gray-400 dark:placeholder:text-white/20 custom-scrollbar"
+                          className="w-full h-20 lg:h-32 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-cyan-500/50 focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white/90 text-lg font-medium shadow-inner resize-none placeholder:text-gray-400 dark:placeholder:text-white/20 custom-scrollbar"
                         />
                         <div className="absolute bottom-4 right-4 flex items-center gap-2 text-[0.6rem] text-gray-400 uppercase tracking-widest font-bold bg-white dark:bg-white/10 border border-gray-100 dark:border-white/5 px-3 py-1.5 rounded-full pointer-events-none opacity-40 group-focus-within/input:opacity-100 transition-all transform group-focus-within/input:scale-105 shadow-sm">
                            <span>按 Enter</span>
@@ -403,7 +407,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                           檔案上傳
                         </label>
                       </div>
-                      <div className="w-full h-40 lg:h-52 rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.02] relative group/uppy hover:border-cyan-500/30 transition-all hover:bg-white/[0.05]">
+                      <div className="w-full h-32 lg:h-52 rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.02] relative group/uppy hover:border-cyan-500/30 transition-all hover:bg-white/[0.05]">
                         {uppy ? (
                           <UppyDashboard
                             uppy={uppy}
@@ -454,7 +458,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
 
         {/* --- [RIGHT WING] Pending Files --- */}
-        <div className="order-3 lg:order-3 w-full lg:w-[260px] xl:w-[320px] flex flex-col h-[30vh] lg:h-[600px] transition-opacity duration-300 lg:opacity-60 lg:hover:opacity-100 min-w-0 shrink-0">
+        <div className="order-3 lg:order-3 w-full lg:w-64 xl:w-80 flex flex-col h-auto min-h-48 lg:h-[600px] transition-opacity duration-300 lg:opacity-60 lg:hover:opacity-100 min-w-0 shrink-0">
            
            <div className="glass-card h-full p-4 lg:p-6 rounded-3xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/5 flex flex-col shadow-lg relative overflow-hidden">
               <div className="flex items-center justify-between mb-4">
@@ -493,12 +497,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
                               <FileText className="w-5 h-5 text-gray-500 dark:text-gray-300" />
                            </div>
-                           <div className="flex-1 min-w-0">
-                              <p className="text-xs text-gray-800 dark:text-gray-200 font-bold truncate">{file.name}</p>
-                              <p className="text-[0.6rem] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-mono">
-                                 {(file.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                           </div>
+                            <div className="flex-1 min-w-0">
+                               <p className="text-xs text-gray-800 dark:text-gray-200 font-bold truncate">{file.name}</p>
+                               <p className="text-[0.6rem] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-mono">
+                                  {((file.size ?? 0) / 1024 / 1024).toFixed(2)} MB
+                               </p>
+                            </div>
                            <button
                              onClick={() => handleRemoveFile(file.id)}
                              className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100"
