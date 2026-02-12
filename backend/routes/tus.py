@@ -17,7 +17,7 @@ import logging
 from backend.services.user_service import user_service
 from backend.services.file_service import file_service
 from backend.services.audit_service import AuditService
-from backend.services.event_service import EventService
+from backend.services.event_service import event_service
 from backend.services.tus_metadata_store import TusMetadataStore
 from backend.config import settings
 from backend.core.rate_limit import limiter 
@@ -38,7 +38,7 @@ CHUNK_SIZE = 5 * 1024 * 1024  # 5MB chunks (aligned with R2 Multipart)
 # Initialize services
 metadata_store = TusMetadataStore()
 audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, "audit_logs.json"))
-event_service = EventService()
+# event_service imported as singleton
 
 
 def parse_tus_metadata(metadata_header: Optional[str]) -> dict:

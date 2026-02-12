@@ -12,6 +12,7 @@ import { FileView } from '../components/dashboard/FileView';
 import type { FileItem } from '../components/dashboard/FileView';
 import { UrlView } from '../components/dashboard/UrlView';
 import type { UrlItem } from '../components/dashboard/UrlView';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface UserPageProps {
   data: {
@@ -60,26 +61,29 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   }, [data, dashboardData.user?.username]);
 
   // Real-time synchronization via WebSocket
-  React.useEffect(() => {
-    if (!data.user?.username) return;
-
+  const wsUrl = React.useMemo(() => {
+    if (!data.user?.username) return null;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
-    let socket: WebSocket | null = new WebSocket(wsUrl);
+    return `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
+  }, [data.user?.username]);
 
-    socket.onmessage = (event) => {
-      if (event.data === "REFRESH") {
-        refreshDashboard(token || "");
-      }
-    };
+  const handleWebSocketMessage = React.useCallback((event: MessageEvent) => {
+    if (event.data === "REFRESH") {
+      console.log("[UserPage] Received REFRESH signal via WebSocket");
+      refreshDashboard(token || "");
+    }
+  }, [refreshDashboard, token]);
 
-    return () => {
-      if (socket) {
-        socket.close();
-        socket = null;
-      }
-    };
-  }, [data.user?.username, token, refreshDashboard]);
+  const { isConnected } = useWebSocket(wsUrl, {
+    onMessage: handleWebSocketMessage,
+    reconnectInterval: 3000,
+    maxRetries: 20
+  });
+
+  // Debug connection status
+  React.useEffect(() => {
+    console.log(`[UserPage] WebSocket Status: ${isConnected ? 'Connected' : 'Disconnected'}`);
+  }, [isConnected]);
 
   const toggleSelectItem = (type: 'file' | 'url', id: string) => {
     setSelectedItems(prev => {

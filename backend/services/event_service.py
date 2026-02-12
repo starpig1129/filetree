@@ -62,5 +62,5 @@ class EventService:
             except Exception:
                 dead_connections.append(connection)
         
-        for dead in dead_connections:
-            self.disconnect_global(dead)
+
+event_service = EventService()

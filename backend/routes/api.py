@@ -17,7 +17,7 @@ from backend.services.token_service import token_service
 from backend.services.admin_service import admin_service
 from backend.services.tus_service import tus_service
 from backend.services.audit_service import AuditService
-from backend.services.event_service import EventService
+from backend.services.event_service import event_service
 
 from backend.schemas import (
     UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, 
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api")
 
 # Initialize new services
 audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, "audit_logs.json"))
-event_service = EventService()
+# event_service imported as singleton
 
 
 def get_client_ip(request: Request) -> str:
