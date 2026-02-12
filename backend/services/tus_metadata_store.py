@@ -234,6 +234,40 @@ class TusMetadataStore:
             conn.commit()
             return cursor.rowcount
     
+    def cleanup_stale_uploads(self, days: int = 1) -> List[str]:
+        """Clean up active uploads older than X days.
+        
+        Args:
+            days: Retention period in days.
+            
+        Returns:
+            List of upload IDs that were deleted.
+        """
+        cutoff = datetime.utcnow().timestamp() - (days * 24 * 3600)
+        
+        deleted_ids = []
+        with self._get_connection() as conn:
+            # Select stale active uploads
+            rows = conn.execute("""
+                SELECT id FROM tus_uploads 
+                WHERE status = 'active' 
+                AND updated_at < datetime(?, 'unixepoch')
+            """, (cutoff,)).fetchall()
+            
+            expired_ids = [row['id'] for row in rows]
+            
+            if expired_ids:
+                # Delete them
+                placeholders = ','.join('?' for _ in expired_ids)
+                conn.execute(f"""
+                    DELETE FROM tus_uploads 
+                    WHERE id IN ({placeholders})
+                """, expired_ids)
+                conn.commit()
+                deleted_ids = expired_ids
+        
+        return deleted_ids
+    
     def _row_to_dict(self, row: sqlite3.Row) -> Dict[str, Any]:
         """Convert SQLite row to dictionary."""
         return {

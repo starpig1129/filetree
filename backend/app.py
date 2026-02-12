@@ -12,6 +12,44 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.routes.api import router as api_router
 from backend.routes.tus import router as tus_router
+from backend.routes.tus import cleanup_expired_uploads
+from contextlib import asynccontextmanager
+from starlette.concurrency import run_in_threadpool
+import logging
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Run cleanup immediately
+    try:
+        logger.info("Startup: Running stale upload cleanup...")
+        await run_in_threadpool(cleanup_expired_uploads)
+    except Exception as e:
+        logger.error(f"Startup cleanup failed: {e}")
+
+    # Start periodic background task
+    async def periodic_cleanup():
+        while True:
+            await asyncio.sleep(36000)  # Run every 10 hour
+            try:
+                logger.info("Periodic: Running stale upload cleanup...")
+                await run_in_threadpool(cleanup_expired_uploads)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Periodic cleanup failed: {e}")
+
+    cleanup_task = asyncio.create_task(periodic_cleanup())
+    
+    yield
+    
+    # Shutdown: Cancel cleanup task
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
 
 
 def suppress_connection_reset_error(loop, context):
@@ -33,7 +71,8 @@ from backend.core.rate_limit import limiter
 app = FastAPI(
     title="FileNexus API",
     description="High-performance file management backend with FastAPI",
-    version="2.2.0"
+    version="2.2.0",
+    lifespan=lifespan
 )
 
 # Set up Rate Limiter
