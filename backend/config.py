@@ -62,20 +62,7 @@ class LogicConfig(BaseModel):
     allowed_extensions: Optional[list[str]] = None
 
 
-class R2Config(BaseModel):
-    """Cloudflare R2 storage settings."""
-    endpoint_url: str = ""
-    access_key_id: str = ""
-    secret_access_key: str = ""
-    bucket_name: str = ""
-    public_domain: str = ""
-    threshold_mb: int = 100
-    max_concurrent_uploads: int = 5
-    max_concurrent_downloads: int = 5
-    # Safety limits (Zero Cost Guarantee)
-    monthly_limit_gb: int = 9  # Limit to 9GB (Free tier is 10GB)
-    monthly_limit_class_a: int = 900000 # Limit to 900k ops (Free tier is 1M)
-    monthly_limit_class_b: int = 9000000 # Limit to 9M ops (Free tier is 10M)
+
 
 
 class RateLimitConfig(BaseModel):
@@ -95,7 +82,7 @@ class Config(BaseSettings):
     paths: PathConfig = PathConfig()
     security: SecurityConfig = SecurityConfig()
     logic: LogicConfig = LogicConfig()
-    r2: R2Config = R2Config()
+
     rate_limit: RateLimitConfig = RateLimitConfig()
 
 

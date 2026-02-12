@@ -86,20 +86,12 @@ class RenameFileRequest(BaseModel):
 class SystemConfig(BaseModel):
     """Public system configuration."""
     allowed_extensions: Optional[List[str]] = None
-    r2_enabled: bool = False
 
 class InitResponse(BaseModel):
     """Response for initial data load."""
     users: List[UserPublic]
     config: SystemConfig
 
-class UploadInitRequest(BaseModel):
-    filename: str
-    file_size: int
-    password: str
 
-class UploadInitResponse(BaseModel):
-    strategy: str  # "tus" or "r2"
-    tus_endpoint: Optional[str] = None
     
 

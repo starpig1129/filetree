@@ -20,7 +20,6 @@ interface LandingPageProps {
     error?: string;
     config?: { 
       allowed_extensions?: string[];
-      r2_enabled?: boolean;
     };
   };
 }

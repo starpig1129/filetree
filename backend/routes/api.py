@@ -18,11 +18,10 @@ from backend.services.admin_service import admin_service
 from backend.services.tus_service import tus_service
 from backend.services.audit_service import AuditService
 from backend.services.event_service import EventService
-from backend.services.r2_service import r2_service
+
 from backend.schemas import (
     UserPublic, FileInfo, URLRecord, UserCreate, UserBase, UnlockRequest, 
-    ToggleLockRequest, BatchActionRequest, InitResponse, SystemConfig,
-    UploadInitRequest, UploadInitResponse
+    ToggleLockRequest, BatchActionRequest, InitResponse, SystemConfig
 )
 from backend.services.thumbnail_service import thumbnail_service
 from backend.core.auth import generate_salt, hash_password, verify_password
@@ -50,8 +49,7 @@ async def init_data(request: Request):
     """Initial data fetch for the SPA. Lists all public users and system config."""
     users = await user_service.list_public_users()
     config = SystemConfig(
-        allowed_extensions=settings.logic.allowed_extensions,
-        r2_enabled=r2_service.is_configured()
+        allowed_extensions=settings.logic.allowed_extensions
     )
     return InitResponse(users=users, config=config)
 
@@ -212,22 +210,7 @@ async def admin_reset_default_password(
     return {"message": f"使用者 {username} 的密碼已重設為預設值。"}
 
 
-@router.get("/admin/r2-usage")
-async def get_r2_usage(master_key: str):
-    """Get current R2 usage statistics."""
-    if master_key != settings.security.master_key:
-        raise HTTPException(status_code=403, detail="Invalid master key")
-    
-    usage = r2_service.get_usage()
-    return {
-        "usage": usage,
-        "limits": {
-            "gb": settings.r2.monthly_limit_gb,
-            "class_a": settings.r2.monthly_limit_class_a,
-            "class_b": settings.r2.monthly_limit_class_b
-        }
-    }
-    
+
 
 @router.post("/admin/delete-user")
 async def admin_delete_user(
@@ -359,29 +342,7 @@ async def upload_files(
     # ... (existing code for TUS) ...
 
 
-@router.post("/upload/init", response_model=UploadInitResponse)
-async def init_upload(request: Request, req: UploadInitRequest):
-    """Smart Routing: Decide between TUS and R2 based on file size and R2 availability."""
-    user = await user_service.get_user_by_password(req.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="密碼錯誤")
 
-    # Strategy Resolution
-    # 1. Size Check
-    if req.file_size < settings.r2.threshold_mb * 1024 * 1024:
-        return {"strategy": "tus"}
-    
-    # 2. R2 Availability Check
-    if not r2_service.is_configured():
-         return {"strategy": "tus"}
-
-    if not r2_service.acquire_upload_slot():
-        # Fallback to TUS if R2 is busy
-        # Log this fallback event?
-        return {"strategy": "tus"}
-    
-    # R2 is go
-    return {"strategy": "r2"}
 
 
 
@@ -570,23 +531,7 @@ async def download_direct(
 
     file_size = file_path.stat().st_size
     
-    # If large file and R2 configured -> Accelerate
-    # Threshold: 100MB (settings.r2.threshold_mb)
-    if file_size >= settings.r2.threshold_mb * 1024 * 1024 and r2_service.is_configured():
-        # Use mtime to ensure cache validity
-        mtime = int(file_path.stat().st_mtime)
-        object_key = f"cache/{user.username}/{filename}_{mtime}"
-        
-        # This might take time (uploading), so user waits TTFB.
-        # Ideally we'd do this async but we need to redirect.
-        # If upload takes too long (>30s), browser might timeout. 
-        # But 100MB upload to R2 (Cloudflare network) should be fast (~1-2s).
-        # 1GB might take 10-20s. acceptable.
-        
-        r2_url = await run_in_threadpool(r2_service.prepare_download, file_path, object_key)
-        if r2_url:
-            from fastapi.responses import RedirectResponse
-            return RedirectResponse(url=r2_url)
+
     
     # Fallback to Tunnel
     # When inline=True, omit filename to allow browser to display inline
