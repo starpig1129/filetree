@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck, UploadCloud, X, Terminal, FileText, Database, ArrowRight } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
-import { cn } from '../lib/utils';
+import { PendingNotesPanel } from '../components/landing/PendingNotesPanel';
+import { PendingFilesPanel } from '../components/landing/PendingFilesPanel';
+import { CoreTransferUnit } from '../components/landing/CoreTransferUnit';
 import Uppy from '@uppy/core';
 import Tus from '@uppy/tus';
 
@@ -38,10 +40,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   // Drag drop
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
-
-  // Input refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Uppy Instance
   const [uppy, setUppy] = useState<Uppy | null>(null);
@@ -107,7 +105,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         } catch (err) { console.warn('File add skipped:', err); }
       });
       // Reset input
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      e.target.value = ''; 
     }
   };
 
@@ -126,8 +124,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           });
         } catch (err) { console.warn('File add skipped:', err); }
       });
-       // Reset input
-       if (folderInputRef.current) folderInputRef.current.value = '';
+       e.target.value = '';
     }
   };
 
@@ -148,13 +145,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           uppy.removeFile(fileId);
       }
   }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleAddNote();
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,22 +380,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
 
   return (
-    // Outer container: Allow scrolling on mobile.
-    // min-h-dvh ensures it covers the viewport. 
-    // pb-safe handles mobile notches.
-    <div className="relative h-dvh w-full max-w-[100vw] overflow-y-auto lg:overflow-hidden bg-gray-50 dark:bg-transparent custom-scrollbar pb-10 sm:pb-20 lg:pb-0">
+    // Outer container:
+    // Mobile/Tablet: min-h-dvh (grows with content), standard scrolling allowed.
+    // Large Desktop (lg+): h-screen, global overflow hidden (internal scaling).
+    <div className="relative min-h-dvh 2xl:min-h-0 2xl:h-screen w-full overflow-x-hidden 2xl:overflow-y-hidden bg-gray-50 dark:bg-transparent custom-scrollbar">
+      
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block pointer-events-none" />
 
-       {/* Drag Overlay */}
+       {/* Drag Overlay - Ensure High Z-Index */}
        <AnimatePresence>
         {isDragOver && (
           <motion.div
             key="drag-overlay"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-99 bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
+            className="fixed inset-0 z-[100] bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
           >
-            <div className="bg-white/90 dark:bg-black/80 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+            <div className="bg-white/90 dark:bg-black/80 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 pointer-events-none">
               <UploadCloud className="w-16 h-16 text-cyan-600 animate-bounce" />
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">釋放滑鼠以上傳檔案</h2>
             </div>
@@ -413,282 +404,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         )}
       </AnimatePresence>
 
-      {/* TRIPTYCH LAYOUT - FLEXBOX 
-          Mobile: justify-start + py-10 to ensure content starts at top and is scrollable.
-          LG: justify-center + h-screen (contained) if content permits.
+      {/* TRIPTYCH LAYOUT
+          Mobile: flex-col, standard vertical stacking, gaps managed by rem.
+          Desktop (lg+): flex-row, h-full, centered, no scrollbars on body.
+          Breakpoint changed from 'xl' to 'lg' to support 13" laptops/iPad Pros.
       */}
-      <div className="w-full min-h-full flex flex-col lg:flex-row items-center justify-start lg:justify-center gap-6 lg:gap-8 px-4 md:px-10 py-10 lg:py-0 relative z-10 box-border">
+      <div className="w-full h-full min-h-dvh 2xl:min-h-0 flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 py-8 2xl:p-0 relative z-10 box-border 2xl:h-full 2xl:overflow-hidden max-w-[1920px] mx-auto">
         
         {/* --- [LEFT WING] Pending Notes --- */}
-        <div className="order-2 lg:order-1 w-full lg:w-64 xl:w-80 flex flex-col h-auto min-h-48 lg:h-[600px] transition-opacity duration-300 lg:opacity-60 lg:hover:opacity-100 min-w-0 shrink-0">
-           
-           <div className="glass-card h-full p-4 lg:p-6 rounded-3xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/5 flex flex-col shadow-lg relative group overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                 <h3 className="text-xs font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Terminal className="w-4 h-4 text-orange-500" />
-                    待定筆記 ({pendingNotes.length})
-                 </h3>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1 relative z-10">
-                <AnimatePresence mode="popLayout">
-                  {pendingNotes.length === 0 ? (
-                    <motion.div 
-                       key="empty-notes"
-                       initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                       exit={{ opacity: 0 }}
-                       className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-4"
-                    >
-                       <div className="w-16 h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50">
-                          <Zap className="w-6 h-6" />
-                       </div>
-                       <p className="text-[0.65rem] uppercase tracking-widest text-center font-bold">
-                          請在中欄輸入<br/>並按 Enter
-                       </p>
-                    </motion.div>
-                  ) : (
-                    pendingNotes.map((note, idx) => (
-                      <motion.div
-                        key={`${idx}-${note.substring(0, 10)}`}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        layout
-                        className="group/item relative p-4 bg-white/60 dark:bg-white/10 rounded-xl border border-white/20 dark:border-white/5 hover:border-orange-500/30 transition-all cursor-default shadow-sm backdrop-blur-sm"
-                      >
-                         <div className="flex items-start justify-between gap-3">
-                            <p className="text-sm text-gray-700 dark:text-gray-200 break-all font-mono leading-relaxed">
-                              {note}
-                            </p>
-                            <button
-                              onClick={() => handleRemoveNote(idx)}
-                              className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                         </div>
-                      </motion.div>
-                    ))
-                  )}
-                </AnimatePresence>
-              </div>
-              
-              {/* Decorative BG element */}
-              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-orange-500/10 blur-3xl rounded-full pointer-events-none" />
-           </div>
+        {/* Mobile: Order 2. Full Width. Auto height.
+            Desktop: Order 1. Width ~19vw (Refined). Full Height.
+        */}
+        <div className="order-2 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-[220px] 2xl:max-w-[450px] flex flex-col h-auto min-h-[200px] max-h-[40vh] 2xl:h-[80vh] 2xl:max-h-[850px] transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
+           <PendingNotesPanel 
+              pendingNotes={pendingNotes} 
+              onRemoveNote={handleRemoveNote}
+           />
         </div>
 
-        {/* --- [CENTER CORE] Unified Input (Restored) --- */}
-        <div className="order-1 lg:order-2 w-full max-w-2xl relative z-20 min-w-0 shrink-1">
-           
-           {/* Floating Title */}
-           <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center mb-6 lg:mb-8 space-y-2"
-            >
-              <div className="flex items-center justify-center gap-4">
-                <h1 className="text-5xl lg:text-[3.5rem] font-bold tracking-tighter leading-none animate-stellar-text bg-clip-text text-transparent bg-gradient-to-br from-gray-900 via-gray-700 to-gray-500 dark:from-white dark:via-gray-200 dark:to-gray-500">FileNexus</h1>
-                <Orbit className="w-8 h-8 text-cyan-500 animate-spin-slow opacity-80" />
-              </div>
-              <p className="text-[0.65rem] uppercase tracking-[0.6em] font-bold text-cyan-600/80 dark:text-quantum-cyan/60 pl-4">
-                 File Management Hub 📁
-              </p>
-            </motion.div>
-
-           <div className="glass-card p-0.5 relative group mx-auto w-full shadow-2xl hover:shadow-cyan-500/10 transition-shadow duration-500">
-              <div className="neural-border rounded-[2.5rem] p-6 lg:p-8 space-y-6 lg:space-y-8 bg-white/90 dark:bg-[#0a0a0a]/95 backdrop-blur-[40px] relative overflow-hidden">
-                 
-                 {/* Internal Glow */}
-                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
-
-                 <div className="relative z-10 flex flex-col gap-5 lg:gap-6">
-                    
-                    {/* Core Header */}
-                    <div className="text-center mb-2 flex items-center justify-center gap-2 opacity-80">
-                      <Cpu className="w-5 h-5 text-cyan-500" />
-                      <span className="text-sm font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400">資料傳輸核心</span>
-                      <Activity className="w-4 h-4 text-purple-500 animate-pulse" />
-                    </div>
-
-                    {/* 1. Note Input */}
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 px-1">
-                        <Zap className="w-3.5 h-3.5 text-orange-500" />
-                        <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em]">
-                          快速筆記 / 網址
-                        </label>
-                      </div>
-                      <div className="relative group/input">
-                        <textarea
-                          value={inputText}
-                          onChange={(e) => setInputText(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          placeholder="輸入內容..."
-                          className="w-full h-20 lg:h-32 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-cyan-500/50 focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white/90 text-lg font-medium shadow-inner resize-none placeholder:text-gray-400 dark:placeholder:text-white/20 custom-scrollbar"
-                        />
-                        <div className="absolute bottom-4 right-4 flex items-center gap-2 text-[0.6rem] text-gray-400 uppercase tracking-widest font-bold bg-white dark:bg-white/10 border border-gray-100 dark:border-white/5 px-3 py-1.5 rounded-full pointer-events-none opacity-40 group-focus-within/input:opacity-100 transition-all transform group-focus-within/input:scale-105 shadow-sm">
-                           <span>按 Enter</span>
-                           <ArrowRight className="w-3 h-3" />
-                        </div>
-                      </div>
-                    </div>
-
-                      <div className="flex items-center gap-2 px-1 justify-between">
-                        <div className="flex items-center gap-2">
-                          <FileUp className="w-3.5 h-3.5 text-cyan-500" />
-                          <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em]">
-                            檔案上傳
-                          </label>
-                        </div>
-                        {/* Hidden Inputs */}
-                        <input
-                            type="file"
-                            multiple
-                            className="hidden"
-                            ref={fileInputRef}
-                            onChange={handleFileSelect}
-                        />
-                        <input
-                            type="file"
-                            // @ts-expect-error webkitdirectory is non-standard
-                            webkitdirectory=""
-                            directory=""
-                            multiple
-                            className="hidden"
-                            ref={folderInputRef}
-                            onChange={handleFolderSelect}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 h-32 lg:h-40">
-                         {/* Select File Button */}
-                         <button
-                           onClick={() => fileInputRef.current?.click()}
-                           className="group/btn relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all overflow-hidden"
-                         >
-                            <div className="p-3 rounded-full bg-white dark:bg-white/10 group-hover/btn:scale-110 transition-transform shadow-sm">
-                               <FileText className="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover/btn:text-cyan-500" />
-                            </div>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest group-hover/btn:text-cyan-500 transition-colors">
-                               選擇檔案
-                            </span>
-                         </button>
-
-                         {/* Select Folder Button */}
-                         <button
-                           onClick={() => folderInputRef.current?.click()}
-                           className="group/btn relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all overflow-hidden"
-                         >
-                            <div className="p-3 rounded-full bg-white dark:bg-white/10 group-hover/btn:scale-110 transition-transform shadow-sm">
-                               <Database className="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover/btn:text-purple-500" />
-                            </div>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest group-hover/btn:text-purple-500 transition-colors">
-                               選擇資料夾
-                            </span>
-                         </button>
-                      </div>
-
-                    {/* 3. Auth & Submit */}
-                    <div className="pt-6 border-t border-gray-100 dark:border-white/5 space-y-5">
-                       <div className="space-y-2">
-                          <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] ml-2 opacity-60">身分驗證</label>
-                          <div className="relative group/auth">
-                            <input
-                              type="password"
-                              required
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
-                              placeholder="輸入解鎖密碼"
-                              className="w-full bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-xl px-6 py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white text-xl font-bold text-center tracking-[0.3em] placeholder:text-gray-400 placeholder:tracking-widest placeholder:text-xs placeholder:font-bold group-hover/auth:border-white/20"
-                            />
-                            <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 dark:text-white/10 group-focus-within/auth:text-cyan-500 transition-colors" />
-                          </div>
-                       </div>
-
-                       <button
-                          onClick={handleSubmit}
-                          disabled={isSyncing}
-                          className="group/btn relative w-full flex items-center justify-center gap-3 py-4 rounded-full border border-cyan-500/50 bg-transparent hover:bg-cyan-500/10 hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-                        >
-                          <span className="tracking-[0.5em] uppercase font-bold text-lg text-cyan-400 group-hover/btn:text-cyan-300 relative z-10 transition-colors pl-1">
-                            {isSyncing ? '同步中...' : '提交資料'}
-                          </span>
-                          <Zap className={cn("w-5 h-5 text-cyan-400 group-hover/btn:text-cyan-300 relative z-10 transition-colors", isSyncing && "animate-spin")} />
-                          
-                           {/* Scanline / Glimmer Effect */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer pointer-events-none" />
-                        </button>
-                    </div>
-
-                 </div>
-              </div>
-           </div>
+        {/* --- [CENTER CORE] Unified Input --- */}
+        {/* Mobile: Order 1 (Top). Full Width. 
+            Desktop: Order 2. Flex-1.
+        */}
+        <div className="order-1 2xl:order-2 w-full max-w-lg 2xl:flex-1 2xl:min-w-[460px] 2xl:max-w-3xl xl:max-w-4xl relative z-20 min-w-0 shrink-0">
+           <CoreTransferUnit
+              inputText={inputText}
+              setInputText={setInputText}
+              onAddNote={handleAddNote}
+              onFileSelect={handleFileSelect}
+              onFolderSelect={handleFolderSelect}
+              password={password}
+              setPassword={setPassword}
+              onSubmit={handleSubmit}
+              isSyncing={isSyncing}
+           />
         </div>
 
 
         {/* --- [RIGHT WING] Pending Files --- */}
-        <div className="order-3 lg:order-3 w-full lg:w-64 xl:w-80 flex flex-col h-auto min-h-48 lg:h-[600px] transition-opacity duration-300 lg:opacity-60 lg:hover:opacity-100 min-w-0 shrink-0">
-           
-           <div className="glass-card h-full p-4 lg:p-6 rounded-3xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/5 flex flex-col shadow-lg relative overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                 <h3 className="text-xs font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] flex items-center gap-2">
-                    <Database className="w-4 h-4 text-purple-500" />
-                    待傳檔案 ({pendingFiles.length})
-                 </h3>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pl-1 relative z-10">
-                <AnimatePresence mode="popLayout">
-                   {pendingFiles.length === 0 ? (
-                      <motion.div 
-                         key="empty-files"
-                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                         exit={{ opacity: 0 }}
-                         className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-4"
-                      >
-                         <div className="w-16 h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50">
-                            <FileText className="w-6 h-6" />
-                         </div>
-                         <p className="text-[0.65rem] uppercase tracking-widest text-center font-bold">
-                            拖放檔案<br/>至任意處
-                         </p>
-                      </motion.div>
-                   ) : (
-                      pendingFiles.map((file) => (
-                        <motion.div
-                          key={file.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          layout
-                          className="group/item relative p-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/20 dark:border-white/5 hover:border-purple-500/30 transition-all shadow-sm backdrop-blur-sm flex items-center gap-3 cursor-default"
-                        >
-                           <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
-                              <FileText className="w-5 h-5 text-gray-500 dark:text-gray-300" />
-                           </div>
-                            <div className="flex-1 min-w-0">
-                               <p className="text-xs text-gray-800 dark:text-gray-200 font-bold truncate">{file.name}</p>
-                               <p className="text-[0.6rem] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-mono">
-                                  {((file.size ?? 0) / 1024 / 1024).toFixed(2)} MB
-                               </p>
-                            </div>
-                           <button
-                             onClick={() => handleRemoveFile(file.id)}
-                             className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100"
-                           >
-                             <X className="w-4 h-4" />
-                           </button>
-                        </motion.div>
-                      ))
-                   )}
-                </AnimatePresence>
-              </div>
-
-              {/* Decorative BG element */}
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full pointer-events-none" />
-           </div>
+        {/* Mobile: Order 3. Full Width. Auto Height. 
+            Desktop: Order 3. Width ~19vw (Refined). Full Height.
+        */}
+        <div className="order-3 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-[220px] 2xl:max-w-[450px] flex flex-col h-auto min-h-[200px] max-h-[40vh] 2xl:h-[80vh] 2xl:max-h-[850px] transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
+           <PendingFilesPanel 
+              pendingFiles={pendingFiles} 
+              onRemoveFile={handleRemoveFile} 
+           />
         </div>
 
       </div>

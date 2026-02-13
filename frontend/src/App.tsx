@@ -133,8 +133,11 @@ const MainLayout: React.FC<{
         For Others: overflow-y-auto (standard document scroll)
       */}
       <main className={cn(
-        "flex-1 min-w-0 flex flex-col p-4 lg:p-6 xl:p-8 transition-all duration-300",
-        isDashboard ? "overflow-hidden h-full" : "overflow-y-auto h-full"
+        "flex-1 min-w-0 flex flex-col transition-all duration-300",
+        // Padding: Remove for Landing Page (immersive)
+        location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
+        // Scroll: Dashboard & Landing handle their own overflow. Help/others scroll here.
+        (isDashboard || location.pathname === '/') ? "overflow-hidden h-full" : "overflow-y-auto h-full"
       )}>
         <MainContent users={users} config={config} loading={loading} />
       </main>
