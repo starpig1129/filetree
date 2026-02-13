@@ -393,7 +393,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     // Outer container: Allow scrolling on mobile.
     // min-h-dvh ensures it covers the viewport. 
     // pb-safe handles mobile notches.
-    <div className="relative min-h-dvh w-full max-w-[100vw] overflow-y-auto lg:overflow-hidden bg-gray-50 dark:bg-transparent custom-scrollbar pb-10 sm:pb-20 lg:pb-0">
+    <div className="relative h-dvh w-full max-w-[100vw] overflow-y-auto lg:overflow-hidden bg-gray-50 dark:bg-transparent custom-scrollbar pb-10 sm:pb-20 lg:pb-0">
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block pointer-events-none" />
 
