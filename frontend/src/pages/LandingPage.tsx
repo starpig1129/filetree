@@ -222,18 +222,127 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     e.preventDefault(); e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent | DragEvent) => {
+  // --- Folder Scanning Logic ---
+  // Define types for FileSystem API (non-standard but widely supported)
+  interface FileSystemEntry {
+    isFile: boolean;
+    isDirectory: boolean;
+    name: string;
+    fullPath: string;
+  }
+  interface FileSystemFileEntry extends FileSystemEntry {
+    file: (callback: (file: File) => void, errorCallback?: (error: DOMException) => void) => void;
+  }
+  interface FileSystemDirectoryEntry extends FileSystemEntry {
+    createReader: () => FileSystemDirectoryReader;
+  }
+  interface FileSystemDirectoryReader {
+    readEntries: (
+      successCallback: (entries: FileSystemEntry[]) => void,
+      errorCallback?: (error: DOMException) => void
+    ) => void;
+  }
+
+  const scanFiles = useCallback(async (entry: FileSystemEntry): Promise<File[]> => {
+    if (entry.isFile) {
+       return new Promise((resolve) => {
+         (entry as FileSystemFileEntry).file((file) => {
+            // Monkey-patch the path info onto the file object if needed for Uppy
+            // Uppy uses 'relativePath' or simply the file name. 
+            // construct the relative path from the entry.fullPath (usually starts with /)
+            const relativePath = entry.fullPath.startsWith('/') ? entry.fullPath.slice(1) : entry.fullPath;
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: relativePath,
+              writable: true // Allow overwriting if needed
+            });
+            resolve([file]);
+         });
+       });
+    } else if (entry.isDirectory) {
+       const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+       const readEntriesPromise = () => new Promise<FileSystemEntry[]>((resolve, reject) => {
+          dirReader.readEntries(resolve, reject);
+       });
+       
+       let entries: FileSystemEntry[] = [];
+       // Read all entries in the directory (loop needed for some browsers limiting batch size)
+       let batch = await readEntriesPromise();
+       while (batch.length > 0) {
+          entries = entries.concat(batch);
+          batch = await readEntriesPromise();
+       }
+       
+       const files = await Promise.all(entries.map(e => scanFiles(e)));
+       return files.flat();
+    }
+    return [];
+  }, []);
+
+
+  const handleDrop = useCallback(async (e: React.DragEvent | DragEvent) => {
     e.preventDefault(); e.stopPropagation();
     setIsDragOver(false);
     dragCounter.current = 0;
-    if (uppy && e.dataTransfer && e.dataTransfer.files?.length > 0) {
+
+    if (!uppy) return;
+
+    // Use DataTransferItemList if available to get FileSystemEntry (supports folders)
+    if (e.dataTransfer && e.dataTransfer.items) {
+      const items = Array.from(e.dataTransfer.items);
+      const promises: Promise<File[]>[] = [];
+
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+          if (entry) {
+             // It's a file or directory entry
+             promises.push(scanFiles(entry as unknown as FileSystemEntry));
+          } else {
+             // Fallback for purely standard files (though rare if kind is file)
+             const file = item.getAsFile();
+             if (file) promises.push(Promise.resolve([file]));
+          }
+        }
+      }
+
+      try {
+        const fileArrays = await Promise.all(promises);
+        const allFiles = fileArrays.flat();
+        
+        allFiles.forEach((file) => {
+          try {
+            // Uppy's addFile automatically handles file objects. 
+            // We set source to 'drag-drop-overlay'
+            // If the file has webkitRelativePath set (from our scan), Uppy might utilize it,
+            // or we can manually set the name to the full relative path to ensure structure visibility.
+            // Using webkitRelativePath as the name ensures unique names in the dashboard list.
+            const name = file.webkitRelativePath || file.name;
+            
+            uppy.addFile({ 
+              source: 'drag-drop-overlay', 
+              name: name,
+              type: file.type, 
+              data: file,
+              meta: {
+                // Ensure relativePath is passed in meta for TUS or other plugins to use
+                relativePath: file.webkitRelativePath 
+              }
+            });
+          } catch (err) { console.warn('File add skipped:', err); }
+        });
+      } catch (err) {
+        console.error("Folder scanning failed:", err);
+      }
+
+    } else if (e.dataTransfer && e.dataTransfer.files?.length > 0) {
+      // Fallback for browsers not supporting DataTransferItem / GetAsEntry
       Array.from(e.dataTransfer.files).forEach((file) => {
         try {
           uppy.addFile({ source: 'drag-drop-overlay', name: file.name, type: file.type, data: file });
         } catch (err) { console.warn('File add skipped:', err); }
       });
     }
-  }, [uppy]);
+  }, [uppy, scanFiles]);
 
   useEffect(() => {
     const handleWindowDragEnter = (e: DragEvent) => handleDragEnter(e);
