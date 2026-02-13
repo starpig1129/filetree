@@ -17,8 +17,10 @@ interface UrlViewProps {
   urls: UrlItem[];
   selectedItems: { type: 'file' | 'url'; id: string }[];
   isAuthenticated: boolean;
+  isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url', id: string) => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
+  onBatchAction: (action: 'delete' | 'lock' | 'unlock') => void;
   onQrCode: (url: string) => void;
   onDelete: (url: string) => void;
   onCopy: (text: string) => void;
@@ -29,8 +31,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
   urls,
   selectedItems,
   isAuthenticated,
+  isBatchSyncing,
   onToggleSelect,
   onToggleLock,
+  onBatchAction,
   onQrCode,
   onDelete,
   onCopy,
@@ -65,6 +69,40 @@ export const UrlView: React.FC<UrlViewProps> = ({
             {urls?.length || 0}
           </span>
         </div>
+
+        {selectedItems.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center bg-white dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/10 p-1 shadow-sm"
+          >
+            <button
+              onClick={() => onBatchAction('lock')}
+              disabled={isBatchSyncing}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-violet-500"
+              title="Lock Selected"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onBatchAction('unlock')}
+              disabled={isBatchSyncing}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-cyan-500"
+              title="Unlock Selected"
+            >
+              <Unlock className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
+            <button
+              onClick={() => onBatchAction('delete')}
+              disabled={isBatchSyncing}
+              className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors text-red-500"
+              title="Delete Selected"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
       </div>
 
       {/* Scrollable URL List */}

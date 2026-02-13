@@ -646,9 +646,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 urls={dashboardData.urls || []}
                 selectedItems={selectedItems}
                 isAuthenticated={isAuthenticated}
+                isBatchSyncing={isBatchSyncing}
                 onToggleSelect={toggleSelectItem}
                 onSelectAll={(selectAll) => handleSelectAll('url', selectAll)}
                 onToggleLock={toggleItemLock}
+                onBatchAction={handleBatchAction}
                 onQrCode={setQrUrl}
                 onDelete={handleUrlDelete}
                 onCopy={(url) => { navigator.clipboard?.writeText(url).then(() => alert("已複製！")); }}
