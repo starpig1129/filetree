@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Zap, FileText, Link as LinkIcon,
   CheckSquare, Square, Lock, Unlock,
-  Copy, QrCode, Trash2
+  Copy, QrCode, Trash2, Download
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -20,7 +20,7 @@ interface UrlViewProps {
   isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url', id: string) => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
-  onBatchAction: (action: 'delete' | 'lock' | 'unlock') => void;
+  onBatchAction: (action: 'delete' | 'lock' | 'unlock' | 'download') => void;
   onQrCode: (url: string) => void;
   onDelete: (url: string) => void;
   onCopy: (text: string) => void;
@@ -93,6 +93,14 @@ export const UrlView: React.FC<UrlViewProps> = ({
               <Unlock className="w-4 h-4" />
             </button>
             <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
+            <button
+              onClick={() => onBatchAction('download')}
+              disabled={isBatchSyncing}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-green-500"
+              title="Download Selected"
+            >
+              <Download className="w-4 h-4" />
+            </button>
             <button
               onClick={() => onBatchAction('delete')}
               disabled={isBatchSyncing}

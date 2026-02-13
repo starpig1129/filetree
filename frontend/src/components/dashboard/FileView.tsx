@@ -27,7 +27,7 @@ interface FileViewProps {
   isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url', id: string) => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
-  onBatchAction: (action: 'delete' | 'lock' | 'unlock') => void;
+  onBatchAction: (action: 'delete' | 'lock' | 'unlock' | 'download') => void;
   onPreview: (file: { name: string; size: string; url: string }) => void;
   onShare: (filename: string) => void;
   onQrCode: (url: string) => void;
@@ -162,6 +162,14 @@ export const FileView: React.FC<FileViewProps> = ({
             </button>
             <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
             <button
+              onClick={() => onBatchAction('download')}
+              disabled={isBatchSyncing}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-green-500"
+              title="Download Selected"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => onBatchAction('delete')}
               disabled={isBatchSyncing}
               className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors text-red-500"
@@ -236,7 +244,7 @@ export const FileView: React.FC<FileViewProps> = ({
                   </div>
 
                   {/* Thumbnail / Icon */}
-                  <div className="relative w-full aspect-[4/3] bg-gray-100/50 dark:bg-black/20 flex items-center justify-center overflow-hidden">
+                  <div className="relative w-full aspect-4/3 bg-gray-100/50 dark:bg-black/20 flex items-center justify-center overflow-hidden">
                     {(isImage || ['mp4', 'webm', 'mov'].includes(file.name.split('.').pop()?.toLowerCase() || '')) ? (
                       <img
                         src={`/api/thumbnail/${username}/${encodeURIComponent(file.name)}?v=2${token ? `&token=${token}` : ''}`}

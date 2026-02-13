@@ -37,6 +37,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [previewFile, setPreviewFile] = useState<{ name: string, size: string, url: string } | null>(null);
   const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
+  const [isPacking, setIsPacking] = useState(false);
   const [activeTab, setActiveTab] = useState<'files' | 'urls'>('files');
 
   const refreshDashboard = React.useCallback(async (authToken: string) => {
@@ -96,9 +97,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     });
   };
 
-  const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete') => {
+  const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete' | 'download') => {
     if (selectedItems.length === 0) return;
-    if (!isAuthenticated) {
+
+    // Batch download doesn't strictly require pre-authentication for public files
+    if (action !== 'download' && !isAuthenticated) {
       setShowAuthModal(true);
       return;
     }
@@ -109,11 +112,51 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
     setIsBatchSyncing(true);
     try {
-      // Group by type for simpler API handling (or we can update API to handle mixed types)
-      // Our API currently handles one type at a time, so we'll do sequential or update it.
-      // Let's assume we do it by dominant type or sequential for now.
       const files = selectedItems.filter(i => i.type === 'file').map(i => i.id);
       const urls = selectedItems.filter(i => i.type === 'url').map(i => i.id);
+
+      if (action === 'download') {
+        if (files.length === 0) {
+          alert("請選擇要下載的檔案（連結不支援打包下載）");
+          setIsBatchSyncing(false);
+          return;
+        }
+
+        const formData = new FormData();
+        // Send password only if authenticated to allow downloading locked files, 
+        // otherwise skip it as per user requirement.
+        if (isAuthenticated && password) {
+          formData.append('password', password);
+        }
+        // Ensure filenames is sent correctly as a list
+        files.forEach(f => formData.append('filenames', f));
+
+        setIsPacking(true);
+        const res = await fetch(`/api/user/${dashboardData.user?.username}/batch-download`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          a.download = `${dashboardData.user?.username}_files_${timestamp}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          setSelectedItems([]);
+        } else {
+          const err = await res.json();
+          alert(err.detail || "打包下載失敗");
+        }
+        setIsPacking(false);
+        setIsBatchSyncing(false);
+        return;
+      }
 
       const perform = async (type: 'file' | 'url', ids: string[]) => {
         if (ids.length === 0) return;
@@ -129,12 +172,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         });
       };
 
-      // Optimistic UI Update
-      setDashboardData(prev => ({
-        ...prev,
-        files: prev.files?.filter(f => !files.includes(f.name)),
-        urls: prev.urls?.filter(u => !urls.includes(u.url))
-      }));
+      // Optimistic UI Update for delete
+      if (action === 'delete') {
+        setDashboardData(prev => ({
+          ...prev,
+          files: prev.files?.filter(f => !files.includes(f.name)),
+          urls: prev.urls?.filter(u => !urls.includes(u.url))
+        }));
+      }
       setSelectedItems([]);
 
       await Promise.all([perform('file', files), perform('url', urls)]);
@@ -659,6 +704,38 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Packing Overlay */}
+      <AnimatePresence>
+        {isPacking && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-md"
+          >
+            <div className="bg-white dark:bg-space-black p-8 rounded-3xl shadow-2xl border border-white/10 flex flex-col items-center gap-6">
+              <div className="relative">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full"
+                />
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0.5 }}
+                  animate={{ scale: 1.2, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="absolute inset-0 bg-violet-500 rounded-full"
+                />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold dark:text-white mb-2">壓縮檔案中...</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">請稍候，我們正在為您打包選中的資源</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Auth Modal */}
       <AnimatePresence>

@@ -762,6 +762,66 @@ async def batch_action(request: Request, username: str, req: BatchActionRequest)
     return {"message": f"成功處理 {success_count} 個項目。", "success_count": success_count}
 
 
+@router.post("/user/{username}/batch-download")
+async def batch_download(
+    request: Request,
+    username: str,
+    background_tasks: BackgroundTasks,
+    password: Optional[str] = Form(None),
+    filenames: List[str] = Form(None)
+):
+    """Create a zip of requested files and return it for download."""
+    if not filenames:
+        logger.error(f"Batch download failed: No filenames provided for user {username}")
+        raise HTTPException(status_code=400, detail="未選取任何檔案")
+        
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    
+    # Optional authentication
+    is_authenticated = False
+    if password and verify_password(password, user.salt, user.hashed_password):
+        is_authenticated = True
+
+    # If not authenticated, check if the account is locked
+    if not is_authenticated and user.is_locked:
+        raise HTTPException(status_code=403, detail="此帳號已鎖定，請先解鎖以進行下載。")
+
+    # Filter to only allow existing files and check for locks
+    locked_files = set(getattr(user, 'locked_files', []))
+    available_files = []
+    for f in filenames:
+        # If authenticated, we can download everything. 
+        # If not, skip locked files.
+        if not is_authenticated and f in locked_files:
+            continue
+        available_files.append(f)
+
+    if not available_files:
+        raise HTTPException(status_code=400, detail="沒有可供下載的檔案或資源已被鎖定")
+
+    # Create zip
+    try:
+        zip_path = await run_in_threadpool(file_service.create_batch_zip, user.folder, available_files)
+        
+        # Log event
+        await audit_service.log_event(username, "BATCH_DOWNLOAD", f"Created zip for {len(available_files)} files", ip=get_client_ip(request))
+        
+        # Cleanup after response
+        background_tasks.add_task(os.remove, zip_path)
+        
+        zip_filename = f"{username}_files_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        return FileResponse(
+            path=zip_path, 
+            filename=zip_filename,
+            media_type="application/zip"
+        )
+    except Exception as e:
+        print(f"Batch download failed: {e}")
+        raise HTTPException(status_code=500, detail="打包檔案失敗，請稍後再試")
+
+
 @router.websocket("/ws/{username}")
 async def websocket_endpoint(websocket: WebSocket, username: str):
     """WebSocket bridge for real-time state synchronization."""

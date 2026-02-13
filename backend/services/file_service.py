@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 import aiofiles.os
+import zipfile
+import tempfile
 from backend.config import settings
 from backend.schemas import FileInfo
 
@@ -207,6 +209,34 @@ class FileService:
         except Exception as e:
             print(f"Failed to import file: {e}")
             return None
+
+    def create_batch_zip(self, folder_name: str, filenames: List[str]) -> Path:
+        """Create a temporary zip file containing specified files.
+
+        Args:
+            folder_name: The user's folder name.
+            filenames: List of filenames to include in the zip.
+
+        Returns:
+            The Path to the created temporary zip file.
+        """
+        user_folder = self._get_user_folder(folder_name)
+        
+        # Create a named temporary file that won't be deleted automatically on close
+        # because we need to send it in the response
+        temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+        temp_zip_path = Path(temp_zip.name)
+        temp_zip.close() # Close the handle so zipfile can open it
+
+        with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for filename in filenames:
+                # Sanitize filename to prevent path traversal
+                filename = os.path.basename(filename)
+                filepath = user_folder / filename
+                if filepath.exists() and filepath.is_file():
+                    zf.write(filepath, arcname=filename)
+        
+        return temp_zip_path
 
 # Singleton instance
 file_service = FileService()
