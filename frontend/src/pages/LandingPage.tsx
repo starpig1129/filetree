@@ -40,6 +40,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   // Drag drop
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
+  const lastStatsRef = useRef<Record<string, { lastBytes: number; lastTime: number; speed: number; eta: number }>>({});
 
   // Dynamic Uppy Instance
   const [uppy, setUppy] = useState<Uppy | null>(null);
@@ -70,13 +71,56 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         });
 
         u.on('file-added', () => {
-        setPendingFiles(u.getFiles());
+          setPendingFiles(u.getFiles());
         });
-        u.on('file-removed', () => {
-        setPendingFiles(u.getFiles());
+        u.on('file-removed', (file) => {
+          if (file) delete lastStatsRef.current[file.id];
+          setPendingFiles(u.getFiles());
+        });
+        u.on('upload-progress', (file, progress) => {
+          if (!file) return;
+          const now = Date.now();
+          
+          if (!lastStatsRef.current[file.id]) {
+            lastStatsRef.current[file.id] = { 
+              lastBytes: progress.bytesUploaded, 
+              lastTime: now, 
+              speed: 0, 
+              eta: 0 
+            };
+            return;
+          }
+
+          const stats = lastStatsRef.current[file.id];
+          const bytesUploaded = progress.bytesUploaded;
+          const bytesTotal = progress.bytesTotal ?? file.size ?? 0;
+          
+          const timeDiff = (now - stats.lastTime) / 1000;
+          if (timeDiff >= 0.2) { // Update faster for smoother UI
+            const bytesDiff = bytesUploaded - stats.lastBytes;
+            const currentSpeed = bytesDiff / timeDiff;
+            
+            // Smoothed speed (Moving Average)
+            stats.speed = stats.speed === 0 ? currentSpeed : (stats.speed * 0.7 + currentSpeed * 0.3);
+            stats.lastBytes = bytesUploaded;
+            stats.lastTime = now;
+            
+            const remainingBytes = Number(bytesTotal) - bytesUploaded;
+            stats.eta = stats.speed > 0 ? remainingBytes / stats.speed : 0;
+            
+            u.setFileMeta(file.id, { 
+                uploadSpeed: stats.speed,
+                eta: stats.eta
+            });
+          }
+
+          setPendingFiles([...u.getFiles()]);
         });
         u.on('complete', () => {
-        setPendingFiles([]); 
+          setPendingFiles([]); 
+        });
+        u.on('error', (error) => {
+          console.error('Uppy global error:', error);
         });
 
         setUppy(u);

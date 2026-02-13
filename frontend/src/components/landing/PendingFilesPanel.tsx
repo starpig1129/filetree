@@ -1,12 +1,38 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Database, FileText, X } from 'lucide-react';
+import { Database, FileText, X, Clock, TrendingUp } from 'lucide-react';
 import type { UppyFile } from '@uppy/core';
 
+interface ExtendedFileProgress {
+  percentage?: number;
+  bytesUploaded?: number | boolean;
+  uploadSpeed?: number;
+  eta?: number;
+}
+
 interface PendingFilesPanelProps {
-  pendingFiles: UppyFile<any, any>[];
+  pendingFiles: (UppyFile<Record<string, unknown>, Record<string, unknown>> & { progress?: ExtendedFileProgress })[];
   onRemoveFile: (fileId: string) => void;
 }
+
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const formatDuration = (seconds: number) => {
+  if (seconds === null || seconds === undefined || isNaN(seconds)) return '--';
+  if (seconds === Infinity) return 'Calculating...';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+};
 
 export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
   pendingFiles,
@@ -53,20 +79,67 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
                   <FileText className="w-5 h-5 text-gray-500 dark:text-gray-300" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-800 dark:text-gray-200 font-bold truncate">
-                    {file.name}
-                  </p>
-                  <p className="text-[0.6rem] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-mono">
-                    {((file.size ?? 0) / 1024 / 1024).toFixed(2)} MB
-                  </p>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-800 dark:text-gray-200 font-bold truncate">
+                      {file.name}
+                    </p>
+                    <button
+                      onClick={() => onRemoveFile(file.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors opacity-100 p-1 shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Progress Info */}
+                  {file.progress && file.progress.percentage !== undefined && file.progress.percentage > 0 && (
+                    <div className="space-y-1.5">
+                      {/* Bar */}
+                      <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${file.progress.percentage}%` }}
+                          className="h-full bg-linear-to-r from-purple-500 to-cyan-500"
+                        />
+                      </div>
+                      
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 gap-y-1 text-[0.6rem] font-mono uppercase tracking-tight">
+                        <div className="text-purple-600 dark:text-purple-400 font-bold">
+                          {file.progress.percentage.toFixed(1)}%
+                        </div>
+                        <div className="text-right text-gray-500 dark:text-gray-400">
+                          {formatBytes(typeof file.progress.bytesUploaded === 'number' ? file.progress.bytesUploaded : 0)} / {formatBytes(file.size || 0)}
+                        </div>
+                        
+                        {file.progress.percentage < 100 && (
+                          <>
+                            <div className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
+                              <TrendingUp className="w-2.5 h-2.5" />
+                              {formatBytes(Number(file.meta.uploadSpeed) || 0)}/s
+                            </div>
+                            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 justify-self-end">
+                              <Clock className="w-2.5 h-2.5" />
+                              {formatDuration(Number(file.meta.eta) || 0)}
+                            </div>
+                          </>
+                        )}
+                        {file.progress.percentage === 100 && (
+                          <div className="col-span-2 text-green-500 font-bold tracking-widest">
+                            UPLOAD COMPLETED
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {!file.progress || file.progress.percentage === 0 ? (
+                    <p className="text-[0.6rem] text-gray-400 dark:text-gray-500 uppercase tracking-wider font-mono">
+                      {formatBytes(file.size ?? 0)}
+                    </p>
+                  ) : null}
                 </div>
-                <button
-                  onClick={() => onRemoveFile(file.id)}
-                  className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 p-1"
-                >
-                  <X className="w-4 h-4 lg:w-4 lg:h-4" />
-                </button>
               </motion.div>
             ))
           )}
