@@ -5,12 +5,10 @@ import { FileUp, Cpu, Orbit, Zap, Activity, ShieldCheck, UploadCloud, X, Termina
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { cn } from '../lib/utils';
 import Uppy from '@uppy/core';
-import UppyDashboard from '../components/UppyDashboard';
 import Tus from '@uppy/tus';
 
 // Uppy styles
 import '@uppy/core/css/style.min.css';
-import '@uppy/dashboard/css/style.min.css';
 
 interface LandingPageProps {
   data: {
@@ -40,6 +38,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   // Drag drop
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
+
+  // Input refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Uppy Instance
   const [uppy, setUppy] = useState<Uppy | null>(null);
@@ -93,17 +95,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     if (uppy) uppy.setMeta({ password });
   }, [uppy, password]);
 
-  // Memoize uppy props
-  const uppyProps = React.useMemo(() => ({
-    showProgressDetails: true,
-    note: '拖放檔案至此 或 瀏覽選擇',
-    theme: 'dark' as const,
-    hideUploadButton: true,
-    width: '100%',
-    height: '100%'
-  }), []);
+
 
   // --- Handlers ---
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (uppy && e.target.files && e.target.files.length > 0) {
+      Array.from(e.target.files).forEach((file) => {
+        try {
+          uppy.addFile({ source: 'file-input', name: file.name, type: file.type, data: file });
+        } catch (err) { console.warn('File add skipped:', err); }
+      });
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (uppy && e.target.files && e.target.files.length > 0) {
+      Array.from(e.target.files).forEach((file) => {
+        try {
+          // For directory selection, webkitRelativePath contains the path
+          const name = file.webkitRelativePath || file.name;
+          uppy.addFile({ 
+              source: 'folder-input', 
+              name: name, 
+              type: file.type, 
+              data: file,
+              meta: { relativePath: file.webkitRelativePath } 
+          });
+        } catch (err) { console.warn('File add skipped:', err); }
+      });
+       // Reset input
+       if (folderInputRef.current) folderInputRef.current.value = '';
+    }
+  };
 
   const handleAddNote = () => {
     const trimmed = inputText.trim();
@@ -367,7 +393,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     // Outer container: Allow scrolling on mobile.
     // min-h-dvh ensures it covers the viewport. 
     // pb-safe handles mobile notches.
-    <div className="relative min-h-dvh w-full max-w-[100vw] overflow-y-auto bg-gray-50 dark:bg-black custom-scrollbar pb-10 sm:pb-20">
+    <div className="relative min-h-dvh w-full max-w-[100vw] overflow-y-auto lg:overflow-hidden bg-gray-50 dark:bg-transparent custom-scrollbar pb-10 sm:pb-20 lg:pb-0">
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block pointer-events-none" />
 
@@ -466,7 +492,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                 <Orbit className="w-8 h-8 text-cyan-500 animate-spin-slow opacity-80" />
               </div>
               <p className="text-[0.65rem] uppercase tracking-[0.6em] font-bold text-cyan-600/80 dark:text-quantum-cyan/60 pl-4">
-                 Pro Max 整合網關
+                 File Management Hub 📁
               </p>
             </motion.div>
 
@@ -508,26 +534,60 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                       </div>
                     </div>
 
-                    {/* 2. File Upload Box */}
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 px-1">
-                        <FileUp className="w-3.5 h-3.5 text-cyan-500" />
-                        <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em]">
-                          檔案上傳
-                        </label>
+                      <div className="flex items-center gap-2 px-1 justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileUp className="w-3.5 h-3.5 text-cyan-500" />
+                          <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em]">
+                            檔案上傳
+                          </label>
+                        </div>
+                        {/* Hidden Inputs */}
+                        <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                        />
+                        <input
+                            type="file"
+                            // @ts-expect-error webkitdirectory is non-standard
+                            webkitdirectory=""
+                            directory=""
+                            multiple
+                            className="hidden"
+                            ref={folderInputRef}
+                            onChange={handleFolderSelect}
+                        />
                       </div>
-                      <div className="w-full h-32 lg:h-52 rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.02] relative group/uppy hover:border-cyan-500/30 transition-all hover:bg-white/[0.05]">
-                        {uppy ? (
-                          <UppyDashboard
-                            uppy={uppy}
-                            className="w-full h-full absolute inset-0 [&_.uppy-Dashboard-inner]:!bg-transparent [&_.uppy-Dashboard-inner]:!border-none"
-                            props={uppyProps}
-                          />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-gray-400 text-sm">初始化中...</div>
-                        )}
+                      
+                      <div className="grid grid-cols-2 gap-4 h-32 lg:h-40">
+                         {/* Select File Button */}
+                         <button
+                           onClick={() => fileInputRef.current?.click()}
+                           className="group/btn relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all overflow-hidden"
+                         >
+                            <div className="p-3 rounded-full bg-white dark:bg-white/10 group-hover/btn:scale-110 transition-transform shadow-sm">
+                               <FileText className="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover/btn:text-cyan-500" />
+                            </div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest group-hover/btn:text-cyan-500 transition-colors">
+                               選擇檔案
+                            </span>
+                         </button>
+
+                         {/* Select Folder Button */}
+                         <button
+                           onClick={() => folderInputRef.current?.click()}
+                           className="group/btn relative flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all overflow-hidden"
+                         >
+                            <div className="p-3 rounded-full bg-white dark:bg-white/10 group-hover/btn:scale-110 transition-transform shadow-sm">
+                               <Database className="w-6 h-6 text-gray-600 dark:text-gray-300 group-hover/btn:text-purple-500" />
+                            </div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest group-hover/btn:text-purple-500 transition-colors">
+                               選擇資料夾
+                            </span>
+                         </button>
                       </div>
-                    </div>
 
                     {/* 3. Auth & Submit */}
                     <div className="pt-6 border-t border-gray-100 dark:border-white/5 space-y-5">
@@ -540,7 +600,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
                               onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
-                              placeholder="輸入通行碼"
+                              placeholder="輸入解鎖密碼"
                               className="w-full bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-xl px-6 py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white text-xl font-bold text-center tracking-[0.3em] placeholder:text-gray-400 placeholder:tracking-widest placeholder:text-xs placeholder:font-bold group-hover/auth:border-white/20"
                             />
                             <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 dark:text-white/10 group-focus-within/auth:text-cyan-500 transition-colors" />
@@ -550,13 +610,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
                        <button
                           onClick={handleSubmit}
                           disabled={isSyncing}
-                          className="btn-stellar w-full flex items-center justify-center gap-3 py-5 hover:scale-[1.01] active:scale-[0.99] shadow-xl hover:shadow-cyan-500/20 bg-gradient-to-r from-gray-800 to-black dark:from-cyan-600 dark:to-blue-600 text-white rounded-2xl transition-all cursor-pointer disabled:opacity-70 disabled:grayscale group/btn relative overflow-hidden"
+                          className="group/btn relative w-full flex items-center justify-center gap-3 py-4 rounded-full border border-cyan-500/50 bg-transparent hover:bg-cyan-500/10 hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
                         >
-                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 pointer-events-none" />
-                          <span className="tracking-[0.25em] uppercase font-black text-sm relative z-10">
-                            {isSyncing ? '同步資料庫中...' : '確認並提交'}
+                          <span className="tracking-[0.5em] uppercase font-bold text-lg text-cyan-400 group-hover/btn:text-cyan-300 relative z-10 transition-colors pl-1">
+                            {isSyncing ? '同步中...' : '提交資料'}
                           </span>
-                          <Zap className={cn("w-5 h-5 mb-0.5 relative z-10", isSyncing && "animate-spin")} />
+                          <Zap className={cn("w-5 h-5 text-cyan-400 group-hover/btn:text-cyan-300 relative z-10 transition-colors", isSyncing && "animate-spin")} />
+                          
+                           {/* Scanline / Glimmer Effect */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer pointer-events-none" />
                         </button>
                     </div>
 
