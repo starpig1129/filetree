@@ -249,12 +249,88 @@ class UserService:
             return True
 
 
-    async def add_user_url(self, username: str, url_record: dict) -> bool:
-        """Atomically add a URL to the user's list.
+    async def add_folder(self, username: str, name: str, folder_type: str, parent_id: Optional[str] = None) -> str:
+        """Add a new folder for a user.
+        
+        Args:
+            username: The user's name.
+            name: Folder name.
+            folder_type: 'file' or 'url'.
+            parent_id: Optional parent folder ID.
+            
+        Returns:
+            The new folder ID.
+        """
+        # Sanitize name
+        name = name.strip().replace("/", "_").replace("\\", "_").replace("..", "_")
+        if not name:
+            raise Exception("Invalid folder name")
+
+        async with self._lock:
+            users = await self._read_users()
+            for user in users:
+                if user['username'] == username:
+                    folders = user.get('folders', [])
+                    
+                    # Check for duplicate name in same parent
+                    if any(f['name'] == name and f.get('parent_id') == parent_id for f in folders):
+                        raise Exception("Folder name already exists")
+
+                    folder_id = str(uuid.uuid4())
+                    folders.append({
+                        "id": folder_id,
+                        "name": name,
+                        "type": folder_type,
+                        "parent_id": parent_id
+                    })
+                    user['folders'] = folders
+                    await self._write_users(users)
+                    return folder_id
+            return None
+
+    async def update_folder(self, username: str, folder_id: str, name: str) -> bool:
+        """Update folder metadata.
+        
+        Args:
+            username: The username.
+            folder_id: The folder ID.
+            name: New folder name.
+            
+        Returns:
+            Success status.
+        """
+        # Sanitize name
+        name = name.strip().replace("/", "_").replace("\\", "_").replace("..", "_")
+        if not name:
+            return False
+
+        async with self._lock:
+            users = await self._read_users()
+            for user in users:
+                if user['username'] == username:
+                    folders = user.get('folders', [])
+                    target_folder = next((f for f in folders if f['id'] == folder_id), None)
+                    
+                    if not target_folder:
+                        return False
+
+                    # Check for duplicate name in same parent (excluding self)
+                    parent_id = target_folder.get('parent_id')
+                    if any(f['name'] == name and f.get('parent_id') == parent_id and f['id'] != folder_id for f in folders):
+                        # Duplicate found
+                        return False
+
+                    target_folder['name'] = name
+                    await self._write_users(users)
+                    return True
+            return False
+
+    async def delete_folder(self, username: str, folder_id: str) -> bool:
+        """Delete a folder and unassign items.
 
         Args:
             username: The user to update.
-            url_record: The URL record dict (from URLRecord.dict()).
+            folder_id: Folder ID.
         
         Returns:
             True if successful.
@@ -263,14 +339,117 @@ class UserService:
             users = await self._read_users()
             for user in users:
                 if user['username'] == username:
-                    current_urls = user.get('urls', [])
-                    # Insert at beginning
-                    current_urls.insert(0, url_record)
-                    # Limit to 30
-                    user['urls'] = current_urls[:30]
+                    # Remove folder
+                    folders = user.get('folders', [])
+                    user['folders'] = [f for f in folders if f['id'] != folder_id]
+                    
+                    # Unassign URLs
+                    urls = user.get('urls', [])
+                    for u in urls:
+                        if u.get('folder_id') == folder_id:
+                            u['folder_id'] = None
+                    
+                    # Unassign files in metadata
+                    file_metadata = user.get('file_metadata', {})
+                    for filename, meta in file_metadata.items():
+                        if meta.get('folder_id') == folder_id:
+                            meta['folder_id'] = None
+                    
                     await self._write_users(users)
                     return True
             return False
+
+    async def move_item(self, username: str, item_type: str, item_id: str, folder_id: Optional[str]) -> bool:
+        """Move a file, URL, or folder to a folder.
+
+        Args:
+            username: The user to update.
+            item_type: 'file', 'url', or 'folder'.
+            item_id: filename, url string, or folder ID.
+            folder_id: Target folder ID (parent) or None to move to root.
+        
+        Returns:
+            True if successful.
+        """
+        async with self._lock:
+            users = await self._read_users()
+            for user in users:
+                if user['username'] == username:
+                    if item_type == 'url':
+                        urls = user.get('urls', [])
+                        for u in urls:
+                            if u['url'] == item_id:
+                                u['folder_id'] = folder_id
+                                await self._write_users(users)
+                                return True
+                    elif item_type == 'file':
+                        file_metadata = user.get('file_metadata', {})
+                        if item_id not in file_metadata:
+                            file_metadata[item_id] = {}
+                        file_metadata[item_id]['folder_id'] = folder_id
+                        user['file_metadata'] = file_metadata
+                        await self._write_users(users)
+                        return True
+                    elif item_type == 'folder':
+                        folders = user.get('folders', [])
+                        
+                        # Prevent moving to itself or its descendant
+                        if folder_id:
+                            if item_id == folder_id:
+                                return False
+                            
+                            def is_descendant(f_id, target_id):
+                                current = target_id
+                                while current:
+                                    parent = next((f.get('parent_id') for f in folders if f['id'] == current), None)
+                                    if parent == f_id:
+                                        return True
+                                    current = parent
+                                return False
+                            
+                            if is_descendant(item_id, folder_id):
+                                return False
+
+                        for f in folders:
+                            if f['id'] == item_id:
+                                f['parent_id'] = folder_id
+                                await self._write_users(users)
+                                return True
+            return False
+
+    async def get_folder_path_names(self, username: str, folder_id: Optional[str]) -> List[str]:
+        """Resolve the physical path (list of folder names) for a folder ID.
+        
+        Args:
+            username: The username.
+            folder_id: The folder ID.
+            
+        Returns:
+            List of folder names from root to target.
+        """
+        if not folder_id:
+            return []
+            
+        users = await self._read_users()
+        user = next((u for u in users if u['username'] == username), None)
+        if not user:
+            return []
+            
+        folders = user.get('folders', [])
+        path = []
+        current_id = folder_id
+        
+        # Max depth safety
+        for _ in range(50):
+            folder = next((f for f in folders if f['id'] == current_id), None)
+            if not folder:
+                break
+            path.insert(0, folder['name'])
+            current_id = folder.get('parent_id')
+            if not current_id:
+                break
+                
+        return path
 
 
 # Singleton instance

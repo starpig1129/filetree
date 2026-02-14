@@ -316,18 +316,30 @@ async def get_files(username: str):
 async def upload_files(
     request: Request,
     password: str = Form(...),
-    files: List[UploadFile] = File(...)
+    files: List[UploadFile] = File(...),
+    folder_id: Optional[str] = Form(None)
 ):
-    """Handle multiple file uploads."""
+    """Handle multiple file uploads into a specific folder."""
     user = await user_service.get_user_by_password(password)
     if not user:
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
+    # Resolve physical path
+    path = await user_service.get_folder_path_names(user.username, folder_id)
+
     uploaded = []
+    file_metadata = getattr(user, 'file_metadata', {})
+    
     for file in files:
+        if not file.filename: continue
         content = await file.read()
-        unique_name = await file_service.save_file(user.folder, file.filename, content)
+        unique_name = await file_service.save_file(user.username, file.filename, content, path)
         uploaded.append(unique_name)
+        
+        # Track folder mapping in metadata
+        file_metadata[unique_name] = {"folder_id": folder_id}
+
+    await user_service.update_user(user.username, {"file_metadata": file_metadata})
 
     await audit_service.log_event(user.username, "FILE_UPLOAD", f"Uploaded {len(uploaded)} files: {', '.join(uploaded)}", ip=get_client_ip(request))
     await event_service.notify_user_update(user.username)
@@ -386,7 +398,7 @@ async def delete_file(request: Request, username: str, filename: str = Form(...)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
-    # 資源鎖定檢查
+    # Check locks
     if filename in getattr(user, 'locked_files', []):
         if not token:
              raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
@@ -395,7 +407,12 @@ async def delete_file(request: Request, username: str, filename: str = Form(...)
         if not info or info.username != username:
             raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
 
-    success = await file_service.delete_file(user.folder, filename)
+    # Resolve physical path
+    file_metadata = getattr(user, 'file_metadata', {})
+    folder_id = file_metadata.get(filename, {}).get('folder_id')
+    path = await user_service.get_folder_path_names(username, folder_id)
+
+    success = await file_service.delete_file(username, filename, path)
     if not success:
         raise HTTPException(status_code=404, detail="檔案不存在")
     
@@ -423,23 +440,25 @@ async def rename_file(
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
-    # Verify password
     if not verify_password(password, user.salt, user.hashed_password):
         raise HTTPException(status_code=401, detail="密碼錯誤")
 
-    # Check locks
     if old_name in getattr(user, 'locked_files', []):
          raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
 
-    success = await file_service.rename_file(user.folder, old_name, new_name)
+    # Resolve path
+    file_metadata = getattr(user, 'file_metadata', {})
+    folder_id = file_metadata.get(old_name, {}).get('folder_id')
+    path = await user_service.get_folder_path_names(username, folder_id)
+
+    success = await file_service.rename_file(username, old_name, new_name, path)
     if not success:
         raise HTTPException(status_code=400, detail="重新命名失敗（檔案不存在或名稱重複）")
     
-    # Update locks if necessary
-    if old_name in getattr(user, 'locked_files', []):
-        # Allow rename of locked file? Above block prevents it.
-        # If we allowed it, we'd need to update the lock list.
-        pass
+    # Update metadata if filename changed (metadata key is filename)
+    if old_name in file_metadata:
+        file_metadata[new_name] = file_metadata.pop(old_name)
+        await user_service.update_user(username, {"file_metadata": file_metadata})
 
     await audit_service.log_event(username, "FILE_RENAME", f"Renamed {old_name} to {new_name}", ip=get_client_ip(request))
     await event_service.notify_user_update(username)
@@ -487,8 +506,12 @@ async def download_shared(token: str):
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
     
-    # Send the file
-    folder = file_service._get_user_folder(user.folder)
+    # Resolve physical path
+    file_metadata = getattr(user, 'file_metadata', {})
+    folder_id = file_metadata.get(info.filename, {}).get('folder_id')
+    path_names = await user_service.get_folder_path_names(info.username, folder_id)
+    folder = file_service._get_folder_path(info.username, path_names)
+    
     return FileResponse(path=folder / info.filename, filename=info.filename)
 
 
@@ -523,8 +546,11 @@ async def download_direct(
             if not (info and info.token_type == 'share' and info.filename == filename and info.username == username):
                 raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
 
-    # Smart Download Routing
-    folder = file_service._get_user_folder(user.folder)
+    # Resolve physical path
+    file_metadata = getattr(user, 'file_metadata', {})
+    folder_id = file_metadata.get(filename, {}).get('folder_id')
+    path_names = await user_service.get_folder_path_names(username, folder_id)
+    folder = file_service._get_folder_path(username, path_names)
     file_path = folder / filename
     
     # Check if exists locally
@@ -566,7 +592,10 @@ async def get_thumbnail(
             if not (info and info.token_type == 'share' and info.filename == filename and info.username == username):
                 raise HTTPException(status_code=403, detail="Invalid token")
 
-    folder = file_service._get_user_folder(user.folder)
+    file_metadata = getattr(user, 'file_metadata', {})
+    folder_id = file_metadata.get(filename, {}).get('folder_id')
+    path_names = await user_service.get_folder_path_names(username, folder_id)
+    folder = file_service._get_folder_path(username, path_names)
     file_path = folder / filename
     
     thumb_path = await thumbnail_service.get_thumbnail(file_path)
@@ -597,6 +626,139 @@ async def unlock_user(username: str, data: UnlockRequest):
         "authenticated": True,
         "token": token
     }
+
+
+@router.post("/user/{username}/folders")
+async def create_folder(
+    username: str, 
+    name: str = Form(...), 
+    folder_type: str = Form(...), 
+    password: str = Form(...),
+    parent_id: Optional[str] = Form(None)
+):
+    """Create a new folder for files or URLs."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    if not verify_password(password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    
+    # Validation: parent must exist if provided
+    if parent_id:
+        parent = next((f for f in getattr(user, 'folders', []) if f.id == parent_id), None)
+        if not parent:
+            raise HTTPException(status_code=400, detail="父資料夾不存在")
+
+    folder_id = await user_service.add_folder(username, name, folder_type, parent_id)
+    if not folder_id:
+        raise HTTPException(status_code=500, detail="建立資料夾失敗")
+    
+    await event_service.notify_user_update(username)
+    return {"status": "success", "folder_id": folder_id}
+
+
+@router.post("/user/{username}/folders/{folder_id}/update")
+async def update_folder(username: str, folder_id: str, name: str = Form(...), password: str = Form(...)):
+    """Update a folder name."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    if not verify_password(password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    
+    # If it's a file folder, we should rename it physically too
+    folders = getattr(user, 'folders', [])
+    target_folder = next((f for f in folders if f.id == folder_id), None)
+    if not target_folder:
+        raise HTTPException(status_code=404, detail="找不到資料夾")
+    
+    if target_folder.type == 'file':
+        parent_path = await user_service.get_folder_path_names(username, target_folder.parent_id)
+        await file_service.rename_physical_folder(username, parent_path, target_folder.name, name)
+
+    success = await user_service.update_folder(username, folder_id, name)
+    if not success:
+        raise HTTPException(status_code=500, detail="更新資料夾失敗")
+    
+    await event_service.notify_user_update(username)
+    return {"status": "success"}
+
+
+@router.post("/user/{username}/folders/{folder_id}/delete")
+async def delete_folder(username: str, folder_id: str, password: str = Form(...)):
+    """Delete a folder and its physical content."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    if not verify_password(password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    
+    folders = getattr(user, 'folders', [])
+    target_folder = next((f for f in folders if f.id == folder_id), None)
+    if not target_folder:
+        raise HTTPException(status_code=404, detail="找不到資料夾")
+
+    if target_folder.type == 'file':
+        path = await user_service.get_folder_path_names(username, folder_id)
+        await file_service.delete_physical_folder(username, path)
+
+    success = await user_service.delete_folder(username, folder_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="刪除資料夾失敗")
+    
+    await event_service.notify_user_update(username)
+    return {"status": "success"}
+
+
+@router.post("/user/{username}/move-item")
+async def move_item(
+    username: str, 
+    item_type: str = Form(...), 
+    item_id: str = Form(...), 
+    folder_id: Optional[str] = Form(None), 
+    password: str = Form(...)
+):
+    """Move an item (file, url, or folder) to a folder."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+    if not verify_password(password, user.salt, user.hashed_password):
+        raise HTTPException(status_code=401, detail="密碼錯誤")
+    
+    # Handle physical move for files
+    if item_type == 'file':
+        # Get old path
+        file_metadata = getattr(user, 'file_metadata', {})
+        old_folder_id = file_metadata.get(item_id, {}).get('folder_id')
+        from_path = await user_service.get_folder_path_names(username, old_folder_id)
+        to_path = await user_service.get_folder_path_names(username, folder_id)
+        await file_service.move_file(username, item_id, from_path, to_path)
+    
+    elif item_type == 'folder':
+        # Moving a folder inside another folder
+        folders = getattr(user, 'folders', [])
+        target_folder = next((f for f in folders if f.id == item_id), None)
+        if not target_folder:
+            raise HTTPException(status_code=404, detail="找不到項目資料夾")
+            
+        if target_folder.type == 'file':
+            old_parent_path = await user_service.get_folder_path_names(username, target_folder.parent_id)
+            new_parent_path = await user_service.get_folder_path_names(username, folder_id)
+            
+            # Use file_service to move directory
+            old_dir = file_service._get_folder_path(username, old_parent_path) / target_folder.name
+            new_dir = file_service._get_folder_path(username, new_parent_path) / target_folder.name
+            
+            if old_dir.exists() and old_dir.is_dir():
+                import shutil
+                await run_in_threadpool(shutil.move, str(old_dir), str(new_dir))
+
+    success = await user_service.move_item(username, item_type, item_id, folder_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="移動項目失敗或造成循環引用")
+    
+    await event_service.notify_user_update(username)
+    return {"status": "success"}
 
 
 @router.post("/user/{username}/toggle-lock")
@@ -658,9 +820,7 @@ async def get_user_dashboard(
     # If locked and not authenticated, hide details
     is_locked_account = user.is_locked
     
-    # We load files anyway to calculate usage (which is usually public info? or hide it too?)
-    # Let's verify usage is safe to show? Usually yes. But filenames definitely no.
-    files = await file_service.get_user_files(user.folder, retention_days=user.data_retention_days)
+    files = await file_service.get_user_files(username, retention_days=user.data_retention_days)
     
     locked_files_list = getattr(user, 'locked_files', [])
     
@@ -673,6 +833,12 @@ async def get_user_dashboard(
     total_bytes = sum(f.size_bytes for f in files)
     usage_mb = round(total_bytes / (1024 * 1024), 2)
     
+    # Apply folder mapping for files
+    file_metadata = getattr(user, 'file_metadata', {})
+    for f in files:
+        if f.name in file_metadata:
+            f.folder_id = file_metadata[f.name].get('folder_id')
+
     response_files = files
     response_urls = user.urls
 
@@ -700,6 +866,7 @@ async def get_user_dashboard(
         "usage": usage_mb,
         "files": response_files,
         "urls": response_urls,
+        "folders": getattr(user, 'folders', []),
         "is_authenticated": is_authenticated
     }
 @router.get("/admin/audit-logs")
@@ -732,7 +899,12 @@ async def batch_action(request: Request, username: str, req: BatchActionRequest)
                     locked_files.remove(filename)
                     success_count += 1
             elif req.action == 'delete':
-                if await file_service.delete_file(user.folder, filename):
+                # Resolve physical path for deletion
+                file_metadata = getattr(user, 'file_metadata', {})
+                folder_id = file_metadata.get(filename, {}).get('folder_id')
+                path = await user_service.get_folder_path_names(username, folder_id)
+
+                if await file_service.delete_file(username, filename, path):
                     if filename in locked_files:
                         locked_files.remove(filename)
                     success_count += 1
@@ -801,9 +973,33 @@ async def batch_download(
     if not available_files:
         raise HTTPException(status_code=400, detail="沒有可供下載的檔案或資源已被鎖定")
 
-    # Create zip
+    # Create zip - since files can be in different folders, we need to find their paths
     try:
-        zip_path = await run_in_threadpool(file_service.create_batch_zip, user.folder, available_files)
+        # We need a list of (absolute_path, arcname) for the zip creation
+        file_metadata = getattr(user, 'file_metadata', {})
+        files_to_zip = []
+        for f in available_files:
+            folder_id = file_metadata.get(f, {}).get('folder_id')
+            path_names = await user_service.get_folder_path_names(username, folder_id)
+            folder_path = file_service._get_folder_path(username, path_names)
+            phys_path = folder_path / f
+            if phys_path.exists():
+                files_to_zip.append(phys_path)
+        
+        # Update create_batch_zip call or implementation. 
+        # For simplicity, let's just use the paths directly in a modified version or wrapper.
+        def create_zip_from_paths(paths: List[Path]) -> Path:
+            import zipfile
+            import tempfile
+            temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+            temp_zip_path = Path(temp_zip.name)
+            temp_zip.close()
+            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for p in paths:
+                    zf.write(p, arcname=p.name)
+            return temp_zip_path
+
+        zip_path = await run_in_threadpool(create_zip_from_paths, files_to_zip)
         
         # Log event
         await audit_service.log_event(username, "BATCH_DOWNLOAD", f"Created zip for {len(available_files)} files", ip=get_client_ip(request))

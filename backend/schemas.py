@@ -7,11 +7,20 @@ from typing import List, Optional
 from pydantic import BaseModel, HttpUrl
 
 
+class Folder(BaseModel):
+    """Schema for a folder."""
+    id: str
+    name: str
+    type: str  # 'file' or 'url'
+    parent_id: Optional[str] = None
+
+
 class URLRecord(BaseModel):
     """Schema for a URL record."""
     url: str
     created: datetime
     is_locked: bool = False
+    folder_id: Optional[str] = None
 
 
 class UserBase(BaseModel):
@@ -30,6 +39,8 @@ class UserCreate(UserBase):
     hashed_password: str
     urls: List[URLRecord] = []
     locked_files: List[str] = []
+    folders: List[Folder] = []
+    file_metadata: dict = {}  # filename -> { folder_id, ... }
 
 
 class UserUpdate(BaseModel):
@@ -56,6 +67,7 @@ class FileInfo(BaseModel):
     remaining_minutes: int
     expired: bool
     is_locked: bool = False
+    folder_id: Optional[str] = None
 
 
 class UnlockRequest(BaseModel):

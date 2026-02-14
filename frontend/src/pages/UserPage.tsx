@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import {
   Lock, Unlock,
-  Cpu, Zap, Activity, X, Settings
+  Cpu, Zap, Activity, X, Settings, ChevronRight
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
@@ -13,6 +13,8 @@ import type { FileItem } from '../components/dashboard/FileView';
 import { UrlView } from '../components/dashboard/UrlView';
 import type { UrlItem } from '../components/dashboard/UrlView';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { FolderSidebar } from '../components/dashboard/FolderSidebar';
+import type { Folder } from '../components/dashboard/FolderSidebar';
 
 interface UserPageProps {
   data: {
@@ -20,13 +22,14 @@ interface UserPageProps {
     usage?: number;
     files?: FileItem[];
     urls?: UrlItem[];
+    folders?: Folder[];
     error?: string;
   };
 }
 
 export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [dashboardData, setDashboardData] = useState(data);
-  const [selectedItems, setSelectedItems] = useState<{ type: 'file' | 'url', id: string }[]>([]);
+  const [selectedItems, setSelectedItems] = useState<{ type: 'file' | 'url' | 'folder'; id: string }[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [token, setToken] = useState<string | null>(null);
@@ -39,6 +42,35 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
   const [isPacking, setIsPacking] = useState(false);
   const [activeTab, setActiveTab] = useState<'files' | 'urls'>('files');
+  const [activeFileFolderId, setActiveFileFolderId] = useState<string | null>(null);
+  const [activeUrlFolderId, setActiveUrlFolderId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const filteredFiles = React.useMemo(() => {
+    if (activeFileFolderId === null) return dashboardData.files || [];
+    return (dashboardData.files || []).filter(f => f.folder_id === activeFileFolderId);
+  }, [dashboardData.files, activeFileFolderId]);
+
+  const filteredUrls = React.useMemo(() => {
+    if (activeUrlFolderId === null) return dashboardData.urls || [];
+    return (dashboardData.urls || []).filter(u => u.folder_id === activeUrlFolderId);
+  }, [dashboardData.urls, activeUrlFolderId]);
+
+  const getBreadcrumbs = React.useCallback((folderId: string | null) => {
+    if (!folderId) return [];
+    const crumbs: Folder[] = [];
+    let currentId: string | null = folderId;
+    while (currentId) {
+      const folder = dashboardData.folders?.find(f => f.id === currentId);
+      if (folder) {
+        crumbs.unshift(folder);
+        currentId = folder.parent_id || null;
+      } else {
+        currentId = null;
+      }
+    }
+    return crumbs;
+  }, [dashboardData.folders]);
 
   const refreshDashboard = React.useCallback(async (authToken: string) => {
     try {
@@ -86,7 +118,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     console.log(`[UserPage] WebSocket Status: ${isConnected ? 'Connected' : 'Disconnected'}`);
   }, [isConnected]);
 
-  const toggleSelectItem = (type: 'file' | 'url', id: string) => {
+  const toggleSelectItem = (type: 'file' | 'url' | 'folder', id: string) => {
     setSelectedItems(prev => {
       const exists = prev.find(i => i.type === type && i.id === id);
       if (exists) {
@@ -172,17 +204,37 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         });
       };
 
+      const performFolders = async (ids: string[]) => {
+        if (ids.length === 0) return;
+        // Folders must be deleted one by one for now as batch-action doesn't support folder type
+        // Or we could update backend. For now, concurrent requests.
+        await Promise.all(ids.map(id => 
+          fetch(`/api/user/${dashboardData.user?.username}/folders/${id}/delete`, {
+            method: 'POST',
+            body: new URLSearchParams({ password })
+          })
+        ));
+      };
+
       // Optimistic UI Update for delete
       if (action === 'delete') {
+        const folders = selectedItems.filter(i => i.type === 'folder').map(i => i.id);
+        const folderSet = new Set(folders);
+
         setDashboardData(prev => ({
           ...prev,
           files: prev.files?.filter(f => !files.includes(f.name)),
-          urls: prev.urls?.filter(u => !urls.includes(u.url))
+          urls: prev.urls?.filter(u => !urls.includes(u.url)),
+          folders: prev.folders?.filter(f => !folderSet.has(f.id))
         }));
       }
       setSelectedItems([]);
 
-      await Promise.all([perform('file', files), perform('url', urls)]);
+      await Promise.all([
+        perform('file', files), 
+        perform('url', urls),
+        action === 'delete' ? performFolders(selectedItems.filter(i => i.type === 'folder').map(i => i.id)) : Promise.resolve()
+      ]);
     } catch (err) {
       console.error(err);
       alert("批次操作失敗，正在重新載入資料。");
@@ -367,6 +419,115 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }
   };
 
+  const handleCreateFolder = async (name: string, type: 'file' | 'url', parentId?: string | null) => {
+    if (!isAuthenticated) return;
+    try {
+      const body = new FormData();
+      body.append('name', name);
+      body.append('folder_type', type);
+      body.append('password', password);
+      if (parentId) body.append('parent_id', parentId);
+
+      const res = await fetch(`/api/user/${data.user?.username}/folders`, {
+        method: 'POST',
+        body
+      });
+      if (res.ok) {
+        await refreshDashboard(token || "");
+      } else {
+        alert("建立資料夾失敗");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateFolder = async (id: string, name: string) => {
+    if (!isAuthenticated) return;
+    try {
+      const body = new FormData();
+      body.append('name', name);
+      body.append('password', password);
+
+      const res = await fetch(`/api/user/${data.user?.username}/folders/${id}/update`, {
+        method: 'POST',
+        body
+      });
+      if (res.ok) {
+        await refreshDashboard(token || "");
+      } else {
+        alert("更新資料夾失敗");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    if (!isAuthenticated) return;
+    try {
+      const body = new FormData();
+      body.append('password', password);
+
+      const res = await fetch(`/api/user/${data.user?.username}/folders/${id}/delete`, {
+        method: 'POST',
+        body
+      });
+      if (res.ok) {
+        if (activeFileFolderId === id) setActiveFileFolderId(null);
+        if (activeUrlFolderId === id) setActiveUrlFolderId(null);
+        await refreshDashboard(token || "");
+      } else {
+        alert("刪除資料夾失敗");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMoveItem = async (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    try {
+      const body = new FormData();
+      body.append('item_type', type);
+      body.append('item_id', id);
+      if (folderId) body.append('folder_id', folderId);
+      body.append('password', password);
+
+      const res = await fetch(`/api/user/${data.user?.username}/move-item`, {
+        method: 'POST',
+        body
+      });
+      if (res.ok) {
+        // Optimistic update
+        if (type === 'file') {
+          setDashboardData(prev => ({
+            ...prev,
+            files: prev.files?.map(f => f.name === id ? { ...f, folder_id: folderId } : f)
+          }));
+        } else if (type === 'url') {
+          setDashboardData(prev => ({
+            ...prev,
+            urls: prev.urls?.map(u => u.url === id ? { ...u, folder_id: folderId } : u)
+          }));
+        } else if (type === 'folder') {
+          setDashboardData(prev => ({
+            ...prev,
+            folders: prev.folders?.map(f => f.id === id ? { ...f, parent_id: folderId } : f)
+          }));
+        }
+      } else {
+        alert("移動失敗");
+        await refreshDashboard(token || "");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleUpdateProfile = async (showInList: boolean) => {
     if (!isAuthenticated) return;
     try {
@@ -521,28 +682,38 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         const selectableFiles = dashboardData.files
           ?.filter(f => !f.is_locked || isAuthenticated)
           .map(f => ({ type: 'file' as const, id: f.name })) || [];
+        
+        // Also select folders in current view
+        const currentFolders = dashboardData.folders
+          ?.filter(f => f.parent_id === activeFileFolderId && f.type === 'file')
+          .map(f => ({ type: 'folder' as const, id: f.id })) || [];
 
         setSelectedItems(prev => {
-          // Filter out existing files to avoid duplicates (though we are replacing relevant ones)
-          const others = prev.filter(i => i.type !== 'file');
-          return [...others, ...selectableFiles];
+          // Filter out existing files/folders to avoid duplicates
+          const others = prev.filter(i => i.type !== 'file' && i.type !== 'folder');
+          return [...others, ...selectableFiles, ...currentFolders];
         });
       } else {
         const selectableUrls = dashboardData.urls
           ?.filter(u => !u.is_locked || isAuthenticated)
           .map(u => ({ type: 'url' as const, id: u.url })) || [];
 
+        // Select folders in url view
+        const currentFolders = dashboardData.folders
+            ?.filter(f => f.parent_id === activeUrlFolderId && f.type === 'url')
+            .map(f => ({ type: 'folder' as const, id: f.id })) || [];
+
         setSelectedItems(prev => {
-          const others = prev.filter(i => i.type !== 'url');
-          return [...others, ...selectableUrls];
+          const others = prev.filter(i => i.type !== 'url' && i.type !== 'folder');
+          return [...others, ...selectableUrls, ...currentFolders];
         });
       }
     } else {
-      setSelectedItems(prev => prev.filter(i => i.type !== type));
+      setSelectedItems(prev => prev.filter(i => i.type !== type && i.type !== 'folder'));
     }
   };
 
-  const handleBatchSelect = (items: { type: 'file' | 'url'; id: string }[], action: 'add' | 'remove' | 'set') => {
+  const handleBatchSelect = (items: { type: 'file' | 'url' | 'folder'; id: string }[], action: 'add' | 'remove' | 'set') => {
     setSelectedItems(prev => {
       if (action === 'set') return items;
       if (action === 'add') {
@@ -665,7 +836,39 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       </header>
 
       {/* Main Content Area - Conditional Rendering */}
-      <main className="flex-1 min-h-0 px-2 pb-2 lg:px-6 lg:pb-6 relative z-10 overflow-hidden">
+      <main className="flex-1 min-h-0 px-2 pb-2 lg:px-6 lg:pb-6 relative z-10 overflow-hidden flex gap-4">
+        <div className="relative flex">
+          <AnimatePresence mode="wait">
+            {isSidebarOpen && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 256, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <FolderSidebar
+                  folders={dashboardData.folders || []}
+                  activeFolderId={activeTab === 'files' ? activeFileFolderId : activeUrlFolderId}
+                  activeType={activeTab === 'files' ? 'file' : 'url'}
+                  isAuthenticated={isAuthenticated}
+                  onSelectFolder={(id) => activeTab === 'files' ? setActiveFileFolderId(id) : setActiveUrlFolderId(id)}
+                  onCreateFolder={handleCreateFolder}
+                  onUpdateFolder={handleUpdateFolder}
+                  onDeleteFolder={handleDeleteFolder}
+                  onMoveItem={handleMoveItem}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="absolute -right-3 top-6 z-20 p-1 bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            title={isSidebarOpen ? "隱藏側邊欄" : "顯示側邊欄"}
+          >
+            <ChevronRight className={cn("w-3 h-3 transition-transform", isSidebarOpen ? "rotate-180" : "")} />
+          </button>
+        </div>
         <AnimatePresence mode="wait">
           {activeTab === 'files' ? (
             <motion.div
@@ -673,10 +876,41 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="h-full"
+              className="flex-1 h-full flex flex-col gap-4"
             >
+              {/* Breadcrumbs for Files */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                <button
+                  onClick={() => setActiveFileFolderId(null)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                    activeFileFolderId === null
+                      ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                      : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                  )}
+                >
+                  所有檔案
+                </button>
+                {getBreadcrumbs(activeFileFolderId).map((crumb, idx, arr) => (
+                  <React.Fragment key={crumb.id}>
+                    <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                    <button
+                      onClick={() => setActiveFileFolderId(crumb.id)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                        idx === arr.length - 1
+                          ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 ring-1 ring-cyan-500/20"
+                          : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                      )}
+                    >
+                      {crumb.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+
               <FileView
-                files={dashboardData.files || []}
+                files={filteredFiles}
                 username={dashboardData.user?.username || ''}
                 token={token}
                 selectedItems={selectedItems}
@@ -686,24 +920,68 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 onBatchSelect={handleBatchSelect}
                 onSelectAll={(selectAll) => handleSelectAll('file', selectAll)}
                 onToggleLock={toggleItemLock}
-                onBatchAction={handleBatchAction}
+                onBatchAction={(action, folderId) => {
+                  if (action === 'move') {
+                    selectedItems.filter(i => i.type === 'file').forEach(i => handleMoveItem('file', i.id, folderId || null));
+                    setSelectedItems([]);
+                  } else {
+                    handleBatchAction(action as 'lock' | 'unlock' | 'delete' | 'download');
+                  }
+                }}
                 onPreview={(file) => setPreviewFile(file)}
                 onShare={handleShare}
                 onQrCode={setQrUrl}
                 onDelete={handleDelete}
                 onRename={handleRename}
+                folders={dashboardData.folders || []}
+                activeFolderId={activeFileFolderId}
+                onMoveItem={handleMoveItem}
+                onFolderClick={setActiveFileFolderId}
+                onUpdateFolder={handleUpdateFolder}
+                onDeleteFolder={handleDeleteFolder}
               />
             </motion.div>
           ) : (
             <motion.div
               key="urls"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="h-full"
+              exit={{ opacity: 0, x: 20 }}
+              className="flex-1 h-full flex flex-col gap-4"
             >
+              {/* Breadcrumbs for URLs */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                <button
+                  onClick={() => setActiveUrlFolderId(null)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                    activeUrlFolderId === null
+                      ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
+                      : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                  )}
+                >
+                  所有連結
+                </button>
+                {getBreadcrumbs(activeUrlFolderId).map((crumb, idx, arr) => (
+                  <React.Fragment key={crumb.id}>
+                    <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                    <button
+                      onClick={() => setActiveUrlFolderId(crumb.id)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                        idx === arr.length - 1
+                          ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-1 ring-violet-500/20"
+                          : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                      )}
+                    >
+                      {crumb.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+
               <UrlView
-                urls={dashboardData.urls || []}
+                urls={filteredUrls}
                 selectedItems={selectedItems}
                 isAuthenticated={isAuthenticated}
                 isBatchSyncing={isBatchSyncing}
@@ -711,10 +989,23 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 onBatchSelect={handleBatchSelect}
                 onSelectAll={(selectAll) => handleSelectAll('url', selectAll)}
                 onToggleLock={toggleItemLock}
-                onBatchAction={handleBatchAction}
+                onBatchAction={(action, folderId) => {
+                  if (action === 'move') {
+                    selectedItems.filter(i => i.type === 'url').forEach(i => handleMoveItem('url', i.id, folderId || null));
+                    setSelectedItems([]);
+                  } else {
+                    handleBatchAction(action as 'lock' | 'unlock' | 'delete' | 'download');
+                  }
+                }}
                 onQrCode={setQrUrl}
                 onDelete={handleUrlDelete}
                 onCopy={(url) => { navigator.clipboard?.writeText(url).then(() => alert("已複製！")); }}
+                folders={dashboardData.folders || []}
+                activeFolderId={activeUrlFolderId}
+                onMoveItem={handleMoveItem}
+                onFolderClick={setActiveUrlFolderId}
+                onUpdateFolder={handleUpdateFolder}
+                onDeleteFolder={handleDeleteFolder}
               />
             </motion.div>
           )}

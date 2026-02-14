@@ -64,44 +64,16 @@ export const useSelectionBox = (
     onSelectionChange(selected);
   }, [containerRef, itemSelector, onSelectionChange]);
 
-  const autoScroll = useCallback(() => {
-    if (!isDragging || !containerRef.current) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const { x, y } = lastPointerPos.current;
-    const threshold = 50; // pixels from edge to trigger scroll
-    const maxSpeed = 15;
-    
-    let deltaY = 0;
-    let deltaX = 0;
-
-    if (y < rect.top + threshold) {
-      deltaY = -Math.max(1, Math.min(maxSpeed, (rect.top + threshold - y) / 2));
-    } else if (y > rect.bottom - threshold) {
-      deltaY = Math.max(1, Math.min(maxSpeed, (y - (rect.bottom - threshold)) / 2));
-    }
-
-    if (x < rect.left + threshold) {
-      deltaX = -Math.max(1, Math.min(maxSpeed, (rect.left + threshold - x) / 2));
-    } else if (x > rect.right - threshold) {
-      deltaX = Math.max(1, Math.min(maxSpeed, (x - (rect.right - threshold)) / 2));
-    }
-
-    if (deltaY !== 0 || deltaX !== 0) {
-      containerRef.current.scrollTop += deltaY;
-      containerRef.current.scrollLeft += deltaX;
-      // Re-calculate selection based on new scroll position
-      updateSelection(x, y);
-    }
-
-    scrollRequestRef.current = requestAnimationFrame(autoScroll);
-  }, [isDragging, containerRef, updateSelection]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     
     const target = e.target as HTMLElement;
     if (target.closest('button, a, input, [role="button"]')) return;
+    
+    // If clicking on an item (that is draggable), don't start selection box
+    if (target.closest(itemSelector)) return;
 
     if (!containerRef.current) return;
     
@@ -121,6 +93,9 @@ export const useSelectionBox = (
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('button, a, input, [role="button"]')) return;
+    
+    // If clicking on an item (that is draggable), don't start selection box
+    if (target.closest(itemSelector)) return;
     
     if (!containerRef.current) return;
     
@@ -169,18 +144,51 @@ export const useSelectionBox = (
 
   useEffect(() => {
     if (isDragging) {
-      scrollRequestRef.current = requestAnimationFrame(autoScroll);
+      const scrollLoop = () => {
+        if (!containerRef.current) return;
+
+        const rect = containerRef.current.getBoundingClientRect();
+        const { x, y } = lastPointerPos.current;
+        const threshold = 50;
+        const maxSpeed = 15;
+        
+        let deltaY = 0;
+        let deltaX = 0;
+
+        if (y < rect.top + threshold) {
+          deltaY = -Math.max(1, Math.min(maxSpeed, (rect.top + threshold - y) / 2));
+        } else if (y > rect.bottom - threshold) {
+          deltaY = Math.max(1, Math.min(maxSpeed, (y - (rect.bottom - threshold)) / 2));
+        }
+
+        if (x < rect.left + threshold) {
+          deltaX = -Math.max(1, Math.min(maxSpeed, (rect.left + threshold - x) / 2));
+        } else if (x > rect.right - threshold) {
+          deltaX = Math.max(1, Math.min(maxSpeed, (x - (rect.right - threshold)) / 2));
+        }
+
+        if (deltaY !== 0 || deltaX !== 0) {
+          containerRef.current.scrollTop += deltaY;
+          containerRef.current.scrollLeft += deltaX;
+          updateSelection(x, y);
+        }
+
+        scrollRequestRef.current = requestAnimationFrame(scrollLoop);
+      };
+
+      scrollRequestRef.current = requestAnimationFrame(scrollLoop);
       
       const upHandler = () => handlePointerUp();
       window.addEventListener('pointerup', upHandler);
       window.addEventListener('touchend', upHandler);
+      
       return () => {
         if (scrollRequestRef.current) cancelAnimationFrame(scrollRequestRef.current);
         window.removeEventListener('pointerup', upHandler);
         window.removeEventListener('touchend', upHandler);
       };
     }
-  }, [isDragging, autoScroll, handlePointerUp]);
+  }, [isDragging, containerRef, updateSelection, handlePointerUp]);
 
   return {
     isDragging,

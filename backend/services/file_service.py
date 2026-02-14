@@ -24,24 +24,40 @@ class FileService:
         """
         self.upload_base = upload_base
 
-    def _get_user_folder(self, folder_name: str) -> Path:
-        """Get the absolute path to a user's upload folder.
+    def _get_user_base_folder(self, username: str) -> Path:
+        """Get the absolute path to a user's root upload folder.
 
         Args:
-            folder_name: The user-specific folder name.
+            username: The username.
 
         Returns:
-            The Path object for the folder.
+            The Path object for the base folder.
         """
-        path = self.upload_base / folder_name
+        path = self.upload_base / username
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    async def get_user_files(self, folder_name: str, retention_days: int = None) -> List[FileInfo]:
-        """Fetch all files in a user's folder with metadata.
+    def _get_folder_path(self, username: str, folder_path_names: List[str]) -> Path:
+        """Get the absolute path for a specific subfolder path.
+        
+        Args:
+            username: The username.
+            folder_path_names: List of folder names from root to target.
+            
+        Returns:
+            The absolute Path object.
+        """
+        path = self._get_user_base_folder(username)
+        for name in folder_path_names:
+            path = path / name
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    async def get_user_files(self, username: str, retention_days: int = None) -> List[FileInfo]:
+        """Fetch all files in a user's base folder (recursively) with metadata.
 
         Args:
-            folder_name: The user's folder name.
+            username: The username.
             retention_days: Optional custom retention period. Defaults to config if None.
 
         Returns:
@@ -49,15 +65,16 @@ class FileService:
         """
         if retention_days is None:
             retention_days = settings.logic.file_retention_days
-        folder = self._get_user_folder(folder_name)
+        base_folder = self._get_user_base_folder(username)
         files = []
 
-        # List files in the directory
-        for item in folder.iterdir():
-            if item.is_file():
+        # List files in the directory recursively
+        for root, dirs, filenames in os.walk(base_folder):
+            for filename in filenames:
+                item = Path(root) / filename
                 stat = item.stat()
                 created_time = datetime.fromtimestamp(stat.st_mtime)
-                expiry_time = created_time + timedelta(days=retention_days)
+                
                 if retention_days == 0:
                     remaining_days = -1
                     remaining_hours = 0
@@ -84,38 +101,39 @@ class FileService:
 
         return sorted(files, key=lambda x: x.name)
 
-    async def delete_file(self, folder_name: str, filename: str) -> bool:
+    async def delete_file(self, username: str, filename: str, folder_path_names: List[str] = None) -> bool:
         """Delete a specific file.
 
         Args:
-            folder_name: The user's folder name.
-            filename: The name of the file to delete (will be sanitized).
+            username: The username.
+            filename: The name of the file to delete.
+            folder_path_names: Optional physical subpath.
 
         Returns:
             True if deleted, False if not found.
         """
-        # Security: Prevent path traversal
         filename = os.path.basename(filename)
-        filepath = self._get_user_folder(folder_name) / filename
+        folder = self._get_folder_path(username, folder_path_names or [])
+        filepath = folder / filename
         if filepath.exists() and filepath.is_file():
             await aiofiles.os.remove(filepath)
             return True
         return False
 
-    async def save_file(self, folder_name: str, filename: str, content: bytes) -> str:
+    async def save_file(self, username: str, filename: str, content: bytes, folder_path_names: List[str] = None) -> str:
         """Save a new file, ensuring a unique name.
 
         Args:
-            folder_name: The user's folder.
-            filename: The original filename (will be sanitized).
+            username: The username.
+            filename: The original filename.
             content: The file content in bytes.
+            folder_path_names: Optional physical subpath.
 
         Returns:
             The final unique filename.
         """
-        # Security: Prevent path traversal
         filename = os.path.basename(filename)
-        folder = self._get_user_folder(folder_name)
+        folder = self._get_folder_path(username, folder_path_names or [])
         name, ext = os.path.splitext(filename)
         counter = 1
         unique_name = filename
@@ -127,24 +145,64 @@ class FileService:
         async with aiofiles.open(folder / unique_name, mode='wb') as f:
             await f.write(content)
         
-        # Trigger deduplication in background
         from backend.services.dedup_service import dedup_service
         try:
-            # We await here to ensure it's processed, or could use background task
-            # Awaiting is safer for now to ensure consistency
             await dedup_service.deduplicate(folder / unique_name)
         except Exception as e:
             print(f"Dedup failed: {e}")
             
         return unique_name
 
-    async def rename_file(self, folder_name: str, old_name: str, new_name: str) -> bool:
+    async def move_file(self, username: str, filename: str, from_path: List[str], to_path: List[str]) -> bool:
+        """Physically move a file to another subfolder."""
+        filename = os.path.basename(filename)
+        old_folder = self._get_folder_path(username, from_path)
+        new_folder = self._get_folder_path(username, to_path)
+        
+        if not (old_folder / filename).exists():
+            return False
+            
+        # Ensure name uniqueness in target
+        name, ext = os.path.splitext(filename)
+        target_name = filename
+        counter = 1
+        while (new_folder / target_name).exists():
+            target_name = f"{name}_{counter}{ext}"
+            counter += 1
+            
+        await aiofiles.os.rename(old_folder / filename, new_folder / target_name)
+        return True
+
+    async def rename_physical_folder(self, username: str, path_to: List[str], old_name: str, new_name: str) -> bool:
+        """Rename a physical directory."""
+        base = self._get_folder_path(username, path_to)
+        old_path = base / old_name
+        new_path = base / new_name
+        
+        if old_path.exists() and old_path.is_dir() and not new_path.exists():
+            await aiofiles.os.rename(old_path, new_path)
+            return True
+        return False
+
+    async def delete_physical_folder(self, username: str, path: List[str]) -> bool:
+        """Delete a physical directory recursively."""
+        target_path = self._get_folder_path(username, path)
+        if target_path.exists() and target_path.is_dir():
+            import shutil
+            import asyncio
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, shutil.rmtree, target_path)
+            return True
+        return False
+
+    async def rename_file(self, username: str, old_name: str, new_name: str, folder_path_names: List[str] = None) -> bool:
         """Rename a file.
 
         Args:
-            folder_name: The user's folder.
+            username: The username.
             old_name: Current filename.
             new_name: New filename.
+            folder_path_names: Optional physical subpath.
 
         Returns:
             True if successful, False if file doesn't exist or new name taken.
@@ -153,7 +211,7 @@ class FileService:
         old_name = os.path.basename(old_name)
         new_name = os.path.basename(new_name)
         
-        folder = self._get_user_folder(folder_name)
+        folder = self._get_folder_path(username, folder_path_names or [])
         old_path = folder / old_name
         new_path = folder / new_name
         
@@ -165,20 +223,21 @@ class FileService:
             
         await aiofiles.os.rename(old_path, new_path)
         return True
-    async def import_file(self, source_path: Path, folder_name: str, filename: str) -> Optional[str]:
+    async def import_file(self, source_path: Path, username: str, filename: str, folder_path_names: List[str] = None) -> Optional[str]:
         """Import a file from a local path into the user's folder (move).
 
         Args:
             source_path: Path to the source file (will be moved).
-            folder_name: The user's folder.
+            username: The username.
             filename: The original filename.
+            folder_path_names: Optional physical subpath.
 
         Returns:
             The final unique filename, or None on failure.
         """
         # Security: Prevent path traversal
         filename = os.path.basename(filename)
-        folder = self._get_user_folder(folder_name)
+        folder = self._get_folder_path(username, folder_path_names or [])
         
         if not source_path.exists():
             return None
@@ -210,17 +269,18 @@ class FileService:
             print(f"Failed to import file: {e}")
             return None
 
-    def create_batch_zip(self, folder_name: str, filenames: List[str]) -> Path:
+    def create_batch_zip(self, username: str, filenames: List[str], folder_path_names: List[str] = None) -> Path:
         """Create a temporary zip file containing specified files.
 
         Args:
-            folder_name: The user's folder name.
+            username: The username.
             filenames: List of filenames to include in the zip.
+            folder_path_names: Optional physical subpath.
 
         Returns:
             The Path to the created temporary zip file.
         """
-        user_folder = self._get_user_folder(folder_name)
+        user_folder = self._get_folder_path(username, folder_path_names or [])
         
         # Create a named temporary file that won't be deleted automatically on close
         # because we need to send it in the response
