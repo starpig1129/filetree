@@ -515,6 +515,11 @@ export const FileView: React.FC<FileViewProps> = ({
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                       isLocked && "opacity-75"
                     )}
+                    draggable
+                    onDragStart={(event) => {
+                      const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', id: file.name }));
+                    }}
                   >
                     {!isLocked && (
                       <div className="absolute top-3 left-3 z-30 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -714,6 +719,11 @@ export const FileView: React.FC<FileViewProps> = ({
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                       isLocked && "opacity-75"
                     )}
+                    draggable
+                    onDragStart={(event) => {
+                      const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', id: file.name }));
+                    }}
                   >
                     <div className="flex items-center gap-3 shrink-0">
                       {!isLocked && (
