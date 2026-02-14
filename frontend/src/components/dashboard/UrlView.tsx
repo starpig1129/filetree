@@ -197,7 +197,15 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="shrink-0 mt-0.5">
+                    <div className="flex items-center gap-3 shrink-0 mt-0.5">
+                      {!isLocked && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
+                          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                        >
+                          {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
+                        </button>
+                      )}
                       {isLink ? (
                         <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500">
                           <LinkIcon className="w-4 h-4" />
@@ -231,14 +239,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   {/* Actions */}
                   <div className="absolute right-2 top-2 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/60 backdrop-blur-sm rounded-lg p-1 shadow-sm">
                     {isAuthenticated && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500">
-                          {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-cyan-500" /> : <Square className="w-3.5 h-3.5" />}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }} className={cn("p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md", url.is_locked ? "text-violet-500" : "text-gray-500")}>
-                          {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                        </button>
-                      </>
+                      <button onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }} className={cn("p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md", url.is_locked ? "text-violet-500" : "text-gray-500")}>
+                        {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      </button>
                     )}
                     {!isLocked && (
                       <>
@@ -341,11 +344,11 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   </div>
 
                   {/* Absolute Select Checkbox for Grid mode */}
-                  {isAuthenticated && !isLocked && (
-                    <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {!isLocked && (
+                    <div className="absolute top-3 left-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
-                        className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-md"
+                        className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-md hover:scale-110 transition-transform"
                       >
                         {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
                       </button>
