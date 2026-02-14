@@ -863,10 +863,10 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute -right-3 top-6 z-20 p-1 bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            title={isSidebarOpen ? "隱藏側邊欄" : "顯示側邊欄"}
+            className="absolute -right-3 top-6 z-20 w-6 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group cursor-pointer"
+            title={isSidebarOpen ? "收起側邊欄" : "展開側邊欄"}
           >
-            <ChevronRight className={cn("w-3 h-3 transition-transform", isSidebarOpen ? "rotate-180" : "")} />
+            <ChevronRight className={cn("w-3 h-3 text-gray-400 group-hover:text-cyan-500 transition-transform duration-300", isSidebarOpen ? "rotate-180" : "")} />
           </button>
         </div>
         <AnimatePresence mode="wait">
@@ -879,7 +879,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               className="flex-1 h-full flex flex-col gap-4"
             >
               {/* Breadcrumbs for Files */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
                 <button
                   onClick={() => setActiveFileFolderId(null)}
                   className={cn(
@@ -950,7 +950,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
               className="flex-1 h-full flex flex-col gap-4"
             >
               {/* Breadcrumbs for URLs */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+              <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
                 <button
                   onClick={() => setActiveUrlFolderId(null)}
                   className={cn(

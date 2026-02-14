@@ -269,7 +269,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       <div className="p-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
         <button 
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-200"
+          className="flex items-center gap-2 font-bold text-gray-800 dark:text-gray-200 p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
         >
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           資料夾
