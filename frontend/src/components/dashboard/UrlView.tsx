@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import {
   Zap, FileText, Link as LinkIcon,
   CheckSquare, Square, Lock, Unlock,
-  Copy, QrCode, Trash2, Download
+  Copy, QrCode, Trash2, Download,
+  LayoutGrid, List
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -40,6 +41,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onCopy,
   onSelectAll
 }) => {
+  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('list');
   const selectableUrls = urls?.filter(u => !u.is_locked || isAuthenticated) || [];
   const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
 
@@ -70,7 +72,32 @@ export const UrlView: React.FC<UrlViewProps> = ({
           </span>
         </div>
 
-        {selectedItems.length > 0 && (
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl mr-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                viewMode === 'grid' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              )}
+              title="格狀顯示"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                viewMode === 'list' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              )}
+              title="清單顯示"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+
+          {selectedItems.length > 0 && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -112,102 +139,190 @@ export const UrlView: React.FC<UrlViewProps> = ({
           </motion.div>
         )}
       </div>
+    </div>
 
-      {/* Scrollable URL List */}
+      {/* Scrollable URL Area */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-        <div className="space-y-3 pb-20">
-          {urls?.map((url, idx) => {
-            const isLocked = url.is_locked && !isAuthenticated;
-            const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
-            const isLink = url.url.match(/^(http|https|www)/);
-
-            return (
-              <motion.div
-                key={`${url.url}-${idx}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className={cn(
-                  "group relative p-4 rounded-xl border transition-all duration-300 hover:shadow-md",
-                  isSelected ? "bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-500/30" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10"
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  {/* URL Icon */}
-                  <div className="shrink-0 mt-0.5">
-                    {isLink ? (
-                      <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500">
-                        <LinkIcon className="w-4 h-4" />
-                      </div>
-                    ) : (
-                      <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-500">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    {isLink && !isLocked ? (
-                      <a
-                        href={url.url.startsWith('www') ? `https://${url.url}` : url.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={cn("block text-sm font-medium truncate mb-1 hover:underline text-blue-600 dark:text-blue-400")}
-                      >
-                        {url.url}
-                      </a>
-                    ) : (
-                      <div className={cn("text-sm font-medium break-all line-clamp-2 mb-1 text-gray-700 dark:text-gray-200", isLocked && "blur-sm opacity-50")}>
-                        {url.url}
-                      </div>
-                    )}
-                    <p className="text-[10px] text-gray-400 font-mono">{url.created}</p>
-                  </div>
-                </div>
-
-                {/* Actions - Slide in on hover (Desktop) / Always visible (Mobile) */}
-                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/60 backdrop-blur-sm rounded-lg p-1 shadow-sm">
-                  {isAuthenticated && (
-                    <>
-                      <button onClick={() => onToggleSelect('url', url.url)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500">
-                        {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-cyan-500" /> : <Square className="w-3.5 h-3.5" />}
-                      </button>
-                      <button onClick={() => onToggleLock('url', url.url, !!url.is_locked)} className={cn("p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md", url.is_locked ? "text-violet-500" : "text-gray-500")}>
-                        {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                      </button>
-                    </>
-                  )}
-                  {!isLocked && (
-                    <>
-                      <button onClick={() => onCopy(url.url)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500" title="Copy">
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => onQrCode(url.url)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500" title="QR Code">
-                        <QrCode className="w-3.5 h-3.5" />
-                      </button>
-                      {isAuthenticated && (
-                        <button
-                          onClick={() => onDelete(url.url)}
-                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {/* Always show lock icon if locked and not authenticated */}
-                  {isLocked && !isAuthenticated && (
-                    <Lock className="w-3.5 h-3.5 text-gray-400 m-1.5" />
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-        {(!urls || urls.length === 0) && (
+        {(!urls || urls.length === 0) ? (
           <div className="h-40 flex flex-col items-center justify-center text-gray-400 dark:text-white/20">
             <p className="text-sm font-medium">尚無筆記</p>
+          </div>
+        ) : viewMode === 'list' ? (
+          <div className="space-y-3 pb-20">
+            {urls?.map((url, idx) => {
+              const isLocked = url.is_locked && !isAuthenticated;
+              const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
+              const isLink = url.url.match(/^(http|https|www)/);
+
+              return (
+                <motion.div
+                  key={`${url.url}-${idx}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={cn(
+                    "group relative p-4 rounded-xl border transition-all duration-300 hover:shadow-md cursor-pointer",
+                    isSelected ? "bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-500/30" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="shrink-0 mt-0.5">
+                      {isLink ? (
+                        <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-500">
+                          <LinkIcon className="w-4 h-4" />
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-500">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      {isLink && !isLocked ? (
+                        <a
+                          href={url.url.startsWith('www') ? `https://${url.url}` : url.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={cn("block text-sm font-medium truncate mb-1 hover:underline text-blue-600 dark:text-blue-400")}
+                        >
+                          {url.url}
+                        </a>
+                      ) : (
+                        <div className={cn("text-sm font-medium break-all line-clamp-2 mb-1 text-gray-700 dark:text-gray-200", isLocked && "blur-sm opacity-50")}>
+                          {url.url}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-gray-400 font-mono">{url.created}</p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="absolute right-2 top-2 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/60 backdrop-blur-sm rounded-lg p-1 shadow-sm">
+                    {isAuthenticated && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500">
+                          {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-cyan-500" /> : <Square className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }} className={cn("p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md", url.is_locked ? "text-violet-500" : "text-gray-500")}>
+                          {url.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                        </button>
+                      </>
+                    )}
+                    {!isLocked && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); onCopy(url.url); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500" title="Copy">
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500" title="QR Code">
+                          <QrCode className="w-3.5 h-3.5" />
+                        </button>
+                        {isAuthenticated && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {isLocked && !isAuthenticated && (
+                      <Lock className="w-3.5 h-3.5 text-gray-400 m-1.5" />
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20">
+            {urls?.map((url, idx) => {
+              const isLocked = url.is_locked && !isAuthenticated;
+              const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
+              const isLink = url.url.match(/^(http|https|www)/);
+
+              return (
+                <motion.div
+                  key={`${url.url}-${idx}`}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={cn(
+                    "group relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-pointer min-h-35 flex flex-col justify-between",
+                    isSelected ? "bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-500/30 ring-2 ring-violet-500" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10 shadow-sm"
+                  )}
+                  onClick={() => {
+                    if (isLink && !isLocked) {
+                      window.open(url.url.startsWith('www') ? `https://${url.url}` : url.url, '_blank');
+                    } else if (!isLocked) {
+                      onCopy(url.url);
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={cn(
+                      "p-3 rounded-xl",
+                      isLink ? "bg-blue-500/10 text-blue-500" : "bg-amber-500/10 text-amber-500"
+                    )}>
+                      {isLink ? <LinkIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!isLocked && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
+                            className="p-2 bg-white/90 dark:bg-black/50 rounded-lg hover:text-violet-500 transition-colors shadow-sm"
+                            title="Copy"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
+                            className="p-2 bg-white/90 dark:bg-black/50 rounded-lg hover:text-violet-500 transition-colors shadow-sm"
+                            title="QR Code"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <div className={cn(
+                      "text-base font-bold line-clamp-2 leading-relaxed tracking-tight break-all",
+                      isLink ? "text-blue-600 dark:text-blue-400" : "text-gray-700 dark:text-gray-200",
+                      isLocked && "blur-md opacity-30"
+                    )}>
+                      {url.url}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-[10px] font-mono text-gray-400 font-bold uppercase tracking-widest">{url.created}</p>
+                    {isLocked && (
+                      <div className="p-1.5 bg-black/40 backdrop-blur-md rounded-lg text-white/70">
+                        <Lock className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Absolute Select Checkbox for Grid mode */}
+                  {isAuthenticated && !isLocked && (
+                    <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
+                        className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-md"
+                      >
+                        {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
