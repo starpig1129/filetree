@@ -77,7 +77,19 @@ export const UrlView: React.FC<UrlViewProps> = ({
     if (!data) return;
     
     try {
-      const { type, id } = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      
+      // Handle batch items
+      if (parsed.items && Array.isArray(parsed.items)) {
+        parsed.items.forEach((item: { type: 'file' | 'url' | 'folder', id: string }) => {
+          if (item.type === 'folder' && item.id === targetFolderId) return; // Prevent self-drop
+          onMoveItem(item.type, item.id, targetFolderId);
+        });
+        return;
+      }
+
+      // Handle single item (backward compatibility)
+      const { type, id } = parsed;
       if (type && id) {
         if (type === 'folder' && id === targetFolderId) return;
         onMoveItem(type, id, targetFolderId);
@@ -447,7 +459,16 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     draggable
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'url', id: url.url }));
+                      const isUrlSelected = selectedItems.some(i => i.type === 'url' && i.id === url.url);
+                      const itemsToDrag = isUrlSelected
+                        ? selectedItems.filter(i => i.type === 'url' || i.type === 'folder')
+                        : [{ type: 'url', id: url.url }];
+
+                      e.dataTransfer.setData('application/json', JSON.stringify({ 
+                        items: itemsToDrag,
+                        type: 'url',
+                        id: url.url
+                      }));
                     }}
                   >
                     <div className="shrink-0 pt-1">

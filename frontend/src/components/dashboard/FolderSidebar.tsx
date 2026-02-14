@@ -93,10 +93,22 @@ const FolderTreeItem: React.FC<{
     if (!data) return;
 
     try {
-      const { type, id } = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      
+      // Handle batch items
+      if (parsed.items && Array.isArray(parsed.items)) {
+        parsed.items.forEach((item: { type: 'file' | 'url' | 'folder', id: string }) => {
+          if (item.type === 'folder' && item.id === folder.id) return; // Prevent self-drop
+          onMoveItem(item.type, item.id, folder.id);
+        });
+        setIsExpanded(true);
+        return;
+      }
+
+      // Handle single item (backward compatibility)
+      const { type, id } = parsed;
       if (type && id) {
         if (type === 'folder' && id === folder.id) return; // Prevent self-drop
-        // Basic cycle detection can be done here or relied on backend
         onMoveItem(type, id, folder.id);
         setIsExpanded(true); // Open folder on drop
       }

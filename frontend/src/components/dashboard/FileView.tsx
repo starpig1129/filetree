@@ -138,7 +138,19 @@ export const FileView: React.FC<FileViewProps> = ({
     if (!data) return;
     
     try {
-      const { type, id } = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      
+      // Handle batch items
+      if (parsed.items && Array.isArray(parsed.items)) {
+        parsed.items.forEach((item: { type: 'file' | 'url' | 'folder', id: string }) => {
+          if (item.type === 'folder' && item.id === targetFolderId) return; // Prevent self-drop
+          onMoveItem(item.type, item.id, targetFolderId);
+        });
+        return;
+      }
+
+      // Handle single item (backward compatibility)
+      const { type, id } = parsed;
       if (type && id) {
         if (type === 'folder' && id === targetFolderId) return;
         onMoveItem(type, id, targetFolderId);
@@ -518,7 +530,16 @@ export const FileView: React.FC<FileViewProps> = ({
                     draggable
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', id: file.name }));
+                      const isFileSelected = selectedItems.some(i => i.type === 'file' && i.id === file.name);
+                      const itemsToDrag = isFileSelected 
+                        ? selectedItems.filter(i => i.type === 'file' || i.type === 'folder') 
+                        : [{ type: 'file', id: file.name }];
+                      
+                      e.dataTransfer.setData('application/json', JSON.stringify({ 
+                        items: itemsToDrag,
+                        type: 'file',
+                        id: file.name
+                      }));
                     }}
                   >
                     {!isLocked && (
@@ -722,7 +743,16 @@ export const FileView: React.FC<FileViewProps> = ({
                     draggable
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'file', id: file.name }));
+                      const isFileSelected = selectedItems.some(i => i.type === 'file' && i.id === file.name);
+                      const itemsToDrag = isFileSelected 
+                        ? selectedItems.filter(i => i.type === 'file' || i.type === 'folder') 
+                        : [{ type: 'file', id: file.name }];
+
+                      e.dataTransfer.setData('application/json', JSON.stringify({ 
+                        items: itemsToDrag,
+                        type: 'file',
+                        id: file.name
+                      }));
                     }}
                   >
                     <div className="flex items-center gap-3 shrink-0">
