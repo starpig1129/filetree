@@ -8,6 +8,7 @@ import {
   LayoutGrid, List
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useSelectionBox } from '../../hooks/useSelectionBox';
 
 export interface FileItem {
   name: string;
@@ -27,6 +28,7 @@ interface FileViewProps {
   isAuthenticated: boolean;
   isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url', id: string) => void;
+  onBatchSelect: (items: { type: 'file' | 'url'; id: string }[], action: 'add' | 'remove' | 'set') => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
   onBatchAction: (action: 'delete' | 'lock' | 'unlock' | 'download') => void;
   onPreview: (file: { name: string; size: string; url: string }) => void;
@@ -68,6 +70,7 @@ export const FileView: React.FC<FileViewProps> = ({
   isAuthenticated,
   isBatchSyncing,
   onToggleSelect,
+  onBatchSelect,
   onToggleLock,
   onBatchAction,
   onPreview,
@@ -82,6 +85,16 @@ export const FileView: React.FC<FileViewProps> = ({
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const { selectionBox, handlePointerDown, handlePointerMove, handleTouchStart, handleTouchMove } = useSelectionBox(
+    containerRef,
+    ".file-item",
+    React.useCallback((indices: number[]) => {
+      const selectedFiles = indices.map(idx => ({ type: 'file' as const, id: files[idx].name }));
+      onBatchSelect(selectedFiles, 'set');
+    }, [files, onBatchSelect])
+  );
 
   // Close mobile menu on click outside
   React.useEffect(() => {
@@ -210,7 +223,25 @@ export const FileView: React.FC<FileViewProps> = ({
     </div>
 
       {/* Scrollable File Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+      <div 
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar select-none touch-none relative"
+      >
+        {selectionBox && (
+          <div
+            className="absolute bg-cyan-500/20 border border-cyan-500/50 z-50 pointer-events-none rounded"
+            style={{
+              left: selectionBox.x1,
+              top: selectionBox.y1,
+              width: selectionBox.x2 - selectionBox.x1,
+              height: selectionBox.y2 - selectionBox.y1,
+            }}
+          />
+        )}
         {(!files || files.length === 0) ? (
           <div className="h-64 flex flex-col items-center justify-center text-gray-400 dark:text-white/20">
             <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-4">
@@ -243,7 +274,7 @@ export const FileView: React.FC<FileViewProps> = ({
                       }
                     }}
                     className={cn(
-                      "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-2xl transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1",
+                      "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-2xl transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 file-item",
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                       isLocked && "opacity-75"
                     )}

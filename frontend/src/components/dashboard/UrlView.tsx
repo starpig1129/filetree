@@ -7,6 +7,7 @@ import {
   LayoutGrid, List
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useSelectionBox } from '../../hooks/useSelectionBox';
 
 export interface UrlItem {
   url: string;
@@ -20,6 +21,7 @@ interface UrlViewProps {
   isAuthenticated: boolean;
   isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url', id: string) => void;
+  onBatchSelect: (items: { type: 'file' | 'url'; id: string }[], action: 'add' | 'remove' | 'set') => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
   onBatchAction: (action: 'delete' | 'lock' | 'unlock' | 'download') => void;
   onQrCode: (url: string) => void;
@@ -34,6 +36,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   isAuthenticated,
   isBatchSyncing,
   onToggleSelect,
+  onBatchSelect,
   onToggleLock,
   onBatchAction,
   onQrCode,
@@ -42,6 +45,16 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onSelectAll
 }) => {
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('list');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const { selectionBox, handlePointerDown, handlePointerMove, handleTouchStart, handleTouchMove } = useSelectionBox(
+    containerRef,
+    ".url-item",
+    React.useCallback((indices: number[]) => {
+      const selectedUrls = indices.map(idx => ({ type: 'url' as const, id: urls[idx].url }));
+      onBatchSelect(selectedUrls, 'set');
+    }, [urls, onBatchSelect])
+  );
   const selectableUrls = urls?.filter(u => !u.is_locked || isAuthenticated) || [];
   const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
 
@@ -142,7 +155,25 @@ export const UrlView: React.FC<UrlViewProps> = ({
     </div>
 
       {/* Scrollable URL Area */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+      <div 
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        className="flex-1 overflow-y-auto p-4 custom-scrollbar select-none touch-none relative"
+      >
+        {selectionBox && (
+          <div
+            className="absolute bg-cyan-500/20 border border-cyan-500/50 z-50 pointer-events-none rounded"
+            style={{
+              left: selectionBox.x1,
+              top: selectionBox.y1,
+              width: selectionBox.x2 - selectionBox.x1,
+              height: selectionBox.y2 - selectionBox.y1,
+            }}
+          />
+        )}
         {(!urls || urls.length === 0) ? (
           <div className="h-40 flex flex-col items-center justify-center text-gray-400 dark:text-white/20">
             <p className="text-sm font-medium">尚無筆記</p>
@@ -161,7 +192,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "group relative p-4 rounded-xl border transition-all duration-300 hover:shadow-md cursor-pointer",
+                    "group relative p-4 rounded-xl border transition-all duration-300 hover:shadow-md cursor-pointer url-item",
                     isSelected ? "bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-500/30" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10"
                   )}
                 >
@@ -249,7 +280,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.05 }}
                   className={cn(
-                    "group relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-pointer min-h-35 flex flex-col justify-between",
+                    "group relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-pointer min-h-35 flex flex-col justify-between url-item",
                     isSelected ? "bg-violet-50 dark:bg-violet-900/10 border-violet-200 dark:border-violet-500/30 ring-2 ring-violet-500" : "bg-white/40 dark:bg-white/5 border-transparent hover:bg-white/80 dark:hover:bg-white/10 shadow-sm"
                   )}
                   onClick={() => {

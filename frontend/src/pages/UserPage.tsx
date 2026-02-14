@@ -542,6 +542,20 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }
   };
 
+  const handleBatchSelect = (items: { type: 'file' | 'url'; id: string }[], action: 'add' | 'remove' | 'set') => {
+    setSelectedItems(prev => {
+      if (action === 'set') return items;
+      if (action === 'add') {
+        const newItems = items.filter(item => !prev.some(p => p.type === item.type && p.id === item.id));
+        return [...prev, ...newItems];
+      }
+      if (action === 'remove') {
+        return prev.filter(p => !items.some(item => item.type === p.type && item.id === p.id));
+      }
+      return prev;
+    });
+  };
+
   return (
     <div className="h-full flex flex-col relative text-gray-900 dark:text-gray-100 font-sans selection:bg-cyan-500/30">
 
@@ -669,6 +683,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 isAuthenticated={isAuthenticated}
                 isBatchSyncing={isBatchSyncing}
                 onToggleSelect={toggleSelectItem}
+                onBatchSelect={handleBatchSelect}
                 onSelectAll={(selectAll) => handleSelectAll('file', selectAll)}
                 onToggleLock={toggleItemLock}
                 onBatchAction={handleBatchAction}
@@ -693,6 +708,7 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 isAuthenticated={isAuthenticated}
                 isBatchSyncing={isBatchSyncing}
                 onToggleSelect={toggleSelectItem}
+                onBatchSelect={handleBatchSelect}
                 onSelectAll={(selectAll) => handleSelectAll('url', selectAll)}
                 onToggleLock={toggleItemLock}
                 onBatchAction={handleBatchAction}
