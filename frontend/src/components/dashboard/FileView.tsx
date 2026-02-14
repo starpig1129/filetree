@@ -11,6 +11,7 @@ import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { setDragPreview } from '../../utils/dragUtils';
 import type { Folder } from './FolderSidebar';
+import { CascadingMenu } from '../ui/CascadingMenu';
 
 export interface FileItem {
   name: string;
@@ -209,18 +210,7 @@ export const FileView: React.FC<FileViewProps> = ({
     }
   };
 
-  const renderFolderOptions = (parentId: string | null = null, depth = 0) => {
-    return folders
-      .filter(f => f.type === 'file' && (f.parent_id === parentId || (!parentId && !f.parent_id)))
-      .map(f => (
-        <React.Fragment key={f.id}>
-          <option value={f.id}>
-            {"\u00A0".repeat(depth * 3)}{f.name}
-          </option>
-          {renderFolderOptions(f.id, depth + 1)}
-        </React.Fragment>
-      ));
-  };
+
 
   const renderFolderButtons = (fileId: string, parentId: string | null = null, depth = 0) => {
     return folders
@@ -334,15 +324,10 @@ export const FileView: React.FC<FileViewProps> = ({
                 <Trash2 className="w-4 h-4" />
               </button>
               <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-              <select
-                onChange={(e) => onBatchAction('move', e.target.value === 'root' ? null : e.target.value)}
-                className="text-xs bg-transparent border-none outline-none text-gray-500 dark:text-gray-400 cursor-pointer px-2"
-                defaultValue=""
-              >
-                <option value="" disabled>移動至...</option>
-                <option value="root">根目錄</option>
-                {renderFolderOptions()}
-              </select>
+              <CascadingMenu
+                folders={folders}
+                onSelect={(folderId) => onBatchAction('move', folderId)}
+              />
             </motion.div>
           )}
         </div>
