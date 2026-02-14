@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
+import { setDragPreview } from '../../utils/dragUtils';
 import type { Folder } from './FolderSidebar';
 
 export interface FileItem {
@@ -100,6 +101,7 @@ export const FileView: React.FC<FileViewProps> = ({
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [dragOverFolderId, setDragOverFolderId] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Filter folders for current view
@@ -132,8 +134,19 @@ export const FileView: React.FC<FileViewProps> = ({
     e.dataTransfer.dropEffect = 'move';
   };
 
+  const handleDragEnterFolder = (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    setDragOverFolderId(folderId);
+  };
+
+  const handleDragLeaveFolder = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverFolderId(null);
+  };
+
   const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
     e.preventDefault();
+    setDragOverFolderId(null);
     const data = e.dataTransfer.getData('application/json');
     if (!data) return;
     
@@ -261,13 +274,13 @@ export const FileView: React.FC<FileViewProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl mr-2">
+          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
             <button
               onClick={() => setViewMode('grid')}
               className={cn(
-                "p-1.5 rounded-lg transition-all",
+                "p-2 rounded-lg transition-all",
                 viewMode === 'grid' ? "bg-white dark:bg-white/10 text-cyan-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               )}
             >
@@ -276,13 +289,14 @@ export const FileView: React.FC<FileViewProps> = ({
             <button
               onClick={() => setViewMode('list')}
               className={cn(
-                "p-1.5 rounded-lg transition-all",
+                "p-2 rounded-lg transition-all",
                 viewMode === 'list' ? "bg-white dark:bg-white/10 text-cyan-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               )}
             >
               <List className="w-4 h-4" />
             </button>
           </div>
+
 
           {selectedItems.length > 0 && (
             <motion.div
@@ -377,6 +391,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     animate={{ opacity: 1, scale: 1 }}
                     className={cn(
                       "group relative p-3 rounded-xl border transition-all cursor-pointer folder-card",
+                      folder.id === dragOverFolderId && "ring-2 ring-cyan-500 bg-cyan-100 dark:bg-cyan-900/30 scale-105 z-10",
                       isSelected 
                         ? "bg-cyan-50 dark:bg-cyan-900/10 border-cyan-500 ring-2 ring-cyan-500" 
                         : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5"
@@ -384,19 +399,16 @@ export const FileView: React.FC<FileViewProps> = ({
                     draggable
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                      const itemsToDrag = [{ type: 'folder', id: folder.id }];
+                      
                       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDragPreview(e, itemsToDrag as any);
                     }}
-                    onClick={() => {
-                      // If selecting, toggle selection. Otherwise enter folder
-                      // Actually, click usually enters. Ctrl+click selects?
-                      // For now, let's keep click for entry, but add a checkbox for selection?
-                      // Or if in selection mode?
-                      // Folder cards usually enter on double click or single click?
-                      // Here onFolderClick enters.
-                      // Let's add a selection checkbox.
-                      onFolderClick(folder.id)
-                    }} 
+                    onClick={() => onFolderClick(folder.id)} 
                     onDragOver={handleDragOver}
+                    onDragEnter={(e) => handleDragEnterFolder(e, folder.id)}
+                    onDragLeave={handleDragLeaveFolder}
                     onDrop={(e) => handleDrop(e, folder.id)}
                   >
                     {/* Selection Checkbox */}
@@ -540,6 +552,8 @@ export const FileView: React.FC<FileViewProps> = ({
                         type: 'file',
                         id: file.name
                       }));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDragPreview(e, itemsToDrag as any);
                     }}
                   >
                     {!isLocked && (
@@ -753,6 +767,8 @@ export const FileView: React.FC<FileViewProps> = ({
                         type: 'file',
                         id: file.name
                       }));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDragPreview(e, itemsToDrag as any);
                     }}
                   >
                     <div className="flex items-center gap-3 shrink-0">

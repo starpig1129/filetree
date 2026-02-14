@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
+import { setDragPreview } from '../../utils/dragUtils';
 import type { Folder } from './FolderSidebar';
 
 export interface UrlItem {
@@ -61,6 +62,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Filter folders for current view
@@ -71,8 +73,19 @@ export const UrlView: React.FC<UrlViewProps> = ({
     e.dataTransfer.dropEffect = 'move';
   };
 
+  const handleDragEnterFolder = (e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    setDragOverFolderId(folderId);
+  };
+
+  const handleDragLeaveFolder = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverFolderId(null);
+  };
+
   const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
     e.preventDefault();
+    setDragOverFolderId(null);
     const data = e.dataTransfer.getData('application/json');
     if (!data) return;
     
@@ -204,11 +217,11 @@ export const UrlView: React.FC<UrlViewProps> = ({
         
 
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl mr-2">
+          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
             <button
               onClick={() => setViewMode('grid')}
               className={cn(
-                "p-1.5 rounded-lg transition-all",
+                "p-2 rounded-lg transition-all",
                 viewMode === 'grid' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               )}
             >
@@ -217,7 +230,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
             <button
               onClick={() => setViewMode('list')}
               className={cn(
-                "p-1.5 rounded-lg transition-all",
+                "p-2 rounded-lg transition-all",
                 viewMode === 'list' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               )}
             >
@@ -233,7 +246,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
               placeholder="搜尋..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-1.5 bg-gray-100/50 dark:bg-white/5 border border-transparent focus:border-violet-500/50 rounded-xl outline-none text-sm transition-all w-32 sm:w-48"
+              className="pl-9 pr-4 py-2 bg-gray-100/50 dark:bg-white/5 border border-transparent focus:border-violet-500/50 rounded-xl outline-none text-sm transition-all w-32 sm:w-48"
             />
           </div>
 
@@ -322,6 +335,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     animate={{ opacity: 1, scale: 1 }}
                     className={cn(
                       "group relative p-3 rounded-xl border transition-all cursor-pointer folder-card",
+                      folder.id === dragOverFolderId && "ring-2 ring-violet-500 bg-violet-100 dark:bg-violet-900/30 scale-105 z-10",
                       isSelected 
                         ? "bg-violet-50 dark:bg-violet-900/10 border-violet-500 ring-2 ring-violet-500" 
                         : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-violet-500/50 hover:bg-violet-500/5"
@@ -329,10 +343,16 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     draggable
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                      const itemsToDrag = [{ type: 'folder', id: folder.id }];
+
                       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDragPreview(e, itemsToDrag as any);
                     }}
                     onClick={() => onFolderClick(folder.id)} 
                     onDragOver={handleDragOver}
+                    onDragEnter={(e) => handleDragEnterFolder(e, folder.id)}
+                    onDragLeave={handleDragLeaveFolder}
                     onDrop={(e) => handleDrop(e, folder.id)}
                   >
                     {/* Selection Checkbox */}
@@ -469,6 +489,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         type: 'url',
                         id: url.url
                       }));
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDragPreview(e, itemsToDrag as any);
                     }}
                   >
                     <div className="shrink-0 pt-1">
