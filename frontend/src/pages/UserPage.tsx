@@ -10,7 +10,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
 import { FilePreviewModal } from '../components/FilePreviewModal';
 import { FileView } from '../components/dashboard/FileView';
-import type { FileItem } from '../components/dashboard/FileView';
+import type { FileItemData } from '../components/dashboard/FileItem';
 import { UrlView } from '../components/dashboard/UrlView';
 import type { UrlItem } from '../components/dashboard/UrlView';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -22,7 +22,7 @@ interface UserPageProps {
   data: {
     user?: { username: string; is_locked?: boolean; first_login?: boolean; show_in_list?: boolean };
     usage?: number;
-    files?: FileItem[];
+    files?: FileItemData[];
     urls?: UrlItem[];
     folders?: Folder[];
     error?: string;
@@ -989,6 +989,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onBatchAction={handleBatchAction}
                 isBatchSyncing={isBatchSyncing}
                 viewMode={viewMode}
+                key={viewMode} // Force re-mount on view mode change to ensure Virtuoso updates correctly
                 onViewModeChange={setViewMode}
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
@@ -1089,6 +1090,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onBatchAction={handleBatchAction}
                 isBatchSyncing={isBatchSyncing}
                 viewMode={viewMode}
+                key={viewMode} // Force re-mount on view mode change
                 onViewModeChange={setViewMode}
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
@@ -1364,7 +1366,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setViewMode('grid')}
+                      onClick={() => { console.log('[Settings] Switching to grid, current:', viewMode); setViewMode('grid'); }}
                       className={cn(
                         "p-2 rounded-lg transition-all",
                         viewMode === 'grid'
@@ -1375,7 +1377,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                       <LayoutGrid className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => setViewMode('list')}
+                      onClick={() => { console.log('[Settings] Switching to list, current:', viewMode); setViewMode('list'); }}
                       className={cn(
                         "p-2 rounded-lg transition-all",
                         viewMode === 'list'

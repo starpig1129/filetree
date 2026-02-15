@@ -116,7 +116,7 @@ if not static_path.exists():
 
 # WebSocket endpoint for global events - defined directly on app to bypass router issues
 from fastapi import WebSocket, WebSocketDisconnect
-from backend.routes.api import event_service
+from backend.services.event_service import event_service
 
 @app.websocket("/ws/global")
 async def global_websocket_endpoint(websocket: WebSocket):

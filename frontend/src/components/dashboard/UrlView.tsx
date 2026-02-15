@@ -281,6 +281,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
             </button>
           </div>
 
+
           {selectedItems.length > 0 && onBatchAction && (
              <BatchActionBar
                 selectedCount={selectedItems.length}

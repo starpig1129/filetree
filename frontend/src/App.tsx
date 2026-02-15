@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useLocation, Link } from 'react-router-dom';
 import { Menu, Users } from 'lucide-react';
-import { LandingPage } from './pages/LandingPage';
-import { UserPage } from './pages/UserPage';
-import { AdminPage } from './pages/AdminPage';
-import { HelpPage } from './pages/HelpPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+const LandingPage = React.lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
+const UserPage = React.lazy(() => import('./pages/UserPage').then(module => ({ default: module.UserPage })));
+const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
+const HelpPage = React.lazy(() => import('./pages/HelpPage').then(module => ({ default: module.HelpPage })));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
 import { Starfield } from './components/Starfield';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
@@ -43,17 +43,35 @@ const MainContent: React.FC<{
 
   // Fetch user data when username changes
   useEffect(() => {
-    if (username) {
-      setUserLoading(true);
-      fetch(`/api/user/${username}`)
-        .then((res) => {
-          if (res.ok) return res.json();
-          throw new Error('User not found');
-        })
-        .then((data) => setUserData(data))
-        .catch(() => setUserData({ error: '目錄不存在' }))
-        .finally(() => setUserLoading(false));
-    }
+    if (!username) return;
+    
+    let isMounted = true;
+    
+    // Set loading state only if needed, and wrap in a timeout if necessary to avoid immediate update during render
+    // But better: just set it. The warning might be because we are in an effect triggered by username change,
+    // which might be during a render. But usually this is fine.
+    // Let's try to just fetch.
+    
+    setUserLoading(true);
+    
+    fetch(`/api/user/${username}`)
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('User not found');
+      })
+      .then((data) => {
+        if (isMounted) setUserData(data);
+      })
+      .catch(() => {
+        if (isMounted) setUserData({ error: '目錄不存在' });
+      })
+      .finally(() => {
+        if (isMounted) setUserLoading(false);
+      });
+      
+    return () => {
+      isMounted = false;
+    };
   }, [username]);
 
   if (loading || userLoading) {
@@ -237,25 +255,37 @@ const AppContent: React.FC = () => {
         {/* Only show Starfield in dark mode */}
         {theme === 'dark' && <Starfield />}
 
-        <Routes>
-          {/* Admin page has its own layout */}
-          <Route path="/admin" element={
-            <main className="container mx-auto px-4 py-8 relative z-10">
-              <AdminRoute />
-            </main>
-          } />
+        <React.Suspense fallback={
+           <div className="flex items-center justify-center min-h-screen">
+             <div className="text-quantum-cyan animate-pulse tracking-[0.4em] font-bold text-xs uppercase">
+               LOADING...
+             </div>
+           </div>
+        }>
+          <Routes>
+            {/* Admin page has its own layout */}
+            <Route path="/admin" element={
+              <main className="container mx-auto px-4 py-8 relative z-10">
+                <AdminRoute />
+              </main>
+            } />
 
-          {/* All other routes use the main SPA layout */}
-          <Route path="/:username" element={
-            <MainLayout users={users} config={config} loading={loading} />
-          } />
-          <Route path="/" element={
-            <MainLayout users={users} config={config} loading={loading} />
-          } />
+            {/* All other routes use the main SPA layout */}
+            <Route path="/:username" element={
+              <MainLayout users={users} config={config} loading={loading} />
+            } />
+            <Route path="/" element={
+              <MainLayout users={users} config={config} loading={loading} />
+            } />
+            
+            <Route path="/help" element={
+              <MainContent users={users} config={config} loading={loading} />
+            } />
 
-          {/* Catch-all 404 route */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+            {/* Catch-all 404 route */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </React.Suspense>
 
         <footer className="text-center py-0 lg:py-2 text-gray-400 dark:text-white/20 text-[0.625rem] font-bold tracking-[0.3em] uppercase fixed bottom-2 w-full z-10">
           FileNexus - Secure File Bridge Hub

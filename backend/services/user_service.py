@@ -24,6 +24,7 @@ class UserService:
         """
         self.data_path = data_path
         self._lock = asyncio.Lock()
+        self._users_cache: Optional[List[dict]] = None
 
     @property
     def lock(self):
@@ -31,23 +32,35 @@ class UserService:
         return self._lock
 
     async def _read_users(self) -> List[dict]:
-        """Read users from the JSON file.
+        """Read users from JSON file with in-memory caching.
 
         Returns:
             A list of user dictionaries.
         """
+        # Return cached result if available
+        if self._users_cache is not None:
+            return self._users_cache
+
         if not self.data_path.exists():
+            self._users_cache = []
             return []
+            
         async with aiofiles.open(self.data_path, mode='r', encoding='utf-8') as f:
             content = await f.read()
-            return json.loads(content) if content else []
+            data = json.loads(content) if content else []
+            self._users_cache = data
+            return data
 
     async def _write_users(self, users: List[dict]) -> None:
-        """Write users to the JSON file.
+        """Write users to the JSON file and update cache.
 
         Args:
             users: List of user dictionaries to save.
         """
+        # Update cache immediately
+        # Important: maintain the reference to the new list
+        self._users_cache = users
+
         # Use UUID to prevent filename collisions during concurrent writes
         temp_path = self.data_path.with_suffix(f".{uuid.uuid4()}.tmp")
         try:
@@ -415,6 +428,40 @@ class UserService:
                                 f['parent_id'] = folder_id
                                 await self._write_users(users)
                                 return True
+            return False
+
+    async def add_user_url(self, username: str, url_record: dict) -> bool:
+        """Add a URL record to a user.
+
+        Args:
+            username: The username.
+            url_record: The URL record dictionary.
+
+        Returns:
+            True if successful.
+        """
+        async with self._lock:
+            users = await self._read_users()
+            for i, user in enumerate(users):
+                if user['username'] == username:
+                    if 'urls' not in user:
+                        user['urls'] = []
+                    
+                    # Convert created datetime to string if needed
+                    if 'created' in url_record and not isinstance(url_record['created'], str):
+                         url_record['created'] = url_record['created'].isoformat()
+                         
+                    user['urls'].append(url_record)
+                    # Directly update cache and write
+                    # No need to await _write_users here if we just updated the list in place?
+                    # But _write_users handles cache update and file write.
+                    
+                    # Since we modified the dict in place, cache is technically updated IF it's the same object reference.
+                    # But verifying: self._read_users returns self._users_cache directly.
+                    # So modifying `user` modifies the cache.
+                    # But we need to persist.
+                    await self._write_users(users)
+                    return True
             return False
 
     async def get_folder_path_names(self, username: str, folder_id: Optional[str]) -> List[str]:
