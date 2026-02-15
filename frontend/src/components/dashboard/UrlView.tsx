@@ -502,7 +502,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     className={cn(
                       "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden pb-4",
                       viewMode === 'list' ? "flex-row items-center p-3" : "p-4 space-y-2",
-                      isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10"
+                      isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
+                      url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                     )}
                     draggable={!isSelectionMode}
                     onDragStart={(event) => {
@@ -697,7 +698,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                  { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
                                  { 
                                    label: url.is_locked ? '解除鎖定' : '鎖定項目', 
-                                   icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
+                                   icon: url.is_locked ? <Lock className="w-4 h-4 text-violet-600" /> : <Unlock className="w-4 h-4 text-cyan-600" />, 
                                    onClick: () => onToggleLock('url', url.url, !!url.is_locked),
                                    hidden: !isAuthenticated
                                  },
@@ -753,12 +754,14 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                   onMouseUp={(e) => e.stopPropagation()}
                                   onTouchStart={(e) => e.stopPropagation()}
                                   onTouchEnd={(e) => e.stopPropagation()}
-                                  className={cn(
-                                    "p-2 rounded-lg transition-colors text-gray-400",
-                                    url.is_locked ? "text-violet-500 bg-violet-500/10" : "hover:text-violet-500 hover:bg-violet-500/5"
-                                  )}
-                                >
-                                  {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                   className={cn(
+                                     "p-2 rounded-lg transition-all duration-300",
+                                     url.is_locked 
+                                       ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20 shadow-md" 
+                                       : "text-cyan-600 bg-cyan-600/10 hover:bg-cyan-600/20 shadow-sm"
+                                   )}
+                                 >
+                                   {url.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}

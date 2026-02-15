@@ -820,7 +820,19 @@ export const FileView: React.FC<FileViewProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <h3 className={cn("font-semibold text-sm truncate pr-1 text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
+                          <div className="flex-1 min-w-0">
+                           <div className="flex items-center gap-2">
+                             <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                               {file.name}
+                             </div>
+                             {file.is_locked && (
+                               <Lock className="w-3 h-3 text-violet-500 shrink-0" />
+                             )}
+                           </div>
+                           <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                             {file.size}
+                           </div>
+                         </div>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-bold text-gray-400 dark:text-white/30 uppercase tracking-wider">{file.size} MB</span>
@@ -873,7 +885,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     className={cn(
                       "relative group flex items-center gap-4 p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
-                      isLocked && "opacity-75"
+                      file.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                     )}
                     draggable={!isSelectionMode}
                     onDragStart={(event) => {
@@ -895,12 +907,17 @@ export const FileView: React.FC<FileViewProps> = ({
                     <div className="flex items-center gap-3 shrink-0">
                       {!isLocked && (
                         <div className={cn(
-                            "transition-opacity",
-                            (isSelected || isSelectionMode) 
-                              ? "opacity-100 pointer-events-auto" 
-                              : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
-                        )}>
-                            <button
+                             "transition-opacity relative",
+                             (isSelected || isSelectionMode) 
+                           ? "opacity-100" 
+                           : "opacity-0 group-hover:opacity-100"
+                         )}>
+                           {file.is_locked && (
+                             <div className="absolute -top-1.5 -left-1.5 bg-violet-600 text-white p-1 rounded-lg shadow-xl z-20 ring-2 ring-white dark:ring-black">
+                               <Lock className="w-3.5 h-3.5" />
+                             </div>
+                           )}
+                           <button
                                 onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onMouseUp={(e) => e.stopPropagation()}
@@ -987,12 +1004,14 @@ export const FileView: React.FC<FileViewProps> = ({
                                 onMouseUp={(e) => e.stopPropagation()}
                                 onTouchStart={(e) => e.stopPropagation()}
                                 onTouchEnd={(e) => e.stopPropagation()}
-                                className={cn(
-                                  "p-2 rounded-lg transition-colors",
-                                  file.is_locked ? "text-violet-500 bg-violet-500/10" : "text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5"
-                                )}
-                              >
-                                {file.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                 className={cn(
+                                   "p-2 rounded-lg transition-all duration-300",
+                                   file.is_locked 
+                                     ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20 shadow-md" 
+                                     : "text-cyan-600 bg-cyan-600/10 hover:bg-cyan-600/20 shadow-sm"
+                                 )}
+                               >
+                                 {file.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                               </button>
                             )}
                             <button
@@ -1069,9 +1088,9 @@ export const FileView: React.FC<FileViewProps> = ({
                                   },
                                   { label: '重命名', icon: <Edit3 className="w-4 h-4 text-cyan-500" />, onClick: () => { setRenamingFile(file.name); setNewName(file.name); }, hidden: !onRename || !isAuthenticated },
                                   { 
-                                    label: file.is_locked ? '解除鎖定' : '鎖定項', 
-                                    icon: file.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
-                                    onClick: () => onToggleLock('file', file.name, !!file.is_locked),
+                                    label: file.is_locked ? '解除鎖定' : '鎖定項目', 
+                                   icon: file.is_locked ? <Lock className="w-4 h-4 text-violet-600" /> : <Unlock className="w-4 h-4 text-cyan-600" />, 
+                                   onClick: () => onToggleLock('file', file.name, !!file.is_locked),
                                     hidden: !isAuthenticated
                                   },
                                   { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },

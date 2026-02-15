@@ -969,7 +969,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
                 onSelectAll={(selected) => handleSelectAll('file', selected)}
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}
-                onToggleLock={(id, status) => toggleItemLock('file', id, !!status)}
+                onToggleLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 onRename={handleRename}
                 onDelete={handleDelete}
                 onShare={handleShare}
@@ -1076,7 +1076,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
                 onSelectAll={(selected) => handleSelectAll('url', selected)}
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}
-                onToggleLock={(id, status) => toggleItemLock('url', id, !!status)}
+                onToggleLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 onQrCode={setQrUrl}
                 onDelete={handleUrlDelete}
                 onCopy={(url) => { navigator.clipboard?.writeText(url).then(() => alert("已複製！")); }}
