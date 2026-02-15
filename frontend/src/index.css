@@ -179,6 +179,42 @@
   [data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-gray-300 hover:bg-gray-400;
   }
+
+  /* Touch Target Minimum Size (44x44px for iOS HIG) */
+  .touch-target {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  /* Safe Area Support for iOS */
+  .pb-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .mb-safe {
+    margin-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+
+  /* Responsive Text Sizes using clamp() */
+  .text-responsive-xs {
+    font-size: clamp(0.625rem, 2vw, 0.75rem);
+  }
+
+  .text-responsive-sm {
+    font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+  }
+
+  .text-responsive-base {
+    font-size: clamp(0.875rem, 3vw, 1rem);
+  }
+
+  .text-responsive-lg {
+    font-size: clamp(1rem, 3.5vw, 1.125rem);
+  }
 }
 
 /* Fluid Typography Helper - If not using pure tailwind clamp */

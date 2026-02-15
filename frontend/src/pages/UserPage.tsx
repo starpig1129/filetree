@@ -755,7 +755,7 @@ export const UserPage: React.FC<UserPageProps> = ({
       </div>
 
       {/* Header - Optimized Horizontal Layout for Mobile */}
-      <header className="flex flex-col gap-3 px-2 pt-2 lg:px-6 lg:pt-6 relative z-10 lg:pl-6 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
+      <header className="flex flex-col gap-2 sm:gap-3 px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6 relative z-10 lg:pl-6 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
         
         {/* Row 1: Logo & Global Actions */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
@@ -781,11 +781,11 @@ export const UserPage: React.FC<UserPageProps> = ({
               </span>
             </div>
 
-            {/* Auth/Lock Button - Icon only on very small screens */}
+            {/* Auth/Lock Button - Touch-friendly on mobile */}
             <button
               onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
               className={cn(
-                "p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border",
+                "p-2.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-10 min-h-10",
                 isAuthenticated
                   ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20"
                   : "bg-white/80 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
@@ -795,10 +795,10 @@ export const UserPage: React.FC<UserPageProps> = ({
               <span className="hidden sm:inline">{isAuthenticated ? "UNLOCKED" : "LOCKED"}</span>
             </button>
 
-            {/* Settings */}
+            {/* Settings - Touch-friendly */}
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20"
+              className="p-2.5 sm:p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20 min-w-10 min-h-10 flex items-center justify-center"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -853,7 +853,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 )}
                 <motion.div
                   initial={{ width: 0, opacity: 0, x: -20 }}
-                  animate={{ width: 256, opacity: 1, x: 0 }}
+                  animate={{ width: "auto", opacity: 1, x: 0 }}
                   exit={{ width: 0, opacity: 0, x: -20 }}
                   className={cn(
                     "overflow-hidden bg-white/80 dark:bg-space-deep/90 backdrop-blur-xl border-r border-white/10 h-full",
@@ -893,7 +893,7 @@ export const UserPage: React.FC<UserPageProps> = ({
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="flex-1 h-full flex flex-col gap-4"
+              className="flex-1 min-w-0 h-full flex flex-col gap-4"
             >
               {/* Breadcrumbs for Files */}
               <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
@@ -1000,14 +1000,14 @@ export const UserPage: React.FC<UserPageProps> = ({
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="flex-1 h-full flex flex-col gap-4"
+              className="flex-1 min-w-0 h-full flex flex-col gap-4"
             >
                {/* Breadcrumbs for Urls */}
                <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
                 <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
                   <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
+                    className="p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
                     aria-label="資料夾"
                   >
                     <FolderIcon className="w-4 h-4" />

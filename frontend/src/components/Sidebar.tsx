@@ -27,7 +27,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isLocalhost, setIsLocalhost] = useState(false);
+  const [isLocalhost] = useState(() => {
+    const hostname = window.location.hostname;
+    return hostname === 'localhost' || 
+           hostname === '127.0.0.1' || 
+           hostname.startsWith('192.168.') ||
+           hostname.startsWith('10.') ||
+           hostname.endsWith('.local');
+  });
 
   // Track viewport size for responsive behavior
   useEffect(() => {
@@ -35,17 +42,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
-  }, []);
-
-  // Check if running on localhost (internal network)
-  useEffect(() => {
-    const hostname = window.location.hostname;
-    const isLocal = hostname === 'localhost' || 
-                    hostname === '127.0.0.1' || 
-                    hostname.startsWith('192.168.') ||
-                    hostname.startsWith('10.') ||
-                    hostname.endsWith('.local');
-    setIsLocalhost(isLocal);
   }, []);
 
   const isActive = (path: string) => {
@@ -81,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       <aside
         className={cn(
           "fixed left-0 top-0 h-full w-64 z-45 bg-white/95 dark:bg-space-deep/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/5",
-          "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block lg:backdrop-blur-none",
+          "lg:relative lg:w-48 xl:w-56 lg:bg-transparent lg:border-0 lg:block lg:backdrop-blur-none",
           "flex flex-col py-6 px-4 lg:py-4 lg:px-2 h-full",
           "transition-transform duration-300 ease-in-out",
           // Mobile: slide in/out based on isOpen

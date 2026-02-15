@@ -268,7 +268,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   };
 
   return (
-    <div className="w-64 flex flex-col h-full bg-white/40 dark:bg-white/5 backdrop-blur-xl border-r border-gray-100 dark:border-white/5 transition-all">
+    <div className="w-64 lg:w-48 xl:w-56 flex flex-col h-full bg-white/40 dark:bg-white/5 backdrop-blur-xl border-r border-gray-100 dark:border-white/5 transition-all">
       <div className="p-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
         <button 
           onClick={() => setExpanded(!expanded)}

@@ -300,7 +300,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
+        className="flex-1 min-w-0 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
       >
         {selectionBox && (
           <div
@@ -323,7 +323,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
             <div className={cn(
               "grid gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6" 
+                ? "grid-cols-[repeat(auto-fill,minmax(160px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {
@@ -468,10 +468,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
           </div>
         ) : (!urls || urls.length === 0) ? null : (
           <div className={cn(
-            "grid gap-4 pb-20",
+            "grid pb-20 sm:pb-24",
             viewMode === 'grid' 
-              ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
-              : "grid-cols-1"
+              ? "grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4" 
+              : "grid-cols-1 gap-2"
           )}>
             <AnimatePresence>
               {filteredUrls.map((url, idx) => {
@@ -487,8 +487,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     transition={{ delay: idx * 0.02 }}
                     isSelectionMode={isSelectionMode}
                     className={cn(
-                      "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden pb-4",
-                      viewMode === 'list' ? "flex-row items-center p-3" : "p-4 space-y-2",
+                      "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden",
+                      viewMode === 'list' ? "flex-row items-center p-2 sm:p-3" : "p-3 sm:p-4 space-y-2",
                       isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
                       url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                     )}
@@ -535,7 +535,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       {/* Selection Checkbox - Visible on hover or selection mode */}
                       {!isLocked && (
                         <div className={cn(
-                          "transition-opacity z-20 pointer-events-auto",
+                          "transition-opacity z-30 pointer-events-auto",
                           viewMode === 'grid' && "absolute top-2 left-2",
                           (isSelected || isSelectionMode) 
                             ? "opacity-100" 
@@ -545,7 +545,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
                             onMouseDown={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}
-                            className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm"
+                            className="p-2 sm:p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm min-w-10 min-h-10 flex items-center justify-center"
                           >
                             {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
                           </button>
@@ -554,7 +554,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
 
                       {/* Desktop Grid Hover Overlay */}
                       {!isLocked && viewMode === 'grid' && (
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-center justify-center gap-2 px-4 pointer-events-none">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 pointer-events-none">
                           <button
                             onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -650,7 +650,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                           </div>
                         )}
                         <p className={cn(
-                          "text-sm font-medium transition-all break-all overflow-hidden",
+                          "flex-1 text-sm font-medium transition-all break-all overflow-hidden",
                           viewMode === 'list' ? "truncate pt-1.5" : "line-clamp-2",
                           isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
                         )}>
@@ -660,7 +660,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 dark:text-white/30 tracking-widest uppercase mt-auto">
                         <span>{new Date(url.created).toLocaleDateString()}</span>
                         {viewMode === 'grid' && url.is_locked && (
-                           <Lock className="w-3 h-3 text-violet-500 ml-auto" />
+                           null
                         )}
                       </div>
 
@@ -670,7 +670,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                              <DropdownMenu
                                trigger={
                                  <button
-                                   className="p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500"
+                                   className="p-2 sm:p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500 min-w-10 min-h-10 flex items-center justify-center"
                                    onMouseDown={(e) => e.stopPropagation()}
                                    onMouseUp={(e) => e.stopPropagation()}
                                    onTouchStart={(e) => e.stopPropagation()}
@@ -698,7 +698,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
 
                       {/* List View Actions (Desktop & Mobile) */}
                       {viewMode === 'list' && !isLocked && (
-                        <div className="flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
+                        <div className="shrink-0 flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
                           {/* Desktop List Actions */}
                           <div className="hidden lg:flex items-center gap-1">
                             <button

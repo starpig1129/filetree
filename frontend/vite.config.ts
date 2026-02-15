@@ -24,5 +24,13 @@ export default defineConfig({
     assetsDir: 'assets',
     // Generate manifest.json in outDir
     manifest: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['framer-motion', 'lucide-react'],
+        }
+      }
+    }
   },
 })

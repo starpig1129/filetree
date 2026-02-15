@@ -347,7 +347,7 @@ export const FileView: React.FC<FileViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
+        className="flex-1 min-w-0 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
       >
         {selectionBox && (
           <div
@@ -369,7 +369,7 @@ export const FileView: React.FC<FileViewProps> = ({
             <div className={cn(
               "grid gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6" 
+                ? "grid-cols-[repeat(auto-fill,minmax(160px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {
@@ -513,7 +513,7 @@ export const FileView: React.FC<FileViewProps> = ({
             <p className="text-sm font-medium">尚無檔案</p>
           </div>
         ) : (!files || files.length === 0) ? null : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4 pb-20 sm:pb-24">
             <AnimatePresence>
               {files?.map((file, idx) => {
                 const Icon = getFileIcon(file.name);
@@ -573,30 +573,14 @@ export const FileView: React.FC<FileViewProps> = ({
                       )}>
                         <button
                           onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
-                          className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-sm"
+                          className="p-2 sm:p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-sm min-w-10 min-h-10 flex items-center justify-center"
                         >
                           {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
                         </button>
                       </div>
                     )}
 
-                    <div className="absolute top-3 right-3 z-30">
-                      {isAuthenticated ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onToggleLock('file', file.name, !!file.is_locked); }}
-                          className={cn(
-                            "p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm opacity-100 lg:opacity-0 lg:group-hover:opacity-100",
-                            file.is_locked ? "bg-violet-500/10 text-violet-500 opacity-100" : "bg-white/80 dark:bg-black/50 text-gray-400"
-                          )}
-                        >
-                          {file.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                        </button>
-                      ) : isLocked && (
-                        <div className="p-2 bg-black/40 backdrop-blur-md rounded-full text-white/70">
-                          <Lock className="w-4 h-4" />
-                        </div>
-                      )}
-                    </div>
+
 
                     <div className="relative w-full aspect-4/3 bg-gray-100/50 dark:bg-black/20 flex items-center justify-center overflow-hidden">
                       {isDisplayable ? (
@@ -622,7 +606,7 @@ export const FileView: React.FC<FileViewProps> = ({
                         )} />
                       </div>
                       
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-center justify-center gap-2 p-4 z-20 pointer-events-none">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 z-20 pointer-events-none">
                           <button
                             onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -731,7 +715,7 @@ export const FileView: React.FC<FileViewProps> = ({
                           trigger={
                             <button 
                               className={cn(
-                                "p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500"
+                                "p-2 sm:p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500 min-w-10 min-h-10 flex items-center justify-center"
                               )}
                               onMouseDown={(e) => e.stopPropagation()}
                               onMouseUp={(e) => e.stopPropagation()}
@@ -786,7 +770,7 @@ export const FileView: React.FC<FileViewProps> = ({
                         />
                       </div>
                     )}
-                    <div className="p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
+                    <div className="p-3 sm:p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
                       <div className="mb-2">
                         {renamingFile === file.name ? (
                           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -883,7 +867,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     }}
                     onLongPress={() => onSelectionModeChange(true)}
                     className={cn(
-                      "relative group flex items-center gap-4 p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
+                      "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                       file.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                     )}
@@ -967,8 +951,8 @@ export const FileView: React.FC<FileViewProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <h3 className={cn("font-bold text-sm text-gray-700 dark:text-gray-200 truncate", isLocked && "blur-[3px]")}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h3 className={cn("flex-1 font-bold text-sm text-gray-700 dark:text-gray-200 truncate", isLocked && "blur-[3px]")}>
                             {file.name}
                           </h3>
                           {file.is_locked && (
@@ -992,7 +976,7 @@ export const FileView: React.FC<FileViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pr-2">
+                    <div className="shrink-0 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pr-2">
                        {!isLocked && (
                         <div className="flex items-center gap-1">
                           {/* Desktop Actions */}
