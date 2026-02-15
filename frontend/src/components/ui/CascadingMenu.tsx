@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Folder as FolderIcon, X } from 'lucide-react';
@@ -10,6 +10,7 @@ interface CascadingMenuProps {
   onSelect: (folderId: string | null) => void;
   trigger?: React.ReactNode;
   disabled?: boolean;
+  placement?: 'top' | 'bottom';
 }
 
 interface FolderNode extends Folder {
@@ -54,7 +55,7 @@ const MenuItem: React.FC<{
     
     if (itemRef.current) {
       const rect = itemRef.current.getBoundingClientRect();
-      const submenuWidth = 192; // 48 * 4 (w-48)
+      const submenuWidth = 192; // w-48
       const windowWidth = window.innerWidth;
       
       // Check if there's enough space on the right
@@ -106,7 +107,7 @@ const MenuItem: React.FC<{
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: -5, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="fixed w-48 bg-white/90 dark:bg-space-black/90 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-xl shadow-xl py-1 z-[9999] max-h-64 overflow-y-auto custom-scrollbar"
+            className="fixed w-48 bg-white/95 dark:bg-space-black/95 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-xl shadow-xl py-1 z-[10002] max-h-64 overflow-y-auto custom-scrollbar"
             style={{
               top: position.top,
               left: position.left,
@@ -130,7 +131,7 @@ const MenuItem: React.FC<{
 const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, trigger, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [history, setHistory] = useState<FolderNode[]>([]);
-  const rootNodes = useMemo(() => buildFolderTree(folders.filter(f => f.type === 'file')), [folders]);
+  const rootNodes = useMemo(() => buildFolderTree(folders), [folders]);
 
   const currentFolder = history.length > 0 ? history[history.length - 1] : null;
   const currentNodes = currentFolder ? currentFolder.children : rootNodes;
@@ -146,9 +147,16 @@ const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, 
 
   return (
     <>
-      <div onClick={() => !disabled && setIsOpen(true)}>
+      <div 
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled) setIsOpen(true);
+        }}
+        className="cursor-pointer"
+      >
         {trigger || (
           <button
+            type="button"
             disabled={disabled}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
           >
@@ -158,15 +166,18 @@ const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, 
         )}
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          createPortal(
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
-              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 z-10001 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+              onClick={() => {
+                setIsOpen(false);
+                setHistory([]);
+              }}
             >
               <motion.div
                 initial={{ y: "100%" }}
@@ -192,7 +203,10 @@ const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, 
                     </h3>
                   </div>
                   <button
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                        setIsOpen(false);
+                        setHistory([]);
+                    }}
                     className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
                   >
                     <X className="w-5 h-5" />
@@ -206,22 +220,15 @@ const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, 
                       <button
                         key={node.id}
                         onClick={() => {
-                            if (node.children && node.children.length > 0) {
-                                setHistory(prev => [...prev, node]);
-                            } else {
-                                // Leaf node: Select directly or just enter?
-                                // UX decision: Even empty folder can be entered to "Move Here".
-                                // So we should probably let them enter ANY folder.
-                                setHistory(prev => [...prev, node]);
-                            }
+                          setHistory(prev => [...prev, node]);
                         }}
-                        className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl active:scale-[0.98] transition-all"
+                        className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl active:scale-[0.98] transition-all text-left"
                       >
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-500">
                             <FolderIcon className="w-5 h-5" />
                           </div>
-                          <span className="font-medium text-gray-700 dark:text-gray-200">{node.name}</span>
+                          <span className="font-medium text-gray-700 dark:text-gray-200 truncate">{node.name}</span>
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-400" />
                       </button>
@@ -246,39 +253,33 @@ const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, 
                 </div>
 
               </motion.div>
-            </motion.div>,
-            document.body
-          )
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 };
 
-export const CascadingMenu: React.FC<CascadingMenuProps> = (props) => {
-  const [isDesktop, setIsDesktop] = useState(true);
-
-  useEffect(() => {
-    const checkMedia = () => {
-      setIsDesktop(window.matchMedia('(min-width: 768px)').matches);
-    };
-    
-    checkMedia();
-    window.addEventListener('resize', checkMedia);
-    return () => window.removeEventListener('resize', checkMedia);
-  }, []);
-
-  if (!isDesktop) {
-    return <MobileDrillDownMenu {...props} />;
-  }
-
-  return <DesktopCascadingMenu {...props} />;
-};
-
-const DesktopCascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, trigger, disabled }) => {
+const DesktopCascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, trigger, disabled, placement = 'bottom' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0, right: 0, isRight: false });
   const menuRef = useRef<HTMLDivElement>(null);
-  const rootNodes = buildFolderTree(folders.filter(f => f.type === 'file')); // Ensure we only show relevant folders if needed, but usually passed folders are pre-filtered.
+  const rootNodes = useMemo(() => buildFolderTree(folders), [folders]);
+
+  useLayoutEffect(() => {
+    if (isOpen && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const isRight = rect.left > window.innerWidth / 2;
+      setCoords({
+        top: placement === 'top' ? rect.top : rect.bottom,
+        left: rect.left,
+        right: window.innerWidth - rect.right,
+        isRight
+      });
+    }
+  }, [isOpen, placement]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -302,9 +303,16 @@ const DesktopCascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect,
 
   return (
     <div className="relative" ref={menuRef}>
-      <div onClick={() => !disabled && setIsOpen(!isOpen)}>
+      <div 
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled) setIsOpen(!isOpen);
+        }}
+        className="cursor-pointer"
+      >
         {trigger || (
           <button
+            type="button"
             disabled={disabled}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
           >
@@ -314,18 +322,35 @@ const DesktopCascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect,
         )}
       </div>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 5, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 5, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-56 bg-white/80 dark:bg-space-black/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-xl shadow-2xl py-2 z-50 origin-top-right ring-1 ring-black/5"
-          >
-             <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-1">
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ 
+                opacity: 0, 
+                y: placement === 'top' ? -5 : 5, 
+                scale: 0.95 
+              }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ 
+                opacity: 0, 
+                y: placement === 'top' ? -5 : 5, 
+                scale: 0.95 
+              }}
+              transition={{ duration: 0.15 }}
+              className={cn(
+                  "fixed w-56 bg-white/95 dark:bg-space-black/95 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-xl shadow-2xl py-2 z-10001 ring-1 ring-black/5",
+              )}
+              style={{
+                  top: placement === 'top' ? coords.top - 8 : coords.top + 8,
+                  left: coords.isRight ? 'auto' : coords.left,
+                  right: coords.isRight ? coords.right : 'auto',
+                  transform: placement === 'top' ? 'translateY(-100%)' : 'none'
+              }}
+            >
+              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-1">
                 <button
-                  onClick={() => handleSelect(null)} // Root
+                  onClick={() => handleSelect(null)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-cyan-500 hover:text-white rounded-lg transition-colors text-left"
                 >
                   <FolderIcon className="w-4 h-4" />
@@ -343,10 +368,32 @@ const DesktopCascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect,
                     沒有其他資料夾
                   </div>
                 )}
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
+};
+
+export const CascadingMenu: React.FC<CascadingMenuProps> = (props) => {
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  useEffect(() => {
+    const checkMedia = () => {
+      setIsDesktop(window.matchMedia('(min-width: 768px)').matches);
+    };
+    
+    checkMedia();
+    window.addEventListener('resize', checkMedia);
+    return () => window.removeEventListener('resize', checkMedia);
+  }, []);
+
+  if (!isDesktop) {
+    return <MobileDrillDownMenu {...props} />;
+  }
+
+  return <DesktopCascadingMenu {...props} />;
 };

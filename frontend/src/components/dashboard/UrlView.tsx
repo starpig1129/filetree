@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
+import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview } from '../../utils/dragUtils';
 import { BatchActionBar } from './BatchActionBar';
 import type { Folder } from './FolderSidebar';
@@ -34,9 +35,43 @@ interface UrlViewProps {
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
-  onBatchAction?: (action: any, folderId?: string | null) => void;
+  onBatchAction?: (action: 'lock' | 'unlock' | 'download' | 'delete' | 'move', folderId?: string | null) => void;
   isBatchSyncing?: boolean;
+  viewMode: 'grid' | 'list';
+  onViewModeChange: (mode: 'grid' | 'list') => void;
+  isSelectionMode: boolean;
+  onSelectionModeChange: (active: boolean) => void;
 }
+
+import type { HTMLMotionProps } from 'framer-motion';
+
+interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> {
+  onClick: (e: React.MouseEvent | React.TouchEvent) => void;
+  onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+}
+
+const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean }> = ({ 
+  onClick, onLongPress, isSelectionMode, ...props 
+}) => {
+  const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
+  
+  // In selection mode, bypass useLongPress to ensure immediate click response on mobile
+  const motionProps = props as HTMLMotionProps<"div">;
+  
+  return (
+    <motion.div 
+      {...motionProps} 
+      {...(isSelectionMode ? { onClick } : handlers)}
+    >
+      {props.children}
+    </motion.div>
+  );
+};
 
 export const UrlView: React.FC<UrlViewProps> = ({
   urls,
@@ -56,10 +91,13 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onUpdateFolder,
   onDeleteFolder,
   onBatchAction,
-  isBatchSyncing = false
+  isBatchSyncing = false,
+  viewMode,
+  onViewModeChange,
+  isSelectionMode,
+  onSelectionModeChange
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -156,8 +194,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
     }, [filteredUrls, currentSubfolders, onBatchSelect])
   );
 
-
-
   const renderFolderButtons = (urlId: string, parentId: string | null = null, depth = 0) => {
     return folders
       .filter(f => f.type === 'url' && (f.parent_id === parentId || (!parentId && !f.parent_id)))
@@ -180,12 +216,11 @@ export const UrlView: React.FC<UrlViewProps> = ({
   const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
 
   return (
-    <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
+    <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
 
-      {/* Header */}
-      {/* Header - Reduced padding on mobile */}
-      <div className="shrink-0 px-4 py-3 lg:px-6 lg:py-4 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
+      {/* Header - Hidden on mobile */}
+      <div className="hidden lg:flex shrink-0 px-4 py-3 lg:px-6 lg:py-4 border-b border-gray-100/50 dark:border-white/5 items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button
             onClick={() => onSelectAll(!isAllSelected)}
@@ -204,13 +239,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
           )}
         </div>
 
-
-        
-
           {/* View Mode Toggle */}
           <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => onViewModeChange('grid')}
               className={cn(
                 "p-2 rounded-lg transition-all",
                 viewMode === 'grid' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
@@ -219,7 +251,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => onViewModeChange('list')}
               className={cn(
                 "p-2 rounded-lg transition-all",
                 viewMode === 'list' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
@@ -290,11 +322,12 @@ export const UrlView: React.FC<UrlViewProps> = ({
                 const isSelected = !!selectedItems.find(i => i.type === 'folder' && i.id === folder.id);
 
                 return (
-                  <motion.div
+                  <ItemWrapper
                     key={folder.id}
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    isSelectionMode={isSelectionMode}
                     className={cn(
                       "group relative p-3 rounded-xl border transition-all cursor-pointer folder-card",
                       folder.id === dragOverFolderId && "ring-2 ring-violet-500 bg-violet-100 dark:bg-violet-900/30 scale-105 z-10",
@@ -302,16 +335,23 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         ? "bg-violet-50 dark:bg-violet-900/10 border-violet-500 ring-2 ring-violet-500" 
                         : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-violet-500/50 hover:bg-violet-500/5"
                     )}
-                    draggable
+                    draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      const itemsToDrag = [{ type: 'folder', id: folder.id }];
+                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = [{ type: 'folder', id: folder.id }];
 
                       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
                       e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag as any);
+                      setDragPreview(e, itemsToDrag);
                     }}
-                    onClick={() => onFolderClick(folder.id)} 
+                    onClick={() => {
+                      if (isSelectionMode) {
+                        onToggleSelect('folder', folder.id);
+                      } else {
+                        onFolderClick(folder.id);
+                      }
+                    }} 
+                    onLongPress={() => onSelectionModeChange(true)}
                     onDragOver={handleDragOver}
                     onDragEnter={(e) => handleDragEnterFolder(e, folder.id)}
                     onDragLeave={handleDragLeaveFolder}
@@ -320,7 +360,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     {/* Selection Checkbox */}
                     <div className={cn(
                       "absolute top-1.5 left-1.5 z-30 transition-opacity",
-                      isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      (isSelected || isSelectionMode) 
+                        ? "opacity-100 pointer-events-auto" 
+                        : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
                     )}>
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleSelect('folder', folder.id); }}
@@ -402,7 +444,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         </div>
                       )}
                     </div>
-                  </motion.div>
+                  </ItemWrapper>
                 );
               })}
             </div>
@@ -429,21 +471,22 @@ export const UrlView: React.FC<UrlViewProps> = ({
                 const isLocked = url.is_locked && !isAuthenticated;
 
                 return (
-                  <motion.div
+                  <ItemWrapper
                     key={url.url}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.02 }}
+                    isSelectionMode={isSelectionMode}
                     className={cn(
                       "relative group flex items-start gap-4 p-4 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer",
                       isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10"
                     )}
-                    draggable
+                    draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
                       const isUrlSelected = selectedItems.some(i => i.type === 'url' && i.id === url.url);
-                      const itemsToDrag = isUrlSelected
-                        ? selectedItems.filter(i => i.type === 'url' || i.type === 'folder')
+                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = isUrlSelected
+                        ? selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as { type: 'file' | 'url' | 'folder', id: string }[]
                         : [{ type: 'url', id: url.url }];
 
                       e.dataTransfer.setData('application/json', JSON.stringify({ 
@@ -452,17 +495,34 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         id: url.url
                       }));
                       e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag as any);
+                      setDragPreview(e, itemsToDrag);
                     }}
+                    onClick={() => {
+                      if (isSelectionMode) {
+                        onToggleSelect('url', url.url);
+                        return;
+                      }
+                      if (!isLocked) {
+                        window.open(url.url, '_blank');
+                      }
+                    }}
+                    onLongPress={() => onSelectionModeChange(true)}
                   >
                     <div className="shrink-0 pt-1">
                       {!isLocked && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
-                          className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-                        >
-                          {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
-                        </button>
+                        <div className={cn(
+                          "transition-opacity",
+                          (isSelected || isSelectionMode) 
+                            ? "opacity-100 pointer-events-auto" 
+                            : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
+                        )}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                          >
+                            {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -550,13 +610,26 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         )}
                       </div>
                     )}
-                  </motion.div>
+                  </ItemWrapper>
                 );
               })}
             </AnimatePresence>
           </div>
         )}
       </div>
+
+      {/* Batch Select Controls - Mobile */}
+      {isSelectionMode && (
+         <div className="lg:hidden fixed bottom-20 left-4 right-4 z-60">
+            <BatchActionBar
+                selectedCount={selectedItems.length}
+                isBatchSyncing={isBatchSyncing}
+                onAction={onBatchAction || (() => {})}
+                folders={folders}
+                mode="mobile"
+            />
+         </div>
+      )}
     </section>
   );
 };

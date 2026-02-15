@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import {
   Lock, Unlock,
-  Cpu, Zap, Activity, X, Settings, ChevronRight, Folder as FolderIcon
+  Cpu, Zap, Activity, X, Settings, ChevronRight, Folder as FolderIcon,
+  LayoutGrid, List, CheckSquare, Square
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
@@ -44,6 +45,8 @@ export const UserPage: React.FC<UserPageProps> = ({
   const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
   const [isBatchSyncing, setIsBatchSyncing] = useState(false);
   const [isPacking, setIsPacking] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'files' | 'urls'>('files');
   const [activeFileFolderId, setActiveFileFolderId] = useState<string | null>(null);
   const [activeUrlFolderId, setActiveUrlFolderId] = useState<string | null>(null);
@@ -763,7 +766,7 @@ export const UserPage: React.FC<UserPageProps> = ({
               <div className="p-1.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
                 <div className="text-cyan-600 dark:text-quantum-cyan font-black text-xs">FN</div>
               </div>
-              <h1 className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-none">
+              <h1 className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-30 sm:max-w-none">
                 {dashboardData.user?.username}
               </h1>
             </div>
@@ -893,43 +896,70 @@ export const UserPage: React.FC<UserPageProps> = ({
               className="flex-1 h-full flex flex-col gap-4"
             >
               {/* Breadcrumbs for Files */}
-              <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
-                <button
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
-                  aria-label="資料夾"
-                >
-                  <FolderIcon className="w-4 h-4" />
-                </button>
-                <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden" />
-                <button
-                  onClick={() => setActiveFileFolderId(null)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                    activeFileFolderId === null
-                      ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                      : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                  )}
-                >
-                  所有檔案
-                </button>
-                {getBreadcrumbs(activeFileFolderId).map((crumb, idx, arr) => (
-                  <React.Fragment key={crumb.id}>
-                    <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
-                    <button
-                      onClick={() => setActiveFileFolderId(crumb.id)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
-                        idx === arr.length - 1
-                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                          : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                      )}
+              <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
+                <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
+                  <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
+                    aria-label="資料夾"
+                  >
+                    <FolderIcon className="w-4 h-4" />
+                  </button>
+                  <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden shrink-0" />
+                  <button
+                    onClick={() => setActiveFileFolderId(null)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
+                      activeFileFolderId === null
+                        ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                        : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                    )}
+                  >
+                    所有檔案
+                  </button>
+                  {getBreadcrumbs(activeFileFolderId).map((crumb, idx, arr) => (
+                    <React.Fragment key={crumb.id}>
+                      <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                      <button
+                        onClick={() => setActiveFileFolderId(crumb.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                          idx === arr.length - 1
+                            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                            : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                        )}
+                      >
+                        <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
+                        {crumb.name}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+                
+                <AnimatePresence>
+                  {isSelectionMode && (
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      className="flex items-center gap-1.5 flex-nowrap shrink-0 bg-white/60 dark:bg-white/10 backdrop-blur-md px-2 py-1 rounded-xl border border-white/20 shadow-sm ml-2"
                     >
-                      <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
-                      {crumb.name}
-                    </button>
-                  </React.Fragment>
-                ))}
+                      <button
+                        onClick={() => handleSelectAll('file', selectedItems.filter(i => i.type === 'file').length < filteredFiles.length)}
+                        className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/10 flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-sm"
+                      >
+                        {selectedItems.filter(i => i.type === 'file').length === filteredFiles.length && filteredFiles.length > 0 ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                        <span className="text-[10px] font-bold">全選</span>
+                      </button>
+                      <button
+                        onClick={() => { setIsSelectionMode(false); setSelectedItems([]); }}
+                        className="p-1.5 rounded-lg bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/10 shrink-0 shadow-sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <FileView
@@ -950,7 +980,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onPreview={(file) => setPreviewFile(file)}
                 username={data.user?.username || ""}
                 token={token}
-                folders={dashboardData.folders || []}
+                folders={dashboardData.folders?.filter(f => f.type === 'file') || []}
                 activeFolderId={activeFileFolderId}
                 onMoveItem={handleMoveItem}
                 onFolderClick={setActiveFileFolderId}
@@ -958,6 +988,10 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onDeleteFolder={handleDeleteFolder}
                 onBatchAction={handleBatchAction}
                 isBatchSyncing={isBatchSyncing}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                isSelectionMode={isSelectionMode}
+                onSelectionModeChange={setIsSelectionMode}
               />
             </motion.div>
           ) : (
@@ -969,43 +1003,70 @@ export const UserPage: React.FC<UserPageProps> = ({
               className="flex-1 h-full flex flex-col gap-4"
             >
                {/* Breadcrumbs for Urls */}
-               <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
-                <button
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
-                  aria-label="資料夾"
-                >
-                  <FolderIcon className="w-4 h-4" />
-                </button>
-                <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden" />
-                <button
-                  onClick={() => setActiveUrlFolderId(null)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                    activeUrlFolderId === null
-                      ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                      : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                  )}
-                >
-                  所有連結
-                </button>
-                {getBreadcrumbs(activeUrlFolderId).map((crumb, idx, arr) => (
-                  <React.Fragment key={crumb.id}>
-                    <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
-                    <button
-                      onClick={() => setActiveUrlFolderId(crumb.id)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
-                        idx === arr.length - 1
-                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                          : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                      )}
+               <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
+                <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
+                  <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
+                    aria-label="資料夾"
+                  >
+                    <FolderIcon className="w-4 h-4" />
+                  </button>
+                  <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden shrink-0" />
+                  <button
+                    onClick={() => setActiveUrlFolderId(null)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
+                      activeUrlFolderId === null
+                        ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
+                        : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                    )}
+                  >
+                    所有連結
+                  </button>
+                  {getBreadcrumbs(activeUrlFolderId).map((crumb, idx, arr) => (
+                    <React.Fragment key={crumb.id}>
+                      <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                      <button
+                        onClick={() => setActiveUrlFolderId(crumb.id)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                          idx === arr.length - 1
+                            ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
+                            : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
+                        )}
+                      >
+                        <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
+                        {crumb.name}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+                
+                <AnimatePresence>
+                  {isSelectionMode && (
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.8, opacity: 0 }}
+                      className="flex items-center gap-1.5 flex-nowrap shrink-0 bg-white/60 dark:bg-white/10 backdrop-blur-md px-2 py-1 rounded-xl border border-white/20 shadow-sm ml-2"
                     >
-                      <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
-                      {crumb.name}
-                    </button>
-                  </React.Fragment>
-                ))}
+                      <button
+                        onClick={() => handleSelectAll('url', selectedItems.filter(i => i.type === 'url').length < filteredUrls.length)}
+                        className="p-1.5 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/10 flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-sm"
+                      >
+                        {selectedItems.filter(i => i.type === 'url').length === filteredUrls.length && filteredUrls.length > 0 ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                        <span className="text-[10px] font-bold">全選</span>
+                      </button>
+                      <button
+                        onClick={() => { setIsSelectionMode(false); setSelectedItems([]); }}
+                        className="p-1.5 rounded-lg bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/10 shrink-0 shadow-sm"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <UrlView
@@ -1019,7 +1080,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onQrCode={setQrUrl}
                 onDelete={handleUrlDelete}
                 onCopy={(url) => { navigator.clipboard?.writeText(url).then(() => alert("已複製！")); }}
-                folders={dashboardData.folders || []}
+                folders={dashboardData.folders?.filter(f => f.type === 'url') || []}
                 activeFolderId={activeUrlFolderId}
                 onMoveItem={handleMoveItem}
                 onFolderClick={setActiveUrlFolderId}
@@ -1027,11 +1088,16 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onDeleteFolder={handleDeleteFolder}
                 onBatchAction={handleBatchAction}
                 isBatchSyncing={isBatchSyncing}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                isSelectionMode={isSelectionMode}
+                onSelectionModeChange={setIsSelectionMode}
               />
             </motion.div>
           )}
         </AnimatePresence>
       </main>
+
 
       {/* Packing Overlay */}
       <AnimatePresence>
@@ -1288,6 +1354,57 @@ export const UserPage: React.FC<UserPageProps> = ({
                     </button>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">顯示模式</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      切換列表的呈現方式。
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        viewMode === 'grid'
+                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                          : "bg-gray-100 dark:bg-white/5 text-gray-500"
+                      )}
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        viewMode === 'list'
+                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                          : "bg-gray-100 dark:bg-white/5 text-gray-500"
+                      )}
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">操作</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      批量處理當前頁面內容。
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                        setIsSelectionMode(true);
+                        setShowSettingsModal(false);
+                    }}
+                    className="px-4 py-2 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 transition-colors text-xs"
+                  >
+                    選擇檔案
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -1318,7 +1435,7 @@ export const UserPage: React.FC<UserPageProps> = ({
           selectedCount={selectedItems.length}
           isBatchSyncing={isBatchSyncing}
           onAction={handleBatchAction}
-          folders={dashboardData.folders || []}
+          folders={(dashboardData.folders || []).filter(f => f.type === (activeTab === 'files' ? 'file' : 'url'))}
           allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
           mode="mobile"
         />

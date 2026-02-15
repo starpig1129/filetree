@@ -159,9 +159,9 @@ const MainLayout: React.FC<{
 
         {/* Center Content */}
         <main className={cn(
-          "flex-1 min-w-0 flex flex-col transition-all duration-300",
+          "flex-1 min-w-0 flex flex-col transition-all duration-300 relative",
           location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
-          (isDashboard || location.pathname === '/') ? "overflow-hidden h-full" : "overflow-y-auto h-full"
+          (isDashboard || location.pathname === '/') ? "overflow-hidden" : "overflow-y-auto"
         )}>
           <MainContent 
             users={users} 

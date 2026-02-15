@@ -1,4 +1,4 @@
- import React from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   File, FileText, Image as ImageIcon, Music, Video,
@@ -46,7 +46,7 @@ interface FileViewProps {
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
-  onBatchAction?: (action: any, folderId?: string | null) => void;
+  onBatchAction?: (action: 'lock' | 'unlock' | 'download' | 'delete' | 'move', folderId?: string | null) => void;
   isBatchSyncing?: boolean;
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
@@ -61,6 +61,36 @@ const getFileIcon = (filename: string) => {
   if (['mp3', 'wav', 'ogg'].includes(ext!)) return Music;
   if (['pdf', 'doc', 'docx', 'txt'].includes(ext!)) return FileText;
   return File;
+};
+
+import type { HTMLMotionProps } from 'framer-motion';
+
+interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> {
+  onClick: (e: React.MouseEvent | React.TouchEvent) => void;
+  onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+}
+
+const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean }> = ({ 
+  onClick, onLongPress, isSelectionMode, ...props 
+}) => {
+  const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
+  
+  // In selection mode, bypass useLongPress to ensure immediate click response on mobile
+  const motionProps = props as HTMLMotionProps<"div">;
+  
+  return (
+    <motion.div 
+      {...motionProps} 
+      {...(isSelectionMode ? { onClick } : handlers)}
+    >
+      {props.children}
+    </motion.div>
+  );
 };
 
 const formatSize = (bytes: number) => {
@@ -137,10 +167,6 @@ export const FileView: React.FC<FileViewProps> = ({
       onBatchSelect(selectedItemsList, 'set');
     }, [files, currentSubfolders, onBatchSelect])
   );
-
-  const longPress = useLongPress(() => {
-    onSelectionModeChange(true);
-  }, undefined, { delay: 600 });
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -221,8 +247,6 @@ export const FileView: React.FC<FileViewProps> = ({
       setIsRenaming(false);
     }
   };
-
-
 
   const renderFolderButtons = (fileId: string, parentId: string | null = null, depth = 0) => {
     return folders
@@ -348,11 +372,12 @@ export const FileView: React.FC<FileViewProps> = ({
                 const isSelected = !!selectedItems.find(i => i.type === 'folder' && i.id === folder.id);
                 
                 return (
-                  <motion.div
+                  <ItemWrapper
                     key={folder.id}
                     layout
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
+                    isSelectionMode={isSelectionMode}
                     className={cn(
                       "group relative p-3 rounded-xl border transition-all cursor-pointer folder-card",
                       folder.id === dragOverFolderId && "ring-2 ring-cyan-500 bg-cyan-100 dark:bg-cyan-900/30 scale-105 z-10",
@@ -360,26 +385,34 @@ export const FileView: React.FC<FileViewProps> = ({
                         ? "bg-cyan-50 dark:bg-cyan-900/10 border-cyan-500 ring-2 ring-cyan-500" 
                         : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5"
                     )}
-                    draggable
+                    draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      const itemsToDrag = [{ type: 'folder', id: folder.id }];
+                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = [{ type: 'folder', id: folder.id }];
                       
                       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
                       e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag as any);
+                      setDragPreview(e, itemsToDrag);
                     }}
-                    onClick={() => onFolderClick(folder.id)} 
+                    onClick={() => {
+                      if (isSelectionMode) {
+                        onToggleSelect('folder', folder.id);
+                      } else {
+                        onFolderClick(folder.id);
+                      }
+                    }} 
+                    onLongPress={() => onSelectionModeChange(true)}
                     onDragOver={handleDragOver}
                     onDragEnter={(e) => handleDragEnterFolder(e, folder.id)}
                     onDragLeave={handleDragLeaveFolder}
                     onDrop={(e) => handleDrop(e, folder.id)}
-                    {...longPress}
                   >
                     {/* Selection Checkbox */}
                     <div className={cn(
                       "absolute top-1.5 left-1.5 z-30 transition-opacity",
-                      (isSelected || isSelectionMode) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      (isSelected || isSelectionMode) 
+                        ? "opacity-100 pointer-events-auto" 
+                        : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
                     )}>
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleSelect('folder', folder.id); }}
@@ -461,7 +494,7 @@ export const FileView: React.FC<FileViewProps> = ({
                       </div>
                     )}
                   </div>
-                </motion.div>
+                </ItemWrapper>
                 );
               })}
             </div>
@@ -485,12 +518,17 @@ export const FileView: React.FC<FileViewProps> = ({
                 const isDisplayable = !isLocked && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'mov'].includes(file.name.split('.').pop()?.toLowerCase() || '');
 
                 return (
-                  <motion.div
+                  <ItemWrapper
                     key={file.name}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: idx * 0.03 }}
+                    isSelectionMode={isSelectionMode}
                     onClick={() => {
+                      if (isSelectionMode) {
+                        onToggleSelect('file', file.name);
+                        return;
+                      }
                       if (!isLocked) {
                         onPreview({
                           name: file.name,
@@ -499,17 +537,18 @@ export const FileView: React.FC<FileViewProps> = ({
                         });
                       }
                     }}
+                    onLongPress={() => onSelectionModeChange(true)}
                     className={cn(
                       "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-2xl transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 file-item",
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                       isLocked && "opacity-75"
                     )}
-                    draggable
+                    draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
                       const isFileSelected = selectedItems.some(i => i.type === 'file' && i.id === file.name);
-                      const itemsToDrag = isFileSelected 
-                        ? selectedItems.filter(i => i.type === 'file' || i.type === 'folder') 
+                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = isFileSelected 
+                        ? selectedItems.map(i => ({ type: i.type, id: i.id }))
                         : [{ type: 'file', id: file.name }];
                       
                       e.dataTransfer.setData('application/json', JSON.stringify({ 
@@ -518,14 +557,15 @@ export const FileView: React.FC<FileViewProps> = ({
                         id: file.name
                       }));
                       e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag as any);
+                      setDragPreview(e, itemsToDrag);
                     }}
-                    {...longPress}
                   >
                     {!isLocked && (
                       <div className={cn(
                         "absolute top-3 left-3 z-30 transition-opacity",
-                        (isSelected || isSelectionMode) ? "opacity-100" : "opacity-0 lg:group-hover:opacity-100"
+                        (isSelected || isSelectionMode) 
+                          ? "opacity-100 pointer-events-auto" 
+                          : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
                       )}>
                         <button
                           onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
@@ -699,7 +739,7 @@ export const FileView: React.FC<FileViewProps> = ({
                         )}
                       </div>
                     </div>
-                  </motion.div>
+                  </ItemWrapper>
                 );
               })}
             </AnimatePresence>
@@ -713,17 +753,32 @@ export const FileView: React.FC<FileViewProps> = ({
                 const isLocked = file.is_locked && !isAuthenticated;
 
                 return (
-                  <motion.div
+                  <ItemWrapper
                     key={file.name}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: idx * 0.02 }}
+                    isSelectionMode={isSelectionMode}
+                    onClick={() => {
+                      if (isSelectionMode) {
+                        onToggleSelect('file', file.name);
+                        return;
+                      }
+                      if (!isLocked) {
+                        onPreview({
+                          name: file.name,
+                          size: formatSize(file.size_bytes),
+                          url: `/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+                        });
+                      }
+                    }}
+                    onLongPress={() => onSelectionModeChange(true)}
                     className={cn(
                       "relative group flex items-center gap-4 p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
                       isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
                       isLocked && "opacity-75"
                     )}
-                    draggable
+                    draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
                       const isFileSelected = selectedItems.some(i => i.type === 'file' && i.id === file.name);
@@ -739,13 +794,14 @@ export const FileView: React.FC<FileViewProps> = ({
                       e.dataTransfer.effectAllowed = 'move';
                       setDragPreview(e, itemsToDrag as any);
                     }}
-                    {...longPress}
                   >
                     <div className="flex items-center gap-3 shrink-0">
                       {!isLocked && (
                         <div className={cn(
                             "transition-opacity",
-                            (isSelected || isSelectionMode) ? "opacity-100" : "opacity-0 lg:group-hover:opacity-100"
+                            (isSelected || isSelectionMode) 
+                              ? "opacity-100 pointer-events-auto" 
+                              : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
                         )}>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
@@ -755,38 +811,114 @@ export const FileView: React.FC<FileViewProps> = ({
                             </button>
                         </div>
                       )}
-                      <div className="p-2 bg-gray-100 dark:bg-black/20 rounded-lg">
-                        <Icon className={cn("w-5 h-5", isLocked ? "text-gray-300 dark:text-gray-600 blur-[1px]" : "text-gray-400 dark:text-gray-500")} />
+
+                      <div className={cn(
+                        "p-2 rounded-xl transition-all",
+                        file.expired ? "bg-red-500/10 text-red-500" : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+                      )}>
+                        <Icon className="w-5 h-5" />
                       </div>
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className={cn("font-semibold text-sm truncate text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
-                        {file.is_locked && (
-                          <div className={cn("p-1 rounded-md", isAuthenticated ? "text-violet-500 bg-violet-500/10" : "text-gray-400 bg-black/5 dark:bg-white/5")}>
-                            <Lock className="w-3 h-3" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-white/30 uppercase tracking-wider">{file.size} MB</span>
-                        <div className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1", getLifecycleColor(file))}>
-                          {file.expired ? (
-                            <><AlertCircle className="w-2.5 h-2.5" /> 已過期</>
-                          ) : (
-                            <><Clock className="w-2.5 h-2.5" /> {file.remaining_days} 天</>
+                      {renamingFile === file.name ? (
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            value={newName}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleRename(file.name);
+                              if (e.key === 'Escape') setRenamingFile(null);
+                            }}
+                            className="w-full text-sm p-1.5 rounded-lg border border-cyan-500/50 bg-white dark:bg-black/20 outline-none"
+                          />
+                          <button
+                            onClick={() => handleRename(file.name)}
+                            disabled={isRenaming}
+                            className="p-1.5 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setRenamingFile(null)}
+                            disabled={isRenaming}
+                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <h3 className={cn("font-bold text-sm text-gray-700 dark:text-gray-200 truncate", isLocked && "blur-[3px]")}>
+                            {file.name}
+                          </h3>
+                          {file.is_locked && (
+                            <div className={cn(
+                              "p-1 rounded-md",
+                              isLocked ? "bg-black/40 text-white/70" : "bg-violet-500/10 text-violet-500"
+                            )}>
+                              <Lock className="w-3 h-3" />
+                            </div>
                           )}
                         </div>
+                      )}
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className="text-[10px] font-bold text-gray-400 dark:text-white/20 uppercase tracking-widest leading-none">
+                          {file.size} MB
+                        </span>
+                        <div className="w-1 h-1 rounded-full bg-gray-300 dark:bg-white/10" />
+                        <span className={cn("text-[10px] font-bold uppercase tracking-widest leading-none", getLifecycleColor(file))}>
+                          {file.expired ? '已過期' : file.remaining_days < 0 ? '永久保留' : `剩餘 ${file.remaining_days} 天`}
+                        </span>
                       </div>
                     </div>
-                  </motion.div>
+
+                    <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pr-2">
+                      {isAuthenticated && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onToggleLock('file', file.name, !!file.is_locked); }}
+                          className={cn(
+                            "p-2 rounded-lg transition-colors",
+                            file.is_locked ? "text-violet-500 bg-violet-500/10" : "text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 shadow-sm"
+                          )}
+                        >
+                          <Lock className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {!isLocked && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
+                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors shadow-sm"
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors shadow-sm"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(file.name); }}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors shadow-sm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </ItemWrapper>
                 );
               })}
             </AnimatePresence>
           </div>
         )}
       </div>
+
     </section>
   );
 };

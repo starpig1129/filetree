@@ -2,12 +2,13 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, Unlock, Download, Trash2 } from 'lucide-react';
 import { CascadingMenu } from '../ui/CascadingMenu';
+import { cn } from '../../lib/utils';
 import type { Folder } from '../dashboard/FolderSidebar';
 
 interface BatchActionBarProps {
   selectedCount: number;
   isBatchSyncing: boolean;
-  onAction: (action: any, folderId?: string | null) => void;
+  onAction: (action: 'lock' | 'unlock' | 'download' | 'delete' | 'move', folderId?: string | null) => void;
   folders: Folder[];
   allowedActions?: ('lock' | 'unlock' | 'download' | 'delete' | 'move')[];
   mode?: 'mobile' | 'desktop' | 'both';
@@ -21,7 +22,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
   allowedActions = ['lock', 'unlock', 'download', 'delete', 'move'],
   mode = 'both'
 }) => {
-  const showAction = (action: string) => allowedActions.includes(action as any);
+  const showAction = (action: 'lock' | 'unlock' | 'download' | 'delete' | 'move') => allowedActions.includes(action);
 
   if (selectedCount === 0) return null;
 
@@ -69,6 +70,8 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('move') && (
           <CascadingMenu
             folders={folders}
+            placement="top"
+            disabled={isBatchSyncing}
             onSelect={(folderId) => onAction('move', folderId)}
           />
         )}
@@ -82,7 +85,10 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
-          className="md:hidden fixed bottom-0 left-0 right-0 z-[9999] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-white/20 dark:border-white/10 p-4 flex items-center justify-between pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] touch-none"
+          className={cn(
+            "fixed bottom-0 left-0 right-0 z-9999 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-white/20 dark:border-white/10 p-4 flex items-center justify-between pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)]",
+            mode === 'both' && "md:hidden"
+          )}
         >
           <div className="flex items-center justify-around w-full gap-2">
             {showAction('lock') && (
@@ -124,11 +130,21 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
              <div className="w-px h-8 bg-gray-200 dark:bg-white/10 mx-1" />
             {showAction('move') && (
               <CascadingMenu
+                key="move-menu-mobile"
                 folders={folders}
+                placement="top"
+                disabled={isBatchSyncing}
                 onSelect={(folderId) => onAction('move', folderId)}
                 trigger={
-                   <div className="flex flex-col items-center gap-1 min-w-[3rem]">
-                      <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-full">
+                   <div 
+                    role="button"
+                    tabIndex={0}
+                    className={cn(
+                        "flex flex-col items-center gap-1 min-w-[3rem] text-gray-600 dark:text-gray-400 transition-opacity",
+                        isBatchSyncing ? "opacity-50 cursor-not-allowed" : "opacity-100 cursor-pointer"
+                    )}
+                   >
+                      <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-full hover:bg-gray-200 dark:hover:bg-white/20 active:scale-95 transition-all">
                            <span className="text-xs font-bold">移動</span>
                       </div>
                    </div>
@@ -143,7 +159,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
   );
 };
 
-const ActionButton = ({ icon, onClick, disabled, color }: any) => {
+const ActionButton = ({ icon, onClick, disabled, color }: { icon: React.ReactNode, onClick: () => void, disabled: boolean, color: string }) => {
   const colorClasses: Record<string, string> = {
     violet: "text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10",
     cyan: "text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10",
@@ -162,7 +178,7 @@ const ActionButton = ({ icon, onClick, disabled, color }: any) => {
   );
 };
 
-const MobileActionButton = ({ icon, label, onClick, disabled, color }: any) => (
+const MobileActionButton = ({ icon, label, onClick, disabled, color }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean, color: string }) => (
   <button
     onClick={onClick}
     disabled={disabled}
