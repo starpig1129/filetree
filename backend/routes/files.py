@@ -26,7 +26,11 @@ async def get_files(username: str):
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    return await file_service.get_user_files(user.folder, retention_days=user.data_retention_days)
+    return await file_service.get_user_files(
+        user.folder, 
+        retention_days=user.data_retention_days,
+        folders=[f.dict() for f in getattr(user, 'folders', [])]
+    )
 
 
 @router.post("/upload")

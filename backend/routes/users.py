@@ -33,7 +33,11 @@ async def get_user_dashboard(request: Request, username: str, token: Optional[st
     # If not, same logic.
     # The file_service.get_user_files handles expiration calculation.
     from backend.services.file_service import file_service
-    all_files = await file_service.get_user_files(user.username, user.data_retention_days)
+    all_files = await file_service.get_user_files(
+        user.username, 
+        user.data_retention_days,
+        folders=[f.dict() for f in getattr(user, 'folders', [])]
+    )
     
     # Filter locked files
     visible_files = []

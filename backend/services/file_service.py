@@ -53,12 +53,13 @@ class FileService:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
-    async def get_user_files(self, username: str, retention_days: int = None) -> List[FileInfo]:
+    async def get_user_files(self, username: str, retention_days: int = None, folders: List[dict] = None) -> List[FileInfo]:
         """Fetch all files in a user's base folder (recursively) with metadata.
 
         Args:
             username: The username.
             retention_days: Optional custom retention period. Defaults to config if None.
+            folders: Optional list of user folder dicts to map physical paths to folder IDs.
 
         Returns:
             A list of FileInfo schemas.
@@ -68,8 +69,40 @@ class FileService:
         base_folder = self._get_user_base_folder(username)
         files = []
 
+        # Build path map from folders: tuple(path_parts) -> folder_id
+        # We need to resolve full path for each folder id
+        # folders is list of dicts: {id, name, parent_id, ...}
+        folder_path_map = {}
+        if folders:
+            # First build id -> folder map
+            id_map = {f['id']: f for f in folders}
+            
+            # Helper to resolve path
+            def resolve_path(current_id):
+                path = []
+                curr = current_id
+                depth = 0
+                while curr and depth < 50:
+                    f = id_map.get(curr)
+                    if not f: break
+                    path.insert(0, f['name'])
+                    curr = f.get('parent_id')
+                    depth += 1
+                return tuple(path)
+
+            for f in folders:
+                p = resolve_path(f['id'])
+                if p:
+                    folder_path_map[p] = f['id']
+
         # List files in the directory recursively
         for root, dirs, filenames in os.walk(base_folder):
+            # Determine folder_id for current root
+            rel_path = Path(root).relative_to(base_folder)
+            rel_parts = tuple(rel_path.parts) if str(rel_path) != '.' else ()
+            
+            current_folder_id = folder_path_map.get(rel_parts)
+
             for filename in filenames:
                 item = Path(root) / filename
                 stat = item.stat()
@@ -96,7 +129,9 @@ class FileService:
                     remaining_days=remaining_days,
                     remaining_hours=remaining_hours,
                     remaining_minutes=remaining_minutes,
-                    expired=expired
+
+                    expired=expired,
+                    folder_id=current_folder_id
                 ))
 
         return sorted(files, key=lambda x: x.name)
