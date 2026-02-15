@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Search, Copy, MoreVertical,
-  Folder as FolderIcon, LayoutGrid, List, Edit3, Check, X
+  Folder as FolderIcon, LayoutGrid, List, Edit3, Check, X, FileText, Link as LinkIcon
 } from 'lucide-react';
 import { DropdownMenu } from '../ui/DropdownMenu';
 import { CascadingMenu } from '../ui/CascadingMenu';
@@ -19,6 +19,22 @@ export interface UrlItem {
   is_locked?: boolean;
   folder_id?: string | null;
 }
+
+const isValidUrl = (text: string): boolean => {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (trimmed.includes(' ')) return false;
+
+  // Protocol check
+  if (/^https?:\/\//i.test(trimmed)) return true;
+  
+  // Starts with www.
+  if (/^www\./i.test(trimmed)) return true;
+
+  // Must have a dot that is not at the start or end
+  const dotIndex = trimmed.indexOf('.');
+  return dotIndex > 0 && dotIndex < trimmed.length - 1;
+};
 
 interface UrlViewProps {
   urls: UrlItem[];
@@ -454,6 +470,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
               {filteredUrls.map((url, idx) => {
                 const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
                 const isLocked = url.is_locked && !isAuthenticated;
+                const isActuallyUrl = isValidUrl(url.url);
 
                 return (
                   <ItemWrapper
@@ -470,7 +487,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      const isUrlSelected = selectedItems.some(i => i.type === 'url' && i.id === url.url);
+                      const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
                       const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = isUrlSelected
                         ? selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as { type: 'file' | 'url' | 'folder', id: string }[]
                         : [{ type: 'url', id: url.url }];
@@ -495,6 +512,18 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     onLongPress={() => onSelectionModeChange(true)}
                   >
                      <div className="shrink-0 pt-1 pointer-events-none">
+                      {/* Icon Indicator for Grid View */}
+                      {viewMode === 'grid' && (
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center transition-colors mb-3",
+                          isActuallyUrl 
+                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" 
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        )}>
+                          {isActuallyUrl ? <LinkIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                        </div>
+                      )}
+
                       {/* Selection Checkbox - Visible on hover or selection mode */}
                       {!isLocked && (
                         <div className={cn(
@@ -600,11 +629,21 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       )}
                     </div>
 
-                    <div className={cn("flex-1 min-w-0 flex flex-col justify-center", viewMode === 'grid' && "mt-1")}>
-                      <div className="flex items-center gap-2 mb-1">
+                     <div className={cn("flex-1 min-w-0 flex flex-col justify-center", viewMode === 'grid' && "mt-1")}>
+                      <div className="flex items-start gap-3 mb-1">
+                        {viewMode === 'list' && (
+                          <div className={cn(
+                            "p-2 rounded-lg shrink-0",
+                            isActuallyUrl 
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" 
+                              : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          )}>
+                            {isActuallyUrl ? <LinkIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                          </div>
+                        )}
                         <p className={cn(
                           "text-sm font-medium transition-all break-all overflow-hidden",
-                          viewMode === 'list' ? "truncate" : "line-clamp-2",
+                          viewMode === 'list' ? "truncate pt-1.5" : "line-clamp-2",
                           isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
                         )}>
                           {url.url}
@@ -620,32 +659,32 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       {/* Mobile Top Actions - Grid View Only */}
                       {viewMode === 'grid' && !isLocked && (
                          <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenu
-                              trigger={
-                                <button 
-                                  className="p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500"
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onMouseUp={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                  onTouchEnd={(e) => e.stopPropagation()}
-                                >
-                                  <MoreVertical className="w-4 h-4" />
-                                </button>
-                              }
-                              items={[
-                                { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
-                                { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
-                                { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
-                                { 
-                                  label: url.is_locked ? '解除鎖定' : '鎖定項目', 
-                                  icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
-                                  onClick: () => onToggleLock('url', url.url, !!url.is_locked),
-                                  hidden: !isAuthenticated
-                                },
-                                { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
-                                { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
-                              ]}
-                            />
+                             <DropdownMenu
+                               trigger={
+                                 <button
+                                   className="p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500"
+                                   onMouseDown={(e) => e.stopPropagation()}
+                                   onMouseUp={(e) => e.stopPropagation()}
+                                   onTouchStart={(e) => e.stopPropagation()}
+                                   onTouchEnd={(e) => e.stopPropagation()}
+                                 >
+                                   <MoreVertical className="w-4 h-4" />
+                                 </button>
+                               }
+                               items={[
+                                 { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
+                                 { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
+                                 { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                 { 
+                                   label: url.is_locked ? '解除鎖定' : '鎖定項目', 
+                                   icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
+                                   onClick: () => onToggleLock('url', url.url, !!url.is_locked),
+                                   hidden: !isAuthenticated
+                                 },
+                                 { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                                 { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
+                               ]}
+                             />
                          </div>
                       )}
 

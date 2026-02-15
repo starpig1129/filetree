@@ -438,7 +438,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           <motion.div
             key="drag-overlay"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 pointer-events-none z-[100] bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
+            className="fixed inset-0 pointer-events-none z-100 bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
           >
             <div className="bg-white/90 dark:bg-black/80 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 pointer-events-none">
               <UploadCloud className="w-16 h-16 text-cyan-600 animate-bounce" />
@@ -470,7 +470,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         {/* Mobile: Order 1 (Top). Full Width. 
             Desktop: Order 2. Flex-1.
         */}
-        <div className="order-1 2xl:order-2 w-full max-w-lg 2xl:flex-1 2xl:min-w-[460px] 2xl:max-w-3xl xl:max-w-4xl relative z-20 min-w-0 shrink-0">
+        <div className="order-1 2xl:order-2 w-full max-w-lg 2xl:flex-1 2xl:min-w-115 2xl:max-w-3xl xl:max-w-4xl relative z-20 min-w-0 shrink-0">
            <CoreTransferUnit
               inputText={inputText}
               setInputText={setInputText}
