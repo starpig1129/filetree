@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Search, Copy, MoreVertical,
+  Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Copy, MoreVertical,
   Folder as FolderIcon, LayoutGrid, List, Edit3, Check, X, FileText, Link as LinkIcon
 } from 'lucide-react';
 import { DropdownMenu } from '../ui/DropdownMenu';
@@ -134,7 +134,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
   isSelectionMode,
   onSelectionModeChange
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
@@ -206,8 +205,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
   };
 
   const filteredUrls = useMemo(() => {
-    return urls.filter(u => u.url.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [urls, searchQuery]);
+    return urls;
+  }, [urls]);
 
   const { selectionBox, handlePointerDown, handlePointerMove, handlePointerUp, handleTouchStart, handleTouchMove } = useSelectionBox(
     containerRef,
@@ -259,6 +258,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
           )}
         </div>
 
+        <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
           <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
             <button
@@ -290,19 +290,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                 mode="desktop"
              />
           )}
-
-        <div className="flex items-center gap-4">
-          <div className="relative group/search">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/search:text-violet-500 transition-colors" />
-            <input
-              type="text"
-              placeholder="搜尋..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-gray-100/50 dark:bg-white/5 border border-transparent focus:border-violet-500/50 rounded-xl outline-none text-sm transition-all w-32 sm:w-48"
-            />
-          </div>
-
         </div>
       </div>
 
