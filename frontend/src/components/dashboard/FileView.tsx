@@ -100,8 +100,14 @@ const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; drag
     <motion.div 
       {...motionProps} 
       draggable={draggable}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {...(isSelectionMode ? { onClick } : (filteredHandlers as any))}
+      {...(isSelectionMode 
+        ? { onClick } 
+        : (isDesktop && draggable 
+            ? { ...filteredHandlers, onClick } 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            : (filteredHandlers as any)
+          )
+      )}
     >
       {props.children}
     </motion.div>
