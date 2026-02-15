@@ -11,6 +11,36 @@ import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
 import { FileItem, type FileItemData } from './FileItem';
 import { FolderItem } from './FolderItem';
 
+// Stable Virtuoso List components to prevent remounting on re-render
+const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ style, children, ...props }, ref) => (
+    <div
+      ref={ref}
+      {...props}
+      style={style}
+      className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4 pb-20 sm:pb-24"
+    >
+      {children}
+    </div>
+  )
+);
+GridListContainer.displayName = 'GridListContainer';
+
+
+const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ style, children, ...props }, ref) => (
+    <div
+      ref={ref}
+      {...props}
+      style={style}
+      className="flex flex-col gap-2 pb-20 sm:pb-24"
+    >
+      {children}
+    </div>
+  )
+);
+ListContainer.displayName = 'ListContainer';
+
 interface FileViewProps {
   files: FileItemData[];
   username: string;
@@ -69,14 +99,39 @@ export const FileView: React.FC<FileViewProps> = ({
   onSelectionModeChange
 }) => {
   const [renamingFile, setRenamingFile] = React.useState<string | null>(null);
+  const [newName, setNewName] = React.useState<string>('');
+  const [isRenaming, setIsRenaming] = React.useState(false);
   const [renamingFolderId, setRenamingFolderId] = React.useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const handleRename = async (oldName: string) => {
+    if (!onRename || !newName.trim() || newName === oldName) {
+      setRenamingFile(null);
+      return;
+    }
+    setIsRenaming(true);
+    try {
+      const ok = await onRename(oldName, newName.trim());
+      if (ok) setRenamingFile(null);
+    } finally {
+      setIsRenaming(false);
+    }
+  };
 
   // Filter folders for current view
   const currentSubfolders = useMemo(() => 
     folders.filter(f => f.parent_id === activeFolderId && f.type === 'file'), // 'file' type in Folder structure means general folder
   [folders, activeFolderId]);
+
+  // Stable component references for Virtuoso to prevent remounting
+  const gridComponents = useMemo(() => ({
+    List: GridListContainer,
+  }), []);
+
+  const listComponents = useMemo(() => ({
+    List: ListContainer,
+  }), []);
 
   // Combine folders and files for selection logic if needed, but virtualization handles them separately usually.
   // We'll keep folders separate at top for now, non-virtualized if few, or virtualized if many.
@@ -106,8 +161,6 @@ export const FileView: React.FC<FileViewProps> = ({
 
   const selectableFiles = files?.filter(f => !f.is_locked || isAuthenticated) || [];
   const isAllSelected = selectableFiles.length > 0 && selectableFiles.every(f => selectedItems.some(i => i.type === 'file' && i.id === f.name));
-  
-  const selectedItemsCount = selectedItems.length;
 
   return (
     <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
@@ -253,28 +306,12 @@ export const FileView: React.FC<FileViewProps> = ({
                 data={files}
                 totalCount={files.length}
                 overscan={200}
-                components={{
-                  List: React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => (
-                    <div
-                      ref={ref}
-                      {...props}
-                      style={style}
-                      className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4 pb-20 sm:pb-24"
-                    >
-                      {children}
-                    </div>
-                  )),
-                  Item: ({ children, ...props }) => (
-                     // Wrapper for grid item spacing if needed, but Grid handles it
-                     <div {...props}>{children}</div>
-                  )
-                }}
-                itemContent={(index, file) => {
+                components={gridComponents}
+                itemContent={(_index, file) => {
                    const isSelected = !!selectedItems.find(i => i.type === 'file' && i.id === file.name);
                    return (
                       <FileItem
                         key={file.name}
-                        idx={index}
                         file={file}
                         username={username}
                         token={token}
@@ -295,8 +332,11 @@ export const FileView: React.FC<FileViewProps> = ({
                         onMoveItem={onMoveItem}
                         renamingFile={renamingFile}
                         setRenamingFile={setRenamingFile}
-                        selectedItemsCount={selectedItemsCount}
-
+                        setNewName={setNewName}
+                        newName={newName}
+                        isRenaming={isRenaming}
+                        handleRename={handleRename}
+                        selectedItems={selectedItems}
                       />
                    );
                 }}
@@ -307,24 +347,12 @@ export const FileView: React.FC<FileViewProps> = ({
                 data={files}
                 totalCount={files.length}
                 overscan={200}
-                components={{
-                   List: React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => (
-                    <div
-                      ref={ref}
-                      {...props}
-                      style={style}
-                      className="flex flex-col gap-2 pb-20 sm:pb-24"
-                    >
-                      {children}
-                    </div>
-                  ))
-                }}
-                itemContent={(index, file) => {
+                components={listComponents}
+                itemContent={(_index, file) => {
                    const isSelected = !!selectedItems.find(i => i.type === 'file' && i.id === file.name);
                    return (
                       <FileItem
                         key={file.name}
-                        idx={index}
                         file={file}
                         username={username}
                         token={token}
@@ -345,8 +373,11 @@ export const FileView: React.FC<FileViewProps> = ({
                         onMoveItem={onMoveItem}
                         renamingFile={renamingFile}
                         setRenamingFile={setRenamingFile}
-                        selectedItemsCount={selectedItemsCount}
-
+                        setNewName={setNewName}
+                        newName={newName}
+                        isRenaming={isRenaming}
+                        handleRename={handleRename}
+                        selectedItems={selectedItems}
                       />
                    );
                 }}
