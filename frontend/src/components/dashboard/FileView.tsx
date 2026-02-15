@@ -18,7 +18,7 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
       ref={ref}
       {...props}
       style={style}
-      className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4 pb-20 sm:pb-24"
+      className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3 sm:gap-4 pb-20 sm:pb-24"
     >
       {children}
     </div>
@@ -40,6 +40,21 @@ const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
   )
 );
 ListContainer.displayName = 'ListContainer';
+
+// Custom Scroller to apply project scrollbar styling
+const CustomScroller = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ style, children, ...props }, ref) => (
+    <div
+      ref={ref}
+      {...props}
+      style={style}
+      className="custom-scrollbar"
+    >
+      {children}
+    </div>
+  )
+);
+CustomScroller.displayName = 'CustomScroller';
 
 interface FileViewProps {
   files: FileItemData[];
@@ -127,10 +142,12 @@ export const FileView: React.FC<FileViewProps> = ({
   // Stable component references for Virtuoso to prevent remounting
   const gridComponents = useMemo(() => ({
     List: GridListContainer,
+    Scroller: CustomScroller,
   }), []);
 
   const listComponents = useMemo(() => ({
     List: ListContainer,
+    Scroller: CustomScroller,
   }), []);
 
   // Combine folders and files for selection logic if needed, but virtualization handles them separately usually.
@@ -238,8 +255,7 @@ export const FileView: React.FC<FileViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 min-w-0 h-full p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
-        style={{ overflow: 'hidden' }} // Let Virtuoso handle scroll
+        className="flex-1 min-h-0 min-w-0 flex flex-col p-3 sm:p-6 custom-scrollbar touch-pan-y relative overflow-hidden"
       >
         {selectionBox && (
           <div
@@ -262,7 +278,7 @@ export const FileView: React.FC<FileViewProps> = ({
             <div className={cn(
               "grid gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-[repeat(auto-fill,minmax(160px,1fr))]" 
+                ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {
@@ -299,10 +315,10 @@ export const FileView: React.FC<FileViewProps> = ({
             <p className="text-sm font-medium">尚無檔案</p>
           </div>
         ) : (!files || files.length === 0) ? null : (
-          <div className="h-full">
+          <div className="flex-1 min-h-0 flex flex-col">
             {viewMode === 'grid' ? (
               <VirtuosoGrid
-                style={{ height: '100%' }}
+                style={{ flex: 1, minHeight: 0 }}
                 data={files}
                 totalCount={files.length}
                 overscan={200}
@@ -343,7 +359,7 @@ export const FileView: React.FC<FileViewProps> = ({
               />
             ) : (
                 <Virtuoso
-                style={{ height: '100%' }}
+                style={{ flex: 1, minHeight: 0 }}
                 data={files}
                 totalCount={files.length}
                 overscan={200}
