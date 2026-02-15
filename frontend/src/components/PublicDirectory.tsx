@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, Sparkles, X } from 'lucide-react';
+import { Users, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-interface User {
-  username: string;
-  folder: string;
-}
 
 interface PublicDirectoryProps {
-  users: User[];
+  users: Array<{ username: string; folder: string }>;
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -18,7 +14,7 @@ interface PublicDirectoryProps {
 export const PublicDirectory: React.FC<PublicDirectoryProps> = ({ 
   users, 
   isOpen, 
-  onToggle 
+  onToggle
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,14 +43,6 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
 
   return (
     <>
-      {/* Mobile Toggle Button */}
-      <button
-        onClick={onToggle}
-        className="lg:hidden fixed top-4 right-4 z-50 p-2.5 glass-card text-gray-600 dark:text-white/60 hover:text-neural-violet transition-colors"
-        aria-label={isOpen ? '關閉目錄' : '開啟目錄'}
-      >
-        {isOpen ? <X className="w-5 h-5" /> : <Cpu className="w-5 h-5" />}
-      </button>
 
       {/* Mobile Overlay */}
       <AnimatePresence>
@@ -110,7 +98,7 @@ export const PublicDirectory: React.FC<PublicDirectoryProps> = ({
                     )}
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <Cpu className={cn(
+                      <Users className={cn(
                         "w-4 h-4 shrink-0 transition-colors",
                         isSelected ? "text-cyan-600 dark:text-quantum-cyan" : "text-gray-400 dark:text-quantum-cyan/30 group-hover/item:text-cyan-600 dark:group-hover/item:text-quantum-cyan"
                       )} />

@@ -7,7 +7,8 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -28,6 +29,7 @@ interface FolderSidebarProps {
   onUpdateFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
   onMoveItem: (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => void;
+  onClose?: () => void;
 }
 
 const FolderTreeItem: React.FC<{
@@ -121,7 +123,7 @@ const FolderTreeItem: React.FC<{
     <div className="space-y-1">
       <div 
         className={cn(
-          "group flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium transition-all relative cursor-pointer border border-transparent",
+          "group flex items-center gap-2 px-3 py-2.5 lg:py-1.5 rounded-xl text-sm font-medium transition-all relative cursor-pointer border border-transparent",
           isActive 
             ? "bg-cyan-500/10 text-cyan-700 dark:text-cyan-400" 
             : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5",
@@ -245,7 +247,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   onCreateFolder,
   onUpdateFolder,
   onDeleteFolder,
-  onMoveItem
+  onMoveItem,
+  onClose
 }) => {
   const [isAdding, setIsAdding] = React.useState<{ active: boolean; parentId: string | null }>({
     active: false,
@@ -274,15 +277,25 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           資料夾
         </button>
-        {isAuthenticated && (
-          <button 
-            onClick={() => setIsAdding({ active: true, parentId: null })}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-cyan-600 dark:text-cyan-400 transition-colors"
-            title="新增根資料夾"
-          >
-            <FolderPlus className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {isAuthenticated && (
+            <button 
+              onClick={() => setIsAdding({ active: true, parentId: null })}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-cyan-600 dark:text-cyan-400 transition-colors"
+              title="新增根資料夾"
+            >
+              <FolderPlus className="w-4 h-4" />
+            </button>
+          )}
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="p-1.5 lg:hidden hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">

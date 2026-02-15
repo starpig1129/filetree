@@ -7,8 +7,8 @@ import {
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { setDragPreview } from '../../utils/dragUtils';
+import { BatchActionBar } from './BatchActionBar';
 import type { Folder } from './FolderSidebar';
-import { CascadingMenu } from '../ui/CascadingMenu';
 
 export interface UrlItem {
   url: string;
@@ -21,42 +21,42 @@ interface UrlViewProps {
   urls: UrlItem[];
   selectedItems: { type: 'file' | 'url' | 'folder'; id: string }[];
   isAuthenticated: boolean;
-  isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url' | 'folder', id: string) => void;
+  onSelectAll: (selected: boolean) => void;
   onBatchSelect: (items: { type: 'file' | 'url' | 'folder'; id: string }[], action: 'add' | 'remove' | 'set') => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
-  onBatchAction: (action: 'delete' | 'lock' | 'unlock' | 'move', folderId?: string | null) => void;
   onQrCode: (url: string) => void;
   onDelete: (url: string) => void;
   onCopy: (url: string) => void;
-  onSelectAll: (selectAll: boolean) => void;
   folders: Folder[];
   activeFolderId: string | null;
   onMoveItem: (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => void;
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
+  onBatchAction?: (action: any, folderId?: string | null) => void;
+  isBatchSyncing?: boolean;
 }
 
 export const UrlView: React.FC<UrlViewProps> = ({
   urls,
   selectedItems,
   isAuthenticated,
-  isBatchSyncing,
   onToggleSelect,
+  onSelectAll,
   onBatchSelect,
   onToggleLock,
-  onBatchAction,
   onQrCode,
   onDelete,
   onCopy,
-  onSelectAll,
   folders,
   activeFolderId,
   onMoveItem,
   onFolderClick,
   onUpdateFolder,
-  onDeleteFolder
+  onDeleteFolder,
+  onBatchAction,
+  isBatchSyncing = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -184,7 +184,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
 
       {/* Header */}
-      <div className="shrink-0 px-6 py-4 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
+      {/* Header - Reduced padding on mobile */}
+      <div className="shrink-0 px-4 py-3 lg:px-6 lg:py-4 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button
             onClick={() => onSelectAll(!isAllSelected)}
@@ -192,7 +193,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
           >
             {isAllSelected ? <CheckSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" /> : <Square className="w-5 h-5 text-gray-400" />}
           </button>
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white/90 tracking-tight">筆記 / 連結</h2>
+          <h2 className="text-base lg:text-lg font-bold text-gray-800 dark:text-white/90 tracking-tight">筆記 / 連結</h2>
           <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-xs font-bold text-gray-500 dark:text-white/40">
             {urls?.length || 0}
           </span>
@@ -228,6 +229,16 @@ export const UrlView: React.FC<UrlViewProps> = ({
             </button>
           </div>
 
+          {selectedItems.length > 0 && onBatchAction && (
+             <BatchActionBar
+                selectedCount={selectedItems.length}
+                isBatchSyncing={isBatchSyncing}
+                onAction={onBatchAction}
+                folders={folders}
+                mode="desktop"
+             />
+          )}
+
         <div className="flex items-center gap-4">
           <div className="relative group/search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within/search:text-violet-500 transition-colors" />
@@ -240,50 +251,16 @@ export const UrlView: React.FC<UrlViewProps> = ({
             />
           </div>
 
-          {selectedItems.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center bg-white dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/10 p-1 shadow-sm"
-            >
-              <button
-                onClick={() => onBatchAction('lock')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-violet-500"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onBatchAction('unlock')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-cyan-500"
-              >
-                <Unlock className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onBatchAction('delete')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors text-red-500"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-              <CascadingMenu
-                folders={folders}
-                onSelect={(folderId) => onBatchAction('move', folderId)}
-              />
-            </motion.div>
-          )}
         </div>
       </div>
 
-      <div
+      <div 
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar select-none touch-none relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar select-none touch-none relative"
       >
         {selectionBox && (
           <div

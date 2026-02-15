@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useParams, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams, useLocation, Link } from 'react-router-dom';
+import { Menu, Users } from 'lucide-react';
 import { LandingPage } from './pages/LandingPage';
 import { UserPage } from './pages/UserPage';
 import { AdminPage } from './pages/AdminPage';
@@ -107,7 +108,6 @@ const MainLayout: React.FC<{
   const location = useLocation();
 
   // Determine if we constitute a "dashboard" view (UserPage) that needs independent scrolling panes
-  // The Landing Page (/) and Help Page (/help) should behave like standard scrollable documents
   const isDashboard = location.pathname !== '/' && location.pathname !== '/help';
 
   // Close mobile drawers on window resize to desktop
@@ -123,31 +123,60 @@ const MainLayout: React.FC<{
   }, []);
 
   return (
-    <div className="h-screen flex relative overflow-hidden">
-      {/* Left Sidebar - Navigation */}
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+    <div className="h-screen flex flex-col relative overflow-hidden bg-white dark:bg-space-black">
+      {/* Global Stable Header - Always visible on mobile, provides consistent toggles */}
+      <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-50">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded-xl bg-white/60 dark:bg-white/5 text-gray-600 dark:text-quantum-cyan hover:bg-cyan-500/10 transition-colors border border-white/20"
+          aria-label="選單"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
 
-      {/* Center Content */}
-      {/* 
-        For Dashboard (UserPage): overflow-hidden (let page handle scroll zones), fixed height
-        For Others: overflow-y-auto (standard document scroll)
-      */}
-      <main className={cn(
-        "flex-1 min-w-0 flex flex-col transition-all duration-300",
-        // Padding: Remove for Landing Page (immersive)
-        location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
-        // Scroll: Dashboard & Landing handle their own overflow. Help/others scroll here.
-        (isDashboard || location.pathname === '/') ? "overflow-hidden h-full" : "overflow-y-auto h-full"
-      )}>
-        <MainContent users={users} config={config} loading={loading} />
-      </main>
+        <Link to="/" className="flex items-center gap-2 group">
+          <div className="p-1.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
+            <div className="text-cyan-600 dark:text-quantum-cyan font-black text-[10px]">FN</div>
+          </div>
+          <span className="text-sm font-black tracking-tighter text-gray-900 dark:text-white">FileNexus</span>
+        </Link>
 
-      {/* Right Sidebar - Public Directory */}
-      <PublicDirectory
-        users={users}
-        isOpen={directoryOpen}
-        onToggle={() => setDirectoryOpen(!directoryOpen)}
-      />
+        <button
+          onClick={() => setDirectoryOpen(!directoryOpen)}
+          className="p-2 rounded-xl bg-white/60 dark:bg-white/5 text-gray-600 dark:text-neural-violet hover:bg-purple-500/10 transition-colors border border-white/20"
+          aria-label="目錄"
+        >
+          <Users className="w-5 h-5" />
+        </button>
+      </header>
+
+      <div className="flex-1 flex relative overflow-hidden">
+        {/* Left Sidebar - Navigation */}
+        <Sidebar 
+          isOpen={sidebarOpen} 
+          onToggle={() => setSidebarOpen(!sidebarOpen)} 
+        />
+
+        {/* Center Content */}
+        <main className={cn(
+          "flex-1 min-w-0 flex flex-col transition-all duration-300",
+          location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
+          (isDashboard || location.pathname === '/') ? "overflow-hidden h-full" : "overflow-y-auto h-full"
+        )}>
+          <MainContent 
+            users={users} 
+            config={config} 
+            loading={loading} 
+          />
+        </main>
+
+        {/* Right Sidebar - Public Directory */}
+        <PublicDirectory
+          users={users}
+          isOpen={directoryOpen}
+          onToggle={() => setDirectoryOpen(!directoryOpen)}
+        />
+      </div>
     </div>
   );
 };

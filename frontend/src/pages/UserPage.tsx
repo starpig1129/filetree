@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import {
   Lock, Unlock,
-  Cpu, Zap, Activity, X, Settings, ChevronRight
+  Cpu, Zap, Activity, X, Settings, ChevronRight, Folder as FolderIcon
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
@@ -15,6 +15,7 @@ import type { UrlItem } from '../components/dashboard/UrlView';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { FolderSidebar } from '../components/dashboard/FolderSidebar';
 import type { Folder } from '../components/dashboard/FolderSidebar';
+import { BatchActionBar } from '../components/dashboard/BatchActionBar';
 
 interface UserPageProps {
   data: {
@@ -27,7 +28,9 @@ interface UserPageProps {
   };
 }
 
-export const UserPage: React.FC<UserPageProps> = ({ data }) => {
+export const UserPage: React.FC<UserPageProps> = ({ 
+  data 
+}) => {
   const [dashboardData, setDashboardData] = useState(data);
   const [selectedItems, setSelectedItems] = useState<{ type: 'file' | 'url' | 'folder'; id: string }[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -45,6 +48,21 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
   const [activeFileFolderId, setActiveFileFolderId] = useState<string | null>(null);
   const [activeUrlFolderId, setActiveUrlFolderId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  // Responsive check
+  React.useEffect(() => {
+    const checkDesktop = () => {
+      const isLg = window.matchMedia('(min-width: 1024px)').matches;
+      setIsDesktop(isLg);
+      // Auto-collapse on mobile, auto-expand on desktop initial load
+      if (!isLg) setIsSidebarOpen(false);
+      else setIsSidebarOpen(true);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   const filteredFiles = React.useMemo(() => {
     if (activeFileFolderId === null) return dashboardData.files || [];
@@ -129,8 +147,20 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     });
   };
 
-  const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete' | 'download') => {
+  const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete' | 'download' | 'move', folderId?: string | null) => {
     if (selectedItems.length === 0) return;
+
+    if (action === 'move') {
+      if (folderId === undefined) return;
+      setIsBatchSyncing(true);
+      try {
+        await Promise.all(selectedItems.map(item => handleMoveItem(item.type, item.id, folderId)));
+        setSelectedItems([]);
+      } finally {
+        setIsBatchSyncing(false);
+      }
+      return;
+    }
 
     // Batch download doesn't strictly require pre-authentication for public files
     if (action !== 'download' && !isAuthenticated) {
@@ -559,19 +589,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       const body = new FormData();
       if (token) body.append('token', token);
 
-      // Safari requires clipboard write to be in the same user gesture context.
-      // Using ClipboardItem with a blob promise allows us to "reserve" the
-      // clipboard write permission before the async fetch completes.
-      let copySuccess = false;
-      let shareUrlResult: string | null = null;
-
-      // Check if ClipboardItem is supported (Safari 13.1+, Chrome 76+)
       const supportsClipboardItem = typeof ClipboardItem !== 'undefined' &&
         navigator.clipboard &&
         typeof navigator.clipboard.write === 'function';
 
+      let copySuccess = false;
+      let shareUrlResult: string | null = null;
+
       if (supportsClipboardItem) {
-        // Create a promise that will resolve with the share URL after fetch
         const textPromise = (async () => {
           const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
             method: 'POST',
@@ -589,18 +614,15 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         })();
 
         try {
-          // This must be called synchronously in the user gesture context
           await navigator.clipboard.write([
             new ClipboardItem({ 'text/plain': textPromise })
           ]);
           copySuccess = true;
         } catch (clipboardErr) {
           console.log('ClipboardItem write failed:', clipboardErr);
-          // If ClipboardItem failed but we got the URL, try fallback
           if (shareUrlResult) {
-            copySuccess = false; // Will try fallback below
+            copySuccess = false;
           } else {
-            // Need to fetch the URL separately for fallback
             const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
               method: 'POST',
               body
@@ -615,7 +637,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           }
         }
       } else {
-        // Older browser path - fetch first, then try clipboard
         const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
           method: 'POST',
           body
@@ -630,7 +651,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         const result = await res.json();
         shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
 
-        // Try async clipboard API
         if (navigator.clipboard && navigator.clipboard.writeText) {
           try {
             await navigator.clipboard.writeText(shareUrlResult);
@@ -641,7 +661,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         }
       }
 
-      // Fallback for older browsers or when clipboard APIs fail
       if (!copySuccess && shareUrlResult) {
         try {
           const textarea = document.createElement('textarea');
@@ -664,7 +683,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       if (copySuccess) {
         alert('分享連結已複製到剪貼簿！');
       } else if (shareUrlResult) {
-        // Show dialog for manual copy
         setShareUrl(shareUrlResult);
       } else {
         alert('分享功能發生錯誤，請稍後再試。');
@@ -675,7 +693,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
     }
   };
 
-
   const handleSelectAll = (type: 'file' | 'url', selectAll: boolean) => {
     if (selectAll) {
       if (type === 'file') {
@@ -683,13 +700,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           ?.filter(f => !f.is_locked || isAuthenticated)
           .map(f => ({ type: 'file' as const, id: f.name })) || [];
         
-        // Also select folders in current view
         const currentFolders = dashboardData.folders
           ?.filter(f => f.parent_id === activeFileFolderId && f.type === 'file')
           .map(f => ({ type: 'folder' as const, id: f.id })) || [];
 
         setSelectedItems(prev => {
-          // Filter out existing files/folders to avoid duplicates
           const others = prev.filter(i => i.type !== 'file' && i.type !== 'folder');
           return [...others, ...selectableFiles, ...currentFolders];
         });
@@ -698,7 +713,6 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
           ?.filter(u => !u.is_locked || isAuthenticated)
           .map(u => ({ type: 'url' as const, id: u.url })) || [];
 
-        // Select folders in url view
         const currentFolders = dashboardData.folders
             ?.filter(f => f.parent_id === activeUrlFolderId && f.type === 'url')
             .map(f => ({ type: 'folder' as const, id: f.id })) || [];
@@ -734,140 +748,140 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow" />
         <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] bg-radial-gradient from-neural-violet/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow delay-1000" />
+        <div className="absolute inset-0 bg-linear-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
       </div>
 
-      {/* Top App Bar - Compact & Functional */}
-      <header className="shrink-0 px-4 pt-16 pb-3 lg:px-8 lg:py-5 flex flex-col gap-4 z-20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 lg:gap-4 group cursor-default">
-            <div className="relative">
-              <div className="absolute inset-0 bg-cyan-500/20 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="p-2 sm:p-2.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg relative">
-                <div className="text-cyan-600 dark:text-quantum-cyan font-bold">FN</div>
+      {/* Header - Optimized Horizontal Layout for Mobile */}
+      <header className="flex flex-col gap-3 px-2 pt-2 lg:px-6 lg:pt-6 relative z-10 lg:pl-6 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
+        
+        {/* Row 1: Logo & Global Actions */}
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
+          
+          <div className="flex items-center gap-2 sm:gap-4">
+
+            <div className="flex items-center gap-2 sm:gap-3 group cursor-default">
+              <div className="p-1.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
+                <div className="text-cyan-600 dark:text-quantum-cyan font-black text-xs">FN</div>
               </div>
-            </div>
-            <div>
-              <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+              <h1 className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-none">
                 {dashboardData.user?.username}
-                <span className="text-cyan-600 dark:text-quantum-cyan opacity-80 font-light hidden sm:inline">FileNexus</span>
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Usage Pill */}
-            <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-black/20 backdrop-blur-md rounded-full border border-gray-200 dark:border-white/10 shadow-sm">
-              <Activity className="w-3.5 h-3.5 text-cyan-500 animate-pulse" />
-              <span className="text-xs font-bold text-gray-600 dark:text-gray-300 tracking-wide">
-                {dashboardData.usage} <span className="opacity-60">MB USED</span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Usage Pill - Compact on mobile */}
+            <div className="hidden xs:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
+              <Activity className="w-3 h-3 text-cyan-500" />
+              <span className="text-[10px] font-black text-gray-600 dark:text-gray-300 tracking-tighter">
+                {dashboardData.usage}MB
               </span>
             </div>
 
-            <div className="h-8 w-px bg-gray-200 dark:bg-white/10 hidden sm:block" />
-
-            {/* Auth/Lock Button */}
+            {/* Auth/Lock Button - Icon only on very small screens */}
             <button
               onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
               className={cn(
-                "p-2.5 sm:px-5 sm:py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-sm shadow-lg backdrop-blur-md border",
+                "p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border",
                 isAuthenticated
                   ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20"
                   : "bg-white/80 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
               )}
-              title={isAuthenticated ? "鎖定工作階段" : "解鎖隱私內容"}
             >
-              {isAuthenticated ? (
-                <>
-                  <Unlock className="w-5 h-5" />
-                  <span className="hidden sm:inline">UNLOCKED</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="w-5 h-5" />
-                  <span className="hidden sm:inline">LOCKED</span>
-                </>
-              )}
+              {isAuthenticated ? <Unlock className="w-4 h-4 text-cyan-500" /> : <Lock className="w-4 h-4" />}
+              <span className="hidden sm:inline">{isAuthenticated ? "UNLOCKED" : "LOCKED"}</span>
             </button>
 
-            {/* Settings Button */}
+            {/* Settings */}
             <button
-              onClick={() => isAuthenticated ? setShowSettingsModal(true) : setShowAuthModal(true)}
-              className="p-2.5 rounded-xl bg-white/80 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 shadow-lg hover:bg-gray-50 dark:hover:bg-white/10 transition-all"
-              title="使用者設定"
+              onClick={() => setShowSettingsModal(true)}
+              className="p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20"
             >
-              <Settings className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <Settings className="w-4 h-4" />
             </button>
+
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2">
+        {/* Row 2: Navigation Tabs - More compact on mobile */}
+        <div className="flex items-center gap-1 sm:gap-2 pb-1 lg:pb-0">
           <button
             onClick={() => setActiveTab('files')}
             className={cn(
-              "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 relative overflow-hidden",
+              "flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden",
               activeTab === 'files'
-                ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-quantum-cyan shadow-lg shadow-cyan-500/10 ring-1 ring-black/5 dark:ring-white/10"
+                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                 : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
             )}
           >
-            <Cpu className="w-4 h-4" />
+            <Cpu className="h-4 w-4" />
             檔案列表
-            {activeTab === 'files' && (
-              <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500" />
-            )}
           </button>
           <button
             onClick={() => setActiveTab('urls')}
             className={cn(
-              "px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 relative overflow-hidden",
+              "flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden",
               activeTab === 'urls'
-                ? "bg-white dark:bg-white/10 text-violet-600 dark:text-violet-400 shadow-lg shadow-violet-500/10 ring-1 ring-black/5 dark:ring-white/10"
+                ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
                 : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
             )}
           >
-            <Zap className="w-4 h-4" />
+            <Zap className="h-4 w-4" />
             筆記 / 連結
-            {activeTab === 'urls' && (
-              <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500" />
-            )}
           </button>
         </div>
       </header>
 
-      {/* Main Content Area - Conditional Rendering */}
-      <main className="flex-1 min-h-0 px-2 pb-2 lg:px-6 lg:pb-6 relative z-10 overflow-hidden flex gap-4">
+      {/* Main Content Area - Reduced gap on mobile */}
+      <main className="flex-1 min-h-0 px-2 pb-2 lg:px-6 lg:pb-6 relative z-10 overflow-hidden flex gap-2 lg:gap-4">
         <div className="relative flex">
           <AnimatePresence mode="wait">
             {isSidebarOpen && (
-              <motion.div
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 256, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <FolderSidebar
-                  folders={dashboardData.folders || []}
-                  activeFolderId={activeTab === 'files' ? activeFileFolderId : activeUrlFolderId}
-                  activeType={activeTab === 'files' ? 'file' : 'url'}
-                  isAuthenticated={isAuthenticated}
-                  onSelectFolder={(id) => activeTab === 'files' ? setActiveFileFolderId(id) : setActiveUrlFolderId(id)}
-                  onCreateFolder={handleCreateFolder}
-                  onUpdateFolder={handleUpdateFolder}
-                  onDeleteFolder={handleDeleteFolder}
-                  onMoveItem={handleMoveItem}
-                />
-              </motion.div>
+              <>
+                {/* Mobile Backdrop */}
+                {!isDesktop && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+                  />
+                )}
+                <motion.div
+                  initial={{ width: 0, opacity: 0, x: -20 }}
+                  animate={{ width: 256, opacity: 1, x: 0 }}
+                  exit={{ width: 0, opacity: 0, x: -20 }}
+                  className={cn(
+                    "overflow-hidden bg-white/80 dark:bg-space-deep/90 backdrop-blur-xl border-r border-white/10 h-full",
+                    // Desktop: Relative flow
+                    "lg:relative",
+                    // Mobile: Absolute drawer
+                    "absolute top-0 left-0 z-40 h-full shadow-2xl"
+                  )}
+                >
+                  <FolderSidebar
+                    folders={dashboardData.folders || []}
+                    activeFolderId={activeTab === 'files' ? activeFileFolderId : activeUrlFolderId}
+                    activeType={activeTab === 'files' ? 'file' : 'url'}
+                    isAuthenticated={isAuthenticated}
+                    onSelectFolder={(id) => {
+                       if (activeTab === 'files') setActiveFileFolderId(id);
+                       else setActiveUrlFolderId(id);
+                       // Close on selection if mobile
+                       if (!isDesktop) setIsSidebarOpen(false);
+                    }}
+                    onCreateFolder={handleCreateFolder}
+                    onUpdateFolder={handleUpdateFolder}
+                    onDeleteFolder={handleDeleteFolder}
+                    onMoveItem={handleMoveItem}
+                    onClose={() => setIsSidebarOpen(false)}
+                  />
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
           
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="absolute -right-3 top-6 z-20 w-6 h-12 flex items-center justify-center bg-white dark:bg-gray-800 rounded-full shadow-md border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group cursor-pointer"
-            title={isSidebarOpen ? "收起側邊欄" : "展開側邊欄"}
-          >
-            <ChevronRight className={cn("w-3 h-3 text-gray-400 group-hover:text-cyan-500 transition-transform duration-300", isSidebarOpen ? "rotate-180" : "")} />
-          </button>
         </div>
         <AnimatePresence mode="wait">
           {activeTab === 'files' ? (
@@ -880,6 +894,14 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
             >
               {/* Breadcrumbs for Files */}
               <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
+                <button
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
+                  aria-label="資料夾"
+                >
+                  <FolderIcon className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden" />
                 <button
                   onClick={() => setActiveFileFolderId(null)}
                   className={cn(
@@ -899,10 +921,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
                         idx === arr.length - 1
-                          ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 ring-1 ring-cyan-500/20"
+                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                           : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
                       )}
                     >
+                      <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
                       {crumb.name}
                     </button>
                   </React.Fragment>
@@ -911,52 +934,56 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
               <FileView
                 files={filteredFiles}
-                username={dashboardData.user?.username || ''}
-                token={token}
-                selectedItems={selectedItems}
                 isAuthenticated={isAuthenticated}
-                isBatchSyncing={isBatchSyncing}
-                onToggleSelect={toggleSelectItem}
-                onBatchSelect={handleBatchSelect}
-                onSelectAll={(selectAll) => handleSelectAll('file', selectAll)}
-                onToggleLock={toggleItemLock}
-                onBatchAction={(action, folderId) => {
-                  if (action === 'move') {
-                    selectedItems.filter(i => i.type === 'file').forEach(i => handleMoveItem('file', i.id, folderId || null));
-                    setSelectedItems([]);
-                  } else {
-                    handleBatchAction(action as 'lock' | 'unlock' | 'delete' | 'download');
-                  }
+                selectedItems={selectedItems.filter(i => i.type === 'file')}
+                onToggleSelect={(type, id) => toggleSelectItem(type, id)}
+                onSelectAll={(selected) => handleSelectAll('file', selected)}
+                onBatchSelect={(items, action) => handleBatchSelect(items, action)}
+                onToggleLock={(id, status) => toggleItemLock('file', id, !!status)}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onShare={handleShare}
+                onQrCode={(filename) => {
+                  const url = `${window.location.origin}/user/${data.user?.username}/file/${encodeURIComponent(filename)}`;
+                  setQrUrl(url);
                 }}
                 onPreview={(file) => setPreviewFile(file)}
-                onShare={handleShare}
-                onQrCode={setQrUrl}
-                onDelete={handleDelete}
-                onRename={handleRename}
+                username={data.user?.username || ""}
+                token={token}
                 folders={dashboardData.folders || []}
                 activeFolderId={activeFileFolderId}
                 onMoveItem={handleMoveItem}
                 onFolderClick={setActiveFileFolderId}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
+                onBatchAction={handleBatchAction}
+                isBatchSyncing={isBatchSyncing}
               />
             </motion.div>
           ) : (
             <motion.div
               key="urls"
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+              exit={{ opacity: 0, x: -20 }}
               className="flex-1 h-full flex flex-col gap-4"
             >
-              {/* Breadcrumbs for URLs */}
-              <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
+               {/* Breadcrumbs for Urls */}
+               <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
+                <button
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
+                  aria-label="資料夾"
+                >
+                  <FolderIcon className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden" />
                 <button
                   onClick={() => setActiveUrlFolderId(null)}
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
                     activeUrlFolderId === null
-                      ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
+                      ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                       : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
                   )}
                 >
@@ -970,10 +997,11 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
                         idx === arr.length - 1
-                          ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-1 ring-violet-500/20"
+                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                           : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
                       )}
                     >
+                      <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
                       {crumb.name}
                     </button>
                   </React.Fragment>
@@ -982,21 +1010,12 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
 
               <UrlView
                 urls={filteredUrls}
-                selectedItems={selectedItems}
                 isAuthenticated={isAuthenticated}
-                isBatchSyncing={isBatchSyncing}
-                onToggleSelect={toggleSelectItem}
-                onBatchSelect={handleBatchSelect}
-                onSelectAll={(selectAll) => handleSelectAll('url', selectAll)}
-                onToggleLock={toggleItemLock}
-                onBatchAction={(action, folderId) => {
-                  if (action === 'move') {
-                    selectedItems.filter(i => i.type === 'url').forEach(i => handleMoveItem('url', i.id, folderId || null));
-                    setSelectedItems([]);
-                  } else {
-                    handleBatchAction(action as 'lock' | 'unlock' | 'delete' | 'download');
-                  }
-                }}
+                selectedItems={selectedItems.filter(i => i.type === 'url')}
+                onToggleSelect={(type, id) => toggleSelectItem(type, id)}
+                onSelectAll={(selected) => handleSelectAll('url', selected)}
+                onBatchSelect={(items, action) => handleBatchSelect(items, action)}
+                onToggleLock={(id, status) => toggleItemLock('url', id, !!status)}
                 onQrCode={setQrUrl}
                 onDelete={handleUrlDelete}
                 onCopy={(url) => { navigator.clipboard?.writeText(url).then(() => alert("已複製！")); }}
@@ -1006,6 +1025,8 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
                 onFolderClick={setActiveUrlFolderId}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
+                onBatchAction={handleBatchAction}
+                isBatchSyncing={isBatchSyncing}
               />
             </motion.div>
           )}
@@ -1291,6 +1312,17 @@ export const UserPage: React.FC<UserPageProps> = ({ data }) => {
         onClose={() => setPreviewFile(null)}
         file={previewFile}
       />
+      {/* Selection Action Bar - Unified at root to ensure fixed positioning on mobile */}
+      {selectedItems.length > 0 && (
+        <BatchActionBar
+          selectedCount={selectedItems.length}
+          isBatchSyncing={isBatchSyncing}
+          onAction={handleBatchAction}
+          folders={dashboardData.folders || []}
+          allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
+          mode="mobile"
+        />
+      )}
     </div>
   );
 };

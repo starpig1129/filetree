@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Folder as FolderIcon } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Folder as FolderIcon, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { Folder } from '../dashboard/FolderSidebar';
 
@@ -127,7 +127,155 @@ const MenuItem: React.FC<{
   );
 };
 
-export const CascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, trigger, disabled }) => {
+const MobileDrillDownMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, trigger, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [history, setHistory] = useState<FolderNode[]>([]);
+  const rootNodes = useMemo(() => buildFolderTree(folders.filter(f => f.type === 'file')), [folders]);
+
+  const currentFolder = history.length > 0 ? history[history.length - 1] : null;
+  const currentNodes = currentFolder ? currentFolder.children : rootNodes;
+
+  const handleBack = () => {
+    setHistory(prev => prev.slice(0, -1));
+  };
+
+  const handleMoveHere = () => {
+    onSelect(currentFolder ? currentFolder.id : null); // null = root
+    setIsOpen(false);
+  };
+
+  return (
+    <>
+      <div onClick={() => !disabled && setIsOpen(true)}>
+        {trigger || (
+          <button
+            disabled={disabled}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
+          >
+            <span>移動至...</span>
+            <ChevronRight className="w-3 h-3 rotate-90" />
+          </button>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          createPortal(
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+              onClick={() => setIsOpen(false)}
+            >
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden h-[80vh] flex flex-col"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/10 shrink-0">
+                  <div className="flex items-center gap-2">
+                    {history.length > 0 && (
+                      <button
+                        onClick={handleBack}
+                        className="p-1 -ml-1 text-gray-500 rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                    )}
+                    <h3 className="font-bold text-gray-800 dark:text-white truncate max-w-[200px]">
+                      {currentFolder ? currentFolder.name : "移動至..."}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                  {currentNodes.length > 0 ? (
+                    currentNodes.map(node => (
+                      <button
+                        key={node.id}
+                        onClick={() => {
+                            if (node.children && node.children.length > 0) {
+                                setHistory(prev => [...prev, node]);
+                            } else {
+                                // Leaf node: Select directly or just enter?
+                                // UX decision: Even empty folder can be entered to "Move Here".
+                                // So we should probably let them enter ANY folder.
+                                setHistory(prev => [...prev, node]);
+                            }
+                        }}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl active:scale-[0.98] transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-500">
+                            <FolderIcon className="w-5 h-5" />
+                          </div>
+                          <span className="font-medium text-gray-700 dark:text-gray-200">{node.name}</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      </button>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-48 text-gray-400 gap-2">
+                        <FolderIcon className="w-8 h-8 opacity-20" />
+                        <span className="text-sm">此資料夾為空</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 shrink-0">
+                  <button
+                    onClick={handleMoveHere}
+                    className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <FolderIcon className="w-4 h-4" />
+                    <span>移動至此 ({currentFolder ? currentFolder.name : "根目錄"})</span>
+                  </button>
+                </div>
+
+              </motion.div>
+            </motion.div>,
+            document.body
+          )
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
+export const CascadingMenu: React.FC<CascadingMenuProps> = (props) => {
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  useEffect(() => {
+    const checkMedia = () => {
+      setIsDesktop(window.matchMedia('(min-width: 768px)').matches);
+    };
+    
+    checkMedia();
+    window.addEventListener('resize', checkMedia);
+    return () => window.removeEventListener('resize', checkMedia);
+  }, []);
+
+  if (!isDesktop) {
+    return <MobileDrillDownMenu {...props} />;
+  }
+
+  return <DesktopCascadingMenu {...props} />;
+};
+
+const DesktopCascadingMenu: React.FC<CascadingMenuProps> = ({ folders, onSelect, trigger, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const rootNodes = buildFolderTree(folders.filter(f => f.type === 'file')); // Ensure we only show relevant folders if needed, but usually passed folders are pre-filtered.

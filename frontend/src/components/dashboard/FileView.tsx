@@ -1,4 +1,4 @@
-import React from 'react';
+ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   File, FileText, Image as ImageIcon, Music, Video,
@@ -9,9 +9,10 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
+import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview } from '../../utils/dragUtils';
+import { BatchActionBar } from './BatchActionBar';
 import type { Folder } from './FolderSidebar';
-import { CascadingMenu } from '../ui/CascadingMenu';
 
 export interface FileItem {
   name: string;
@@ -30,23 +31,27 @@ interface FileViewProps {
   token: string | null;
   selectedItems: { type: 'file' | 'url' | 'folder'; id: string }[];
   isAuthenticated: boolean;
-  isBatchSyncing: boolean;
   onToggleSelect: (type: 'file' | 'url' | 'folder', id: string) => void;
+  onSelectAll: (selected: boolean) => void;
   onBatchSelect: (items: { type: 'file' | 'url' | 'folder'; id: string }[], action: 'add' | 'remove' | 'set') => void;
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
-  onBatchAction: (action: 'delete' | 'lock' | 'unlock' | 'download' | 'move', folderId?: string | null) => void;
   onPreview: (file: { name: string; size: string; url: string }) => void;
   onShare: (filename: string) => void;
   onQrCode: (url: string) => void;
   onDelete: (filename: string) => void;
   onRename?: (oldName: string, newName: string) => Promise<boolean>;
-  onSelectAll: (selectAll: boolean) => void;
   folders: Folder[];
   activeFolderId: string | null;
   onMoveItem: (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => void;
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
+  onBatchAction?: (action: any, folderId?: string | null) => void;
+  isBatchSyncing?: boolean;
+  viewMode: 'grid' | 'list';
+  onViewModeChange: (mode: 'grid' | 'list') => void;
+  isSelectionMode: boolean;
+  onSelectionModeChange: (active: boolean) => void;
 }
 
 const getFileIcon = (filename: string) => {
@@ -78,30 +83,33 @@ export const FileView: React.FC<FileViewProps> = ({
   token,
   selectedItems,
   isAuthenticated,
-  isBatchSyncing,
   onToggleSelect,
+  onSelectAll,
   onBatchSelect,
   onToggleLock,
-  onBatchAction,
   onPreview,
   onShare,
   onQrCode,
   onDelete,
   onRename,
-  onSelectAll,
   folders,
   activeFolderId,
   onMoveItem,
   onFolderClick,
   onUpdateFolder,
-  onDeleteFolder
+  onDeleteFolder,
+  onBatchAction,
+  isBatchSyncing = false,
+  viewMode,
+  onViewModeChange,
+  isSelectionMode,
+  onSelectionModeChange
 }) => {
   const [renamingFile, setRenamingFile] = React.useState<string | null>(null);
   const [renamingFolderId, setRenamingFolderId] = React.useState<string | null>(null);
   const [newName, setNewName] = React.useState('');
   const [isRenaming, setIsRenaming] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState<string | null>(null);
-  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const [dragOverFolderId, setDragOverFolderId] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -129,6 +137,10 @@ export const FileView: React.FC<FileViewProps> = ({
       onBatchSelect(selectedItemsList, 'set');
     }, [files, currentSubfolders, onBatchSelect])
   );
+
+  const longPress = useLongPress(() => {
+    onSelectionModeChange(true);
+  }, undefined, { delay: 600 });
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -234,11 +246,11 @@ export const FileView: React.FC<FileViewProps> = ({
   const isAllSelected = selectableFiles.length > 0 && selectableFiles.every(f => selectedItems.some(i => i.type === 'file' && i.id === f.name));
 
   return (
-    <section className="flex flex-col h-full bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
+    <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
 
-      {/* Panel Header */}
-      <div className="shrink-0 px-6 py-4 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
+      {/* Panel Header - Hidden on mobile */}
+      <div className="hidden lg:flex shrink-0 px-4 py-3 lg:px-6 lg:py-4 border-b border-gray-100/50 dark:border-white/5 items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <button
             onClick={() => onSelectAll(!isAllSelected)}
@@ -253,7 +265,7 @@ export const FileView: React.FC<FileViewProps> = ({
           <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-600 dark:text-cyan-400">
             <Cpu className="w-5 h-5" />
           </div>
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white/90 tracking-tight">檔案列表</h2>
+          <h2 className="text-base lg:text-lg font-bold text-gray-800 dark:text-white/90 tracking-tight">檔案列表</h2>
           <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-xs font-bold text-gray-500 dark:text-white/40">
             {files?.length || 0}
           </span>
@@ -268,7 +280,7 @@ export const FileView: React.FC<FileViewProps> = ({
           {/* View Mode Toggle */}
           <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => onViewModeChange('grid')}
               className={cn(
                 "p-2 rounded-lg transition-all",
                 viewMode === 'grid' ? "bg-white dark:bg-white/10 text-cyan-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
@@ -277,7 +289,7 @@ export const FileView: React.FC<FileViewProps> = ({
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => onViewModeChange('list')}
               className={cn(
                 "p-2 rounded-lg transition-all",
                 viewMode === 'list' ? "bg-white dark:bg-white/10 text-cyan-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
@@ -287,49 +299,16 @@ export const FileView: React.FC<FileViewProps> = ({
             </button>
           </div>
 
-
-          {selectedItems.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center bg-white dark:bg-white/10 rounded-lg border border-gray-200 dark:border-white/10 p-1 shadow-sm"
-            >
-              <button
-                onClick={() => onBatchAction('lock')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-violet-500"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onBatchAction('unlock')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-cyan-500"
-              >
-                <Unlock className="w-4 h-4" />
-              </button>
-              <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-              <button
-                onClick={() => onBatchAction('download')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md transition-colors text-green-500"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onBatchAction('delete')}
-                disabled={isBatchSyncing}
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md transition-colors text-red-500"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <div className="w-px h-4 bg-gray-200 dark:bg-white/10 mx-1" />
-              <CascadingMenu
+          {selectedItems.length > 0 && onBatchAction && (
+             <BatchActionBar
+                selectedCount={selectedItems.length}
+                isBatchSyncing={isBatchSyncing}
+                onAction={onBatchAction}
                 folders={folders}
-                onSelect={(folderId) => onBatchAction('move', folderId)}
-              />
-            </motion.div>
+                mode="desktop"
+             />
           )}
+
         </div>
       </div>
 
@@ -340,7 +319,7 @@ export const FileView: React.FC<FileViewProps> = ({
         onPointerMove={handlePointerMove}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar select-none touch-none relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar select-none touch-none relative"
       >
         {selectionBox && (
           <div
@@ -395,11 +374,12 @@ export const FileView: React.FC<FileViewProps> = ({
                     onDragEnter={(e) => handleDragEnterFolder(e, folder.id)}
                     onDragLeave={handleDragLeaveFolder}
                     onDrop={(e) => handleDrop(e, folder.id)}
+                    {...longPress}
                   >
                     {/* Selection Checkbox */}
                     <div className={cn(
                       "absolute top-1.5 left-1.5 z-30 transition-opacity",
-                      isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      (isSelected || isSelectionMode) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                     )}>
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleSelect('folder', folder.id); }}
@@ -540,9 +520,13 @@ export const FileView: React.FC<FileViewProps> = ({
                       e.dataTransfer.effectAllowed = 'move';
                       setDragPreview(e, itemsToDrag as any);
                     }}
+                    {...longPress}
                   >
                     {!isLocked && (
-                      <div className="absolute top-3 left-3 z-30 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                      <div className={cn(
+                        "absolute top-3 left-3 z-30 transition-opacity",
+                        (isSelected || isSelectionMode) ? "opacity-100" : "opacity-0 lg:group-hover:opacity-100"
+                      )}>
                         <button
                           onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
                           className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-sm"
@@ -755,15 +739,21 @@ export const FileView: React.FC<FileViewProps> = ({
                       e.dataTransfer.effectAllowed = 'move';
                       setDragPreview(e, itemsToDrag as any);
                     }}
+                    {...longPress}
                   >
                     <div className="flex items-center gap-3 shrink-0">
                       {!isLocked && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
-                          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                        >
-                          {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
-                        </button>
+                        <div className={cn(
+                            "transition-opacity",
+                            (isSelected || isSelectionMode) ? "opacity-100" : "opacity-0 lg:group-hover:opacity-100"
+                        )}>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
+                                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                            >
+                                {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
+                            </button>
+                        </div>
                       )}
                       <div className="p-2 bg-gray-100 dark:bg-black/20 rounded-lg">
                         <Icon className={cn("w-5 h-5", isLocked ? "text-gray-300 dark:text-gray-600 blur-[1px]" : "text-gray-400 dark:text-gray-500")} />
