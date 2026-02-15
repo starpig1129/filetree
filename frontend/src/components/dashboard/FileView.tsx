@@ -12,6 +12,8 @@ import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview } from '../../utils/dragUtils';
 import { BatchActionBar } from './BatchActionBar';
+import { CascadingMenu } from '../ui/CascadingMenu';
+import { DropdownMenu } from '../ui/DropdownMenu';
 import type { Folder } from './FolderSidebar';
 
 export interface FileItem {
@@ -139,7 +141,6 @@ export const FileView: React.FC<FileViewProps> = ({
   const [renamingFolderId, setRenamingFolderId] = React.useState<string | null>(null);
   const [newName, setNewName] = React.useState('');
   const [isRenaming, setIsRenaming] = React.useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = React.useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -248,29 +249,12 @@ export const FileView: React.FC<FileViewProps> = ({
     }
   };
 
-  const renderFolderButtons = (fileId: string, parentId: string | null = null, depth = 0) => {
-    return folders
-      .filter(f => f.type === 'file' && (f.parent_id === parentId || (!parentId && !f.parent_id)))
-      .map(f => (
-        <React.Fragment key={f.id}>
-          <button
-            onClick={(e) => { e.stopPropagation(); onMoveItem('file', fileId, f.id); }}
-            className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg flex items-center gap-2"
-            style={{ paddingLeft: `${12 + depth * 12}px` }}
-          >
-            <FolderIcon className="w-3 h-3 text-gray-400" />
-            <span className="truncate">{f.name}</span>
-          </button>
-          {renderFolderButtons(fileId, f.id, depth + 1)}
-        </React.Fragment>
-      ));
-  };
 
   const selectableFiles = files?.filter(f => !f.is_locked || isAuthenticated) || [];
   const isAllSelected = selectableFiles.length > 0 && selectableFiles.every(f => selectedItems.some(i => i.type === 'file' && i.id === f.name));
 
   return (
-    <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
+    <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
 
       {/* Panel Header - Hidden on mobile */}
@@ -618,11 +602,15 @@ export const FileView: React.FC<FileViewProps> = ({
                         )} />
                       </div>
                       
-                      {!isLocked && (
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex items-center justify-center gap-2 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-center justify-center gap-2 p-4 z-20 pointer-events-none group-hover:pointer-events-auto">
                           <button
                             onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                            title="分享"
                           >
                             <Share2 className="w-4 h-4" />
                           </button>
@@ -632,53 +620,152 @@ export const FileView: React.FC<FileViewProps> = ({
                               const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
                               onQrCode(url);
                             }}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-violet-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                            title="QR Code"
                           >
                             <QrCode className="w-4 h-4" />
                           </button>
                           <a
                             href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-green-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                            title="下載"
                           >
                             <Download className="w-4 h-4" />
                           </a>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(file.name); }}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-red-500 shadow-lg"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          {onRename && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenamingFile(file.name);
-                                setNewName(file.name);
-                              }}
-                              className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          )}
-                          <div className="relative group/move pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-                            <button className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg">
-                              <FolderIcon className="w-4 h-4" />
-                            </button>
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white dark:bg-space-black border border-gray-100 dark:border-white/10 rounded-xl shadow-2xl p-2 hidden group-hover/move:block z-50 min-w-32">
+                          <CascadingMenu
+                            folders={folders}
+                            onSelect={(folderId) => onMoveItem('file', file.name, folderId)}
+                            trigger={
                               <button 
-                                onClick={(e) => { e.stopPropagation(); onMoveItem('file', file.name, null); }}
-                                className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg"
+                                className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
+                                title="移動到..."
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
                               >
-                                根目錄
+                                <FolderIcon className="w-4 h-4" />
                               </button>
-                              {renderFolderButtons(file.name)}
-                            </div>
-                          </div>
+                            }
+                          />
+                          {isAuthenticated && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRenamingFile(file.name);
+                                  setNewName(file.name);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                                title="重命名項目"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onToggleLock('file', file.name, !!file.is_locked); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className={cn(
+                                  "p-2 bg-white rounded-full shadow-lg transition-transform hover:scale-110 pointer-events-auto",
+                                  file.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
+                                )}
+                                title={file.is_locked ? "解除鎖定" : "鎖定項目"}
+                              >
+                                {file.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(file.name); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className="p-2 bg-white rounded-full text-gray-700 hover:text-red-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                                title="刪除項目"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </div>
 
+                    {/* Top Action Menu - For Grid View on all devices */}
+                     {!isSelectionMode && (
+                       <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu
+                          trigger={
+                            <button 
+                              className={cn(
+                                "p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500"
+                              )}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseUp={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                          }
+                          items={[
+                            { label: '分享', icon: <Share2 className="w-4 h-4 text-blue-500" />, onClick: () => onShare(file.name), hidden: isLocked },
+                            {
+                              label: 'QR Code',
+                              icon: <QrCode className="w-4 h-4 text-violet-500" />,
+                              onClick: () => {
+                                const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
+                                onQrCode(url);
+                              },
+                              hidden: isLocked
+                            },
+                            {
+                              label: '下載',
+                              icon: <Download className="w-4 h-4 text-green-500" />,
+                              onClick: () => {
+                                const a = document.createElement('a');
+                                a.href = `/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`;
+                                a.click();
+                              },
+                              hidden: isLocked
+                             },
+                            {
+                              label: '重命名',
+                              icon: <Edit3 className="w-4 h-4 text-cyan-500" />,
+                              onClick: () => { setRenamingFile(file.name); setNewName(file.name); },
+                              hidden: !onRename || isLocked || !isAuthenticated
+                            },
+                            {
+                              label: file.is_locked ? '解除鎖定' : '鎖定檔案',
+                              icon: file.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />,
+                              onClick: () => onToggleLock('file', file.name, !!file.is_locked),
+                              hidden: !isAuthenticated
+                            },
+                            { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                            {
+                              label: '刪除',
+                              icon: <Trash2 className="w-4 h-4" />,
+                              onClick: () => onDelete(file.name),
+                              variant: 'danger',
+                              hidden: !isAuthenticated
+                            }
+                          ]}
+                        />
+                      </div>
+                    )}
                     <div className="p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
                       <div className="mb-2">
                         {renamingFile === file.name ? (
@@ -713,20 +800,10 @@ export const FileView: React.FC<FileViewProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <h3 className={cn("font-semibold text-sm truncate text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
+                          <h3 className={cn("font-semibold text-sm truncate pr-1 text-gray-800 dark:text-gray-200", isLocked && "blur-[3px]")}>{file.name}</h3>
                         )}
-                        <div className="flex items-center gap-2 mt-1 justify-between">
+                        <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] font-bold text-gray-400 dark:text-white/30 uppercase tracking-wider">{file.size} MB</span>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMobileMenuOpen(mobileMenuOpen === file.name ? null : file.name);
-                            }}
-                            className="lg:hidden p-1 -mr-1 text-gray-400"
-                          >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
                       <div className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5", getLifecycleColor(file))}>
@@ -805,6 +882,10 @@ export const FileView: React.FC<FileViewProps> = ({
                         )}>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
                                 className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                             >
                                 {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
@@ -875,39 +956,109 @@ export const FileView: React.FC<FileViewProps> = ({
                     </div>
 
                     <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pr-2">
-                      {isAuthenticated && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onToggleLock('file', file.name, !!file.is_locked); }}
-                          className={cn(
-                            "p-2 rounded-lg transition-colors",
-                            file.is_locked ? "text-violet-500 bg-violet-500/10" : "text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 shadow-sm"
-                          )}
-                        >
-                          <Lock className="w-4 h-4" />
-                        </button>
-                      )}
-                      
-                      {!isLocked && (
+                       {!isLocked && (
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
-                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors shadow-sm"
-                          >
-                            <Share2 className="w-4 h-4" />
-                          </button>
-                          <a
-                            href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors shadow-sm"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(file.name); }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors shadow-sm"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {/* Desktop Actions */}
+                          <div className="hidden lg:flex items-center gap-1">
+                            {isAuthenticated && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onToggleLock('file', file.name, !!file.is_locked); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className={cn(
+                                  "p-2 rounded-lg transition-colors",
+                                  file.is_locked ? "text-violet-500 bg-violet-500/10" : "text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5"
+                                )}
+                              >
+                                {file.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseUp={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                              className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <a
+                              href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseUp={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                              className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
+                            <CascadingMenu
+                              folders={folders}
+                              onSelect={(folderId) => onMoveItem('file', file.name, folderId)}
+                              trigger={
+                                <button 
+                                  className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onMouseUp={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onTouchEnd={(e) => e.stopPropagation()}
+                                >
+                                  <FolderIcon className="w-4 h-4" />
+                                </button>
+                              }
+                            />
+                            {isAuthenticated && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(file.name); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Mobile Actions Menu */}
+                          <div className="lg:hidden">
+                             <DropdownMenu
+                                trigger={
+                                  <button 
+                                    className="p-2 text-gray-400 hover:text-cyan-600 rounded-lg transition-colors"
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onMouseUp={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => e.stopPropagation()}
+                                    onTouchEnd={(e) => e.stopPropagation()}
+                                  >
+                                    <MoreVertical className="w-5 h-5" />
+                                  </button>
+                                }
+                                items={[
+                                  { label: '分享', icon: <Share2 className="w-4 h-4 text-blue-500" />, onClick: () => onShare(file.name) },
+                                  { label: '下載', icon: <Download className="w-4 h-4 text-green-500" />, onClick: () => {
+                                      const a = document.createElement('a');
+                                      a.href = `/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`;
+                                      a.click();
+                                    } 
+                                  },
+                                  { label: '重命名', icon: <Edit3 className="w-4 h-4 text-cyan-500" />, onClick: () => { setRenamingFile(file.name); setNewName(file.name); }, hidden: !onRename || !isAuthenticated },
+                                  { 
+                                    label: file.is_locked ? '解除鎖定' : '鎖定項', 
+                                    icon: file.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
+                                    onClick: () => onToggleLock('file', file.name, !!file.is_locked),
+                                    hidden: !isAuthenticated
+                                  },
+                                  { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                                  { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(file.name), variant: 'danger', hidden: !isAuthenticated }
+                                ]}
+                             />
+                          </div>
                         </div>
                       )}
                     </div>

@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Search, Copy,
+  Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Search, Copy, MoreVertical,
   Folder as FolderIcon, LayoutGrid, List, Edit3, Check, X
 } from 'lucide-react';
+import { DropdownMenu } from '../ui/DropdownMenu';
+import { CascadingMenu } from '../ui/CascadingMenu';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { useLongPress } from '../../hooks/useLongPress';
@@ -194,29 +196,12 @@ export const UrlView: React.FC<UrlViewProps> = ({
     }, [filteredUrls, currentSubfolders, onBatchSelect])
   );
 
-  const renderFolderButtons = (urlId: string, parentId: string | null = null, depth = 0) => {
-    return folders
-      .filter(f => f.type === 'url' && (f.parent_id === parentId || (!parentId && !f.parent_id)))
-      .map(f => (
-        <React.Fragment key={f.id}>
-          <button
-            onClick={(e) => { e.stopPropagation(); onMoveItem('url', urlId, f.id); }}
-            className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg flex items-center gap-2"
-            style={{ paddingLeft: `${12 + depth * 12}px` }}
-          >
-            <FolderIcon className="w-3 h-3 text-gray-400" />
-            <span className="truncate">{f.name}</span>
-          </button>
-          {renderFolderButtons(urlId, f.id, depth + 1)}
-        </React.Fragment>
-      ));
-  };
 
   const selectableUrls = filteredUrls.filter(u => !u.is_locked || isAuthenticated);
   const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
 
   return (
-    <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative group">
+    <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
 
       {/* Header - Hidden on mobile */}
@@ -462,7 +447,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
           <div className={cn(
             "grid gap-4 pb-20",
             viewMode === 'grid' 
-              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
+              ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
               : "grid-cols-1"
           )}>
             <AnimatePresence>
@@ -478,7 +463,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     transition={{ delay: idx * 0.02 }}
                     isSelectionMode={isSelectionMode}
                     className={cn(
-                      "relative group flex items-start gap-4 p-4 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer",
+                      "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden pb-4",
+                      viewMode === 'list' ? "flex-row items-center p-3" : "p-4 space-y-2",
                       isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10"
                     )}
                     draggable={!isSelectionMode}
@@ -508,108 +494,260 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     }}
                     onLongPress={() => onSelectionModeChange(true)}
                   >
-                    <div className="shrink-0 pt-1">
+                     <div className="shrink-0 pt-1 pointer-events-none">
+                      {/* Selection Checkbox - Visible on hover or selection mode */}
                       {!isLocked && (
                         <div className={cn(
-                          "transition-opacity",
+                          "transition-opacity z-20 pointer-events-auto",
+                          viewMode === 'grid' && "absolute top-2 left-2",
                           (isSelected || isSelectionMode) 
-                            ? "opacity-100 pointer-events-auto" 
-                            : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
+                            ? "opacity-100" 
+                            : "opacity-0 lg:group-hover:opacity-100"
                         )}>
                           <button
                             onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
-                            className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm"
                           >
                             {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
                           </button>
                         </div>
                       )}
+
+                      {/* Desktop Grid Hover Overlay */}
+                      {!isLocked && viewMode === 'grid' && (
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-center justify-center gap-2 px-4 pointer-events-none lg:group-hover:pointer-events-auto">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                            title="開啟連結"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-violet-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                            title="QR Code"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                            title="複製網址"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          {isAuthenticated && (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className={cn(
+                                  "p-2 bg-white rounded-full shadow-lg transition-transform hover:scale-110 pointer-events-auto",
+                                  url.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
+                                )}
+                                title={url.is_locked ? "解除鎖定" : "鎖定項目"}
+                              >
+                                {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                              </button>
+                              <CascadingMenu
+                                folders={folders}
+                                onSelect={(folderId) => onMoveItem('url', url.url, folderId)}
+                                trigger={
+                                  <button 
+                                    className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
+                                    title="移動到..."
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onMouseUp={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => e.stopPropagation()}
+                                    onTouchEnd={(e) => e.stopPropagation()}
+                                  >
+                                    <FolderIcon className="w-4 h-4" />
+                                  </button>
+                                }
+                              />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onMouseUp={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                                className="p-2 bg-white rounded-full text-gray-700 hover:text-red-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                                title="刪除項目"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
+                    <div className={cn("flex-1 min-w-0 flex flex-col justify-center", viewMode === 'grid' && "mt-1")}>
                       <div className="flex items-center gap-2 mb-1">
                         <p className={cn(
-                          "text-sm font-medium transition-all",
+                          "text-sm font-medium transition-all break-all overflow-hidden",
+                          viewMode === 'list' ? "truncate" : "line-clamp-2",
                           isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
                         )}>
                           {url.url}
                         </p>
-                        <div className="flex items-center gap-1">
-                          {isAuthenticated && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
-                              className={cn(
-                                "p-1 rounded-md transition-all",
-                                url.is_locked ? "text-violet-500 bg-violet-500/10" : "text-gray-400 hover:text-gray-600"
-                              )}
-                            >
-                              {url.is_locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                            </button>
-                          )}
-                          {!isAuthenticated && url.is_locked && (
-                            <div className="p-1 bg-black/5 dark:bg-white/5 rounded-md text-gray-400">
-                              <Lock className="w-3 h-3" />
-                            </div>
-                          )}
-                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 dark:text-white/30 tracking-widest uppercase">
+                      <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 dark:text-white/30 tracking-widest uppercase mt-auto">
                         <span>{new Date(url.created).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    {!isLocked && (
-                      <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                        <a
-                          href={url.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl text-gray-500 hover:text-violet-500 transition-colors"
-                          title="Open Link"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl text-gray-500 hover:text-violet-500 transition-colors"
-                          title="QR Code"
-                        >
-                          <QrCode className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl text-gray-500 hover:text-violet-500 transition-colors"
-                          title="Copy"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                        
-                        <div className="relative group/move pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-                          <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl text-gray-500 hover:text-violet-500 transition-colors">
-                            <FolderIcon className="w-4 h-4" />
-                          </button>
-                          <div className="absolute top-full right-0 mt-2 bg-white dark:bg-space-black border border-gray-100 dark:border-white/10 rounded-xl shadow-2xl p-2 hidden group-hover/move:block z-50 min-w-32">
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); onMoveItem('url', url.url, null); }}
-                              className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg"
-                            >
-                              根目錄
-                            </button>
-                                {renderFolderButtons(url.url)}
-                          </div>
-                        </div>
-
-                        {isAuthenticated && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
-                            className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl text-red-400 hover:text-red-500 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {viewMode === 'grid' && url.is_locked && (
+                           <Lock className="w-3 h-3 text-violet-500 ml-auto" />
                         )}
                       </div>
-                    )}
+
+                      {/* Mobile Top Actions - Grid View Only */}
+                      {viewMode === 'grid' && !isLocked && (
+                         <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu
+                              trigger={
+                                <button 
+                                  className="p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onMouseUp={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onTouchEnd={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </button>
+                              }
+                              items={[
+                                { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
+                                { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
+                                { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                { 
+                                  label: url.is_locked ? '解除鎖定' : '鎖定項目', 
+                                  icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
+                                  onClick: () => onToggleLock('url', url.url, !!url.is_locked),
+                                  hidden: !isAuthenticated
+                                },
+                                { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                                { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
+                              ]}
+                            />
+                         </div>
+                      )}
+
+                      {/* List View Actions (Desktop & Mobile) */}
+                      {viewMode === 'list' && !isLocked && (
+                        <div className="flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
+                          {/* Desktop List Actions */}
+                          <div className="hidden lg:flex items-center gap-1">
+                            <button
+                               onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
+                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
+                               className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/5 rounded-lg transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseUp={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                              className="p-2 text-gray-400 hover:text-violet-500 hover:bg-violet-500/5 rounded-lg transition-colors"
+                              title="QR Code"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onMouseUp={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                              className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                              title="複製網址"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            {isAuthenticated && (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onMouseUp={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onTouchEnd={(e) => e.stopPropagation()}
+                                  className={cn(
+                                    "p-2 rounded-lg transition-colors text-gray-400",
+                                    url.is_locked ? "text-violet-500 bg-violet-500/10" : "hover:text-violet-500 hover:bg-violet-500/5"
+                                  )}
+                                >
+                                  {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onMouseUp={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onTouchEnd={(e) => e.stopPropagation()}
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Mobile List Dropdown */}
+                          <div className="lg:hidden">
+                             <DropdownMenu
+                              trigger={
+                                <button 
+                                  className="p-2 text-gray-400 hover:text-violet-500 rounded-lg transition-colors"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onMouseUp={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onTouchEnd={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="w-5 h-5" />
+                                </button>
+                              }
+                              items={[
+                                { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
+                                { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
+                                { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                { 
+                                  label: url.is_locked ? '解除鎖定' : '鎖定項目', 
+                                  icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
+                                  onClick: () => onToggleLock('url', url.url, !!url.is_locked),
+                                  hidden: !isAuthenticated
+                                },
+                                { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                                { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
+                              ]}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                   </ItemWrapper>
                 );
               })}
@@ -618,18 +756,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
         )}
       </div>
 
-      {/* Batch Select Controls - Mobile */}
-      {isSelectionMode && (
-         <div className="lg:hidden fixed bottom-20 left-4 right-4 z-60">
-            <BatchActionBar
-                selectedCount={selectedItems.length}
-                isBatchSyncing={isBatchSyncing}
-                onAction={onBatchAction || (() => {})}
-                folders={folders}
-                mode="mobile"
-            />
-         </div>
-      )}
     </section>
   );
 };

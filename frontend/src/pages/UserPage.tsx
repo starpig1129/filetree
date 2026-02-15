@@ -774,7 +774,7 @@ export const UserPage: React.FC<UserPageProps> = ({
 
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Usage Pill - Compact on mobile */}
-            <div className="hidden xs:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
               <Activity className="w-3 h-3 text-cyan-500" />
               <span className="text-[10px] font-black text-gray-600 dark:text-gray-300 tracking-tighter">
                 {dashboardData.usage}MB
@@ -900,7 +900,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
                   <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="lg:hidden p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
+                    className="p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
                     aria-label="資料夾"
                   >
                     <FolderIcon className="w-4 h-4" />

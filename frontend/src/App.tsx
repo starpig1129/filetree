@@ -123,7 +123,7 @@ const MainLayout: React.FC<{
   }, []);
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden bg-white dark:bg-space-black">
+    <div className="h-dvh flex flex-col relative overflow-hidden bg-white dark:bg-space-black">
       {/* Global Stable Header - Always visible on mobile, provides consistent toggles */}
       <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-50">
         <button
