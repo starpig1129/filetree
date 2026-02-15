@@ -10,7 +10,7 @@ import {
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { useLongPress } from '../../hooks/useLongPress';
-import { setDragPreview } from '../../utils/dragUtils';
+import { setDragPreview, type DragItem } from '../../utils/dragUtils';
 import { BatchActionBar } from './BatchActionBar';
 import { CascadingMenu } from '../ui/CascadingMenu';
 import { DropdownMenu } from '../ui/DropdownMenu';
@@ -77,18 +77,31 @@ interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onD
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
-const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean }> = ({ 
-  onClick, onLongPress, isSelectionMode, ...props 
+const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; draggable?: boolean }> = ({ 
+  onClick, onLongPress, isSelectionMode, draggable, ...props 
 }) => {
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
   
   // In selection mode, bypass useLongPress to ensure immediate click response on mobile
   const motionProps = props as HTMLMotionProps<"div">;
   
+  // On desktop, if draggable is true, we should let the browser handle mousedown/mouseup for dragging
+  // useLongPress mouse handlers can sometimes interfere with native drag start
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredHandlers: Record<string, any> = { ...handlers };
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024; // lg breakpoint
+  
+  if (isDesktop && draggable) {
+    delete filteredHandlers.onMouseDown;
+    delete filteredHandlers.onMouseUp;
+  }
+
   return (
     <motion.div 
       {...motionProps} 
-      {...(isSelectionMode ? { onClick } : handlers)}
+      draggable={draggable}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {...(isSelectionMode ? { onClick } : (filteredHandlers as any))}
     >
       {props.children}
     </motion.div>
@@ -147,7 +160,7 @@ export const FileView: React.FC<FileViewProps> = ({
   // Filter folders for current view
   const currentSubfolders = folders.filter(f => f.parent_id === activeFolderId && f.type === 'file');
 
-  const { selectionBox, handlePointerDown, handlePointerMove, handleTouchStart, handleTouchMove } = useSelectionBox(
+  const { selectionBox, handlePointerDown, handlePointerMove, handlePointerUp, handleTouchStart, handleTouchMove } = useSelectionBox(
     containerRef,
     ".folder-card, .file-item",
     React.useCallback((indices: number[]) => {
@@ -325,9 +338,10 @@ export const FileView: React.FC<FileViewProps> = ({
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar select-none touch-none relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
       >
         {selectionBox && (
           <div
@@ -372,7 +386,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     draggable={!isSelectionMode}
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = [{ type: 'folder', id: folder.id }];
+                      const itemsToDrag: DragItem[] = [{ type: 'folder', id: folder.id }];
                       
                       e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
                       e.dataTransfer.effectAllowed = 'move';
@@ -531,7 +545,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
                       const isFileSelected = selectedItems.some(i => i.type === 'file' && i.id === file.name);
-                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = isFileSelected 
+                      const itemsToDrag: DragItem[] = isFileSelected 
                         ? selectedItems.map(i => ({ type: i.type, id: i.id }))
                         : [{ type: 'file', id: file.name }];
                       
@@ -602,7 +616,7 @@ export const FileView: React.FC<FileViewProps> = ({
                         )} />
                       </div>
                       
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-center justify-center gap-2 p-4 z-20 pointer-events-none group-hover:pointer-events-auto">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-center justify-center gap-2 p-4 z-20 pointer-events-none">
                           <button
                             onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -859,17 +873,17 @@ export const FileView: React.FC<FileViewProps> = ({
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
                       const isFileSelected = selectedItems.some(i => i.type === 'file' && i.id === file.name);
-                      const itemsToDrag = isFileSelected 
-                        ? selectedItems.filter(i => i.type === 'file' || i.type === 'folder') 
+                      const itemsToDrag: DragItem[] = isFileSelected
+                        ? (selectedItems.filter(i => (i.type === 'file' || i.type === 'folder')) as DragItem[])
                         : [{ type: 'file', id: file.name }];
 
-                      e.dataTransfer.setData('application/json', JSON.stringify({ 
+                      e.dataTransfer.setData('application/json', JSON.stringify({
                         items: itemsToDrag,
                         type: 'file',
                         id: file.name
                       }));
                       e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag as any);
+                      setDragPreview(e, itemsToDrag);
                     }}
                   >
                     <div className="flex items-center gap-3 shrink-0">

@@ -9,7 +9,7 @@ import { CascadingMenu } from '../ui/CascadingMenu';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { useLongPress } from '../../hooks/useLongPress';
-import { setDragPreview } from '../../utils/dragUtils';
+import { setDragPreview, type DragItem } from '../../utils/dragUtils';
 import { BatchActionBar } from './BatchActionBar';
 import type { Folder } from './FolderSidebar';
 
@@ -73,18 +73,31 @@ interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onD
   onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
-const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean }> = ({ 
-  onClick, onLongPress, isSelectionMode, ...props 
+const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; draggable?: boolean }> = ({ 
+  onClick, onLongPress, isSelectionMode, draggable, ...props 
 }) => {
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
   
   // In selection mode, bypass useLongPress to ensure immediate click response on mobile
   const motionProps = props as HTMLMotionProps<"div">;
   
+  // On desktop, if draggable is true, we should let the browser handle mousedown/mouseup for dragging
+  // useLongPress mouse handlers can sometimes interfere with native drag start
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filteredHandlers: Record<string, any> = { ...handlers };
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024; // lg breakpoint
+  
+  if (isDesktop && draggable) {
+    delete filteredHandlers.onMouseDown;
+    delete filteredHandlers.onMouseUp;
+  }
+
   return (
     <motion.div 
       {...motionProps} 
-      {...(isSelectionMode ? { onClick } : handlers)}
+      draggable={draggable}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {...(isSelectionMode ? { onClick } : (filteredHandlers as any))}
     >
       {props.children}
     </motion.div>
@@ -190,7 +203,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
     return urls.filter(u => u.url.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [urls, searchQuery]);
 
-  const { selectionBox, handlePointerDown, handlePointerMove, handleTouchStart, handleTouchMove } = useSelectionBox(
+  const { selectionBox, handlePointerDown, handlePointerMove, handlePointerUp, handleTouchStart, handleTouchMove } = useSelectionBox(
     containerRef,
     ".url-item, .folder-card",
     React.useCallback((indices: number[]) => {
@@ -291,9 +304,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar select-none touch-none relative"
+        className="flex-1 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
       >
         {selectionBox && (
           <div
@@ -488,8 +502,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     onDragStart={(event) => {
                       const e = event as unknown as React.DragEvent<HTMLDivElement>;
                       const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
-                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = isUrlSelected
-                        ? selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as { type: 'file' | 'url' | 'folder', id: string }[]
+                      const itemsToDrag: DragItem[] = isUrlSelected
+                        ? (selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as DragItem[])
                         : [{ type: 'url', id: url.url }];
 
                       e.dataTransfer.setData('application/json', JSON.stringify({ 
@@ -546,7 +560,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
 
                       {/* Desktop Grid Hover Overlay */}
                       {!isLocked && viewMode === 'grid' && (
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-center justify-center gap-2 px-4 pointer-events-none lg:group-hover:pointer-events-auto">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-center justify-center gap-2 px-4 pointer-events-none">
                           <button
                             onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
                             onMouseDown={(e) => e.stopPropagation()}

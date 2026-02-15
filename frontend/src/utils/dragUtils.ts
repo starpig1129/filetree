@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface DragItem {
+export interface DragItem {
   type: 'file' | 'url' | 'folder';
   id: string;
 }
