@@ -105,5 +105,18 @@ class InitResponse(BaseModel):
     config: SystemConfig
 
 
+class ShareInfo(BaseModel):
+    """Schema for sharing info preview."""
+    username: str
+    filename: str
+    size: str
+    size_bytes: int
+    expiry: datetime
+    is_locked: bool
+    preview_url: str
+    download_url: str
+    thumbnail_url: Optional[str] = None
+
+
     
 

@@ -6,6 +6,7 @@ const UserPage = React.lazy(() => import('./pages/UserPage').then(module => ({ d
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
 const HelpPage = React.lazy(() => import('./pages/HelpPage').then(module => ({ default: module.HelpPage })));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
+const SharePage = React.lazy(() => import('./pages/SharePage').then(module => ({ default: module.SharePage })));
 import { Starfield } from './components/Starfield';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
@@ -281,6 +282,8 @@ const AppContent: React.FC = () => {
             <Route path="/help" element={
               <MainLayout users={users} config={config} loading={loading} />
             } />
+
+            <Route path="/share/:token" element={<SharePage />} />
 
             {/* Catch-all 404 route */}
             <Route path="*" element={<NotFoundPage />} />

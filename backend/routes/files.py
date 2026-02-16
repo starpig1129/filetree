@@ -9,7 +9,7 @@ from backend.services.token_service import token_service
 from backend.services.audit_service import AuditService
 from backend.services.event_service import event_service
 from backend.services.thumbnail_service import thumbnail_service
-from backend.schemas import FileInfo, URLRecord, BatchActionRequest
+from backend.schemas import FileInfo, URLRecord, BatchActionRequest, ShareInfo
 from backend.core.auth import verify_password
 from backend.core.rate_limit import limiter, UPLOAD_LIMIT, TUS_LIMIT
 from backend.core.utils import get_client_ip
@@ -214,6 +214,50 @@ async def create_share(
         "token": share_token,
         "expiry_hours": token_service.expiry_hours,
     }
+
+
+@router.get("/share-info/{token}", response_model=ShareInfo)
+async def get_share_info(token: str):
+    """Retrieve info about a shared file."""
+    info = token_service.validate_token(token)
+    if not info:
+        raise HTTPException(status_code=404, detail="分享連結已過期或無效")
+
+    user = await user_service.get_user_by_name(info.username)
+    if not user:
+        raise HTTPException(status_code=404, detail="使用者不存在")
+
+    # Resolve physical path from files.db
+    from backend.services.database import get_files_db
+    db = await get_files_db()
+    cursor = await db.execute(
+        "SELECT folder_id, size_bytes, is_locked FROM files "
+        "WHERE username = ? AND filename = ?",
+        (user["folder"], info.filename),
+    )
+    row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="檔案不存在")
+
+    size_bytes = row["size_bytes"]
+    size_mb = round(size_bytes / (1024 * 1024), 2)
+    size_str = f"{size_mb} MB" if size_mb >= 0.1 else f"{round(size_bytes/1024, 2)} KB"
+
+    preview_url = f"/api/download/{info.username}/{info.filename}?token={token}&inline=true"
+    download_url = f"/api/download-shared/{token}"
+    thumbnail_url = f"/api/thumbnail/{info.username}/{info.filename}?token={token}"
+
+    return ShareInfo(
+        username=info.username,
+        filename=info.filename,
+        size=size_str,
+        size_bytes=size_bytes,
+        expiry=info.expiry,
+        is_locked=bool(row["is_locked"]),
+        preview_url=preview_url,
+        download_url=download_url,
+        thumbnail_url=thumbnail_url
+    )
 
 
 @router.get("/download-shared/{token}")

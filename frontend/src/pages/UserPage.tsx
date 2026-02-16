@@ -660,7 +660,7 @@ export const UserPage: React.FC<UserPageProps> = ({
           }
 
           const result = await res.json();
-          shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
+          shareUrlResult = `${window.location.origin}/share/${result.token}`;
           return new Blob([shareUrlResult], { type: 'text/plain' });
         })();
 
@@ -684,7 +684,7 @@ export const UserPage: React.FC<UserPageProps> = ({
               return;
             }
             const result = await res.json();
-            shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
+            shareUrlResult = `${window.location.origin}/share/${result.token}`;
           }
         }
       } else {
@@ -700,7 +700,7 @@ export const UserPage: React.FC<UserPageProps> = ({
         }
 
         const result = await res.json();
-        shareUrlResult = `${window.location.origin}/api/download-shared/${result.token}`;
+        shareUrlResult = `${window.location.origin}/share/${result.token}`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
           try {

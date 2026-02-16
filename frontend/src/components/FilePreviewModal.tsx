@@ -2,35 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, FileText, Loader2, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-
-// Define file types for better handling
-type FileType = 'image' | 'video' | 'audio' | 'pdf' | 'office' | 'text' | 'code' | 'unknown';
+import { getFileType } from '../lib/file-utils';
 
 interface FilePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   file: {
     name: string;
-    size: string; // Changed to string for consistency
+    size: string;
     url: string;
   } | null;
 }
 
-const getFileType = (filename: string): FileType => {
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) return 'image';
-  if (['mp4', 'webm', 'mov', 'mkv'].includes(ext)) return 'video';
-  if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) return 'audio';
-  if (['pdf'].includes(ext)) return 'pdf';
-  if (['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) return 'office';
-  if (['txt', 'md', 'json', 'csv', 'log', 'xml'].includes(ext)) return 'text';
-  if (['py', 'js', 'ts', 'tsx', 'jsx', 'html', 'css', 'java', 'c', 'cpp', 'rs', 'go', 'php'].includes(ext)) return 'code';
-  return 'unknown';
-};
-
 // Internal component to handle content loading and display
 // This avoids "state reset cascading renders" in the parent modal
-const FilePreviewContent: React.FC<{
+export const FilePreviewContent: React.FC<{
   file: NonNullable<FilePreviewModalProps['file']>;
   loading: boolean;
   setLoading: (l: boolean) => void;
@@ -41,11 +27,9 @@ const FilePreviewContent: React.FC<{
   const [officeViewer, setOfficeViewer] = useState<'microsoft' | 'google'>('microsoft');
 
   useEffect(() => {
-    // State is reset by key prop on parent, no need to manual reset here
     const type = getFileType(file.name);
 
     if (type === 'text' || type === 'code' || file.size === 'Note') {
-      // Check if it's a URL or literal content
       const isUrl = file.url.startsWith('http') || file.url.startsWith('/') || file.url.startsWith('blob:');
       
       if (isUrl) {
@@ -64,7 +48,6 @@ const FilePreviewContent: React.FC<{
             setLoading(false);
           });
       } else {
-        // Literal content
         Promise.resolve().then(() => {
           setTextContent(file.url);
           setLoading(false);
@@ -77,7 +60,6 @@ const FilePreviewContent: React.FC<{
 
   const isNote = file.size === 'Note' || file.name === '筆記預覽';
   const fileType = isNote ? 'text' : getFileType(file.name);
-  // ... (rest of component)
 
   if (error) {
     return (
@@ -98,8 +80,6 @@ const FilePreviewContent: React.FC<{
             alt={file.name}
             className={cn(
               "max-w-full max-h-full object-contain transition-opacity duration-300",
-              // For GIFs/Images, we might want to see them load progressively rather than wait for full load
-              // So we remove opacity-0. We still keep the loader.
               "opacity-100"
             )}
             onLoad={() => setLoading(false)}
@@ -134,7 +114,6 @@ const FilePreviewContent: React.FC<{
         </div>
       );
     case 'pdf': {
-      // Add inline=true to allow browser to display PDF inline instead of download
       const pdfUrl = file.url.includes('?')
         ? `${file.url}&inline=true`
         : `${file.url}?inline=true`;
@@ -148,10 +127,7 @@ const FilePreviewContent: React.FC<{
       );
     }
     case 'office': {
-      // Using Microsoft Office Online Viewer primarily, with Google Docs as fallback
       const fullUrl = file.url.startsWith('http') ? file.url : window.location.origin + file.url;
-
-      // Validation: Office Online requires a public URL and has size limits
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const sizeInMB = parseFloat(file.size.split(' ')[0]);
       const isTooLarge = file.size.includes('GB') || (file.size.includes('MB') && sizeInMB > 25);
@@ -243,17 +219,10 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // We rely on the inner component to handle content state, 
-  // but we keep loading/error here if we want to show global headers or states? 
-  // Actually, let's keep it simple. Inner component does the heavy lifting.
-  // BUT the header needs file info.
-  // Let's pass state down.
-
   return (
     <AnimatePresence>
       {isOpen && file && (
         <div className="fixed inset-0 z-150 flex items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -262,7 +231,6 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
             className="absolute inset-0 bg-space-black/95 backdrop-blur-xl"
           />
 
-          {/* Modal Content */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -272,7 +240,6 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
               isFullscreen ? "w-[98vw] h-[95vh]" : "w-full max-w-5xl h-[80vh]"
             )}
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-md shrink-0">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="p-2 bg-quantum-cyan/10 rounded-lg">
@@ -313,10 +280,9 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
               </div>
             </div>
 
-            {/* Body */}
             <div className="flex-1 overflow-hidden p-2 sm:p-4 relative bg-black/20">
               <FilePreviewContent
-                key={file.url} /* Force remount on file change to reset state */
+                key={file.url}
                 file={file}
                 loading={loading}
                 setLoading={setLoading}
