@@ -190,6 +190,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const lastClickTimeRef = React.useRef<number>(0);
 
   const currentSubfolders = useMemo(() => 
     folders.filter(f => f.parent_id === activeFolderId && f.type === 'url'),
@@ -403,6 +404,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         setDragPreview(e, itemsToDrag);
                       }}
                       onClick={() => {
+                        const now = Date.now();
+                        if (now - lastClickTimeRef.current < 500) return;
+                        lastClickTimeRef.current = now;
+
                         if (isSelectionMode) {
                           onToggleSelect('url', url.url);
                           return;
@@ -454,17 +459,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         {!isLocked && (
                           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 pointer-events-none">
                             <button
-                              onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
-                              onMouseDown={(e) => e.stopPropagation()}
-                               onMouseUp={(e) => e.stopPropagation()}
-                               onTouchStart={(e) => e.stopPropagation()}
-                               onTouchEnd={(e) => e.stopPropagation()}
-                              className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
-                              title="開啟連結"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </button>
-                            <button
                               onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
                                onMouseUp={(e) => e.stopPropagation()}
@@ -482,7 +476,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchStart={(e) => e.stopPropagation()}
                                onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
-                              title="複製網址"
+                              title="複製"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -539,7 +533,11 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         <div className="flex items-start gap-3 mb-1">
                           <p className={cn(
                             "flex-1 text-sm font-medium transition-all break-all overflow-hidden line-clamp-2",
-                            isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
+                            isLocked 
+                              ? "blur-[5px] select-none text-gray-300" 
+                              : isActuallyUrl 
+                                ? "text-blue-500 dark:text-blue-400 group-hover:underline" 
+                                : "text-gray-900 dark:text-white"
                           )}>
                             {url.url}
                           </p>
@@ -570,9 +568,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                    </button>
                                  }
                                  items={[
-                                   { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
                                    { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
-                                   { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                   { label: '複製', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
                                    { 
                                      label: url.is_locked ? '解除鎖定' : '鎖定項目', 
                                      icon: url.is_locked ? <Lock className="w-4 h-4 text-violet-600" /> : <Unlock className="w-4 h-4 text-cyan-600" />, 
@@ -628,6 +625,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         setDragPreview(e, itemsToDrag);
                       }}
                       onClick={() => {
+                        const now = Date.now();
+                        if (now - lastClickTimeRef.current < 500) return;
+                        lastClickTimeRef.current = now;
+
                         if (isSelectionMode) {
                           onToggleSelect('url', url.url);
                           return;
@@ -681,7 +682,11 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         <div className="flex items-center gap-2 min-w-0">
                           <p className={cn(
                             "flex-1 text-sm font-bold transition-all truncate",
-                            isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
+                            isLocked 
+                              ? "blur-[5px] select-none text-gray-300" 
+                              : isActuallyUrl 
+                                ? "text-blue-500 dark:text-blue-400 group-hover:underline" 
+                                : "text-gray-900 dark:text-white"
                           )}>
                             {url.url}
                           </p>
@@ -703,16 +708,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         <div className="shrink-0 flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
                           <div className="hidden lg:flex items-center gap-1">
                             <button
-                               onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
-                               onMouseDown={(e) => e.stopPropagation()}
-                               onMouseUp={(e) => e.stopPropagation()}
-                               onTouchStart={(e) => e.stopPropagation()}
-                               onTouchEnd={(e) => e.stopPropagation()}
-                               className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/5 rounded-lg transition-colors"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </button>
-                            <button
                               onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
                                onMouseUp={(e) => e.stopPropagation()}
@@ -730,7 +725,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchStart={(e) => e.stopPropagation()}
                                onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
-                              title="複製網址"
+                              title="複製"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -802,9 +797,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                  </button>
                                }
                                items={[
-                                 { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
                                  { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
-                                 { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                 { label: '複製', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
                                  { 
                                    label: url.is_locked ? '解除鎖定' : '鎖定項目', 
                                    icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 

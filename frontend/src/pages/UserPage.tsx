@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import {
@@ -50,6 +51,7 @@ export const UserPage: React.FC<UserPageProps> = ({
   const [activeTab, setActiveTab] = useState<'files' | 'urls'>('files');
   const [activeFileFolderId, setActiveFileFolderId] = useState<string | null>(null);
   const [activeUrlFolderId, setActiveUrlFolderId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isDesktop, setIsDesktop] = useState(true);
 
@@ -108,6 +110,48 @@ export const UserPage: React.FC<UserPageProps> = ({
   // Sync props to local state if they change (e.g. navigation), 
   // but be careful not to overwrite valid local updates with stale props
   // We only update if the username or basic structure changed, or if it's the first load
+  // Sync state with URL query parameters
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'file') setActiveTab('files');
+    else if (tab === 'url') setActiveTab('urls');
+
+    const folderId = searchParams.get('folder');
+    if (activeTab === 'files') {
+      setActiveFileFolderId(folderId);
+    } else {
+      setActiveUrlFolderId(folderId);
+    }
+  }, [searchParams, activeTab]);
+
+  // Update URL when folder or tab changes
+  const updateUrl = (tab: 'files' | 'urls', folderId: string | null) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', tab === 'files' ? 'file' : 'url');
+    if (folderId) {
+      newParams.set('folder', folderId);
+    } else {
+      newParams.delete('folder');
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleTabChange = (tab: 'files' | 'urls') => {
+    setActiveTab(tab);
+    const folderId = tab === 'files' ? activeFileFolderId : activeUrlFolderId;
+    updateUrl(tab, folderId);
+  };
+
+  const handleFolderNavigation = (type: 'file' | 'url', folderId: string | null) => {
+    if (type === 'file') {
+      setActiveFileFolderId(folderId);
+      updateUrl('files', folderId);
+    } else {
+      setActiveUrlFolderId(folderId);
+      updateUrl('urls', folderId);
+    }
+  };
+
   React.useEffect(() => {
     if (data.user?.username !== dashboardData.user?.username) {
       setDashboardData(data);
@@ -814,7 +858,7 @@ export const UserPage: React.FC<UserPageProps> = ({
         {/* Row 2: Navigation Tabs - More compact on mobile */}
         <div className="flex items-center gap-1 sm:gap-2 pb-1 lg:pb-0">
           <button
-            onClick={() => setActiveTab('files')}
+            onClick={() => handleTabChange('files')}
             className={cn(
               "flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden",
               activeTab === 'files'
@@ -826,7 +870,7 @@ export const UserPage: React.FC<UserPageProps> = ({
             檔案列表
           </button>
           <button
-            onClick={() => setActiveTab('urls')}
+            onClick={() => handleTabChange('urls')}
             className={cn(
               "flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden",
               activeTab === 'urls'
@@ -874,8 +918,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                     activeType={activeTab === 'files' ? 'file' : 'url'}
                     isAuthenticated={isAuthenticated}
                     onSelectFolder={(id) => {
-                       if (activeTab === 'files') setActiveFileFolderId(id);
-                       else setActiveUrlFolderId(id);
+                       handleFolderNavigation(activeTab === 'files' ? 'file' : 'url', id);
                        // Close on selection if mobile
                        if (!isDesktop) setIsSidebarOpen(false);
                     }}
@@ -912,7 +955,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   </button>
                   <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden shrink-0" />
                   <button
-                    onClick={() => setActiveFileFolderId(null)}
+                    onClick={() => handleFolderNavigation('file', null)}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
                       activeFileFolderId === null
@@ -926,7 +969,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                     <React.Fragment key={crumb.id}>
                       <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
                       <button
-                        onClick={() => setActiveFileFolderId(crumb.id)}
+                        onClick={() => handleFolderNavigation('file', crumb.id)}
                         className={cn(
                           "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
                           idx === arr.length - 1
@@ -979,7 +1022,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onDelete={handleDelete}
                 onShare={handleShare}
                 onQrCode={(filename) => {
-                  const url = `${window.location.origin}/user/${data.user?.username}/file/${encodeURIComponent(filename)}`;
+                  const url = `${window.location.origin}/${data.user?.username}/file/${encodeURIComponent(filename)}`;
                   setQrUrl(url);
                 }}
                 onPreview={(file) => setPreviewFile(file)}
@@ -988,7 +1031,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 folders={dashboardData.folders?.filter(f => f.type === 'file') || []}
                 activeFolderId={activeFileFolderId}
                 onMoveItem={handleMoveItem}
-                onFolderClick={setActiveFileFolderId}
+                onFolderClick={(id) => handleFolderNavigation('file', id)}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
                 onBatchAction={handleBatchAction}
@@ -999,11 +1042,11 @@ export const UserPage: React.FC<UserPageProps> = ({
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 onShareFolder={(folderId) => {
-                  const url = `${window.location.origin}/user/${data.user?.username}?tab=file&folder=${folderId}`;
+                  const url = `${window.location.origin}/${data.user?.username}?tab=file&folder=${folderId}`;
                   navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
                 }}
                 onQrCodeFolder={(folderId) => {
-                  const url = `${window.location.origin}/user/${data.user?.username}?tab=file&folder=${folderId}`;
+                  const url = `${window.location.origin}/${data.user?.username}?tab=file&folder=${folderId}`;
                   setQrUrl(url);
                 }}
                 onDownloadFolder={(folderId) => {
@@ -1045,7 +1088,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   </button>
                   <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden shrink-0" />
                   <button
-                    onClick={() => setActiveUrlFolderId(null)}
+                    onClick={() => handleFolderNavigation('url', null)}
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
                       activeUrlFolderId === null
@@ -1059,7 +1102,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                     <React.Fragment key={crumb.id}>
                       <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
                       <button
-                        onClick={() => setActiveUrlFolderId(crumb.id)}
+                        onClick={() => handleFolderNavigation('url', crumb.id)}
                         className={cn(
                           "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
                           idx === arr.length - 1
@@ -1114,7 +1157,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 folders={dashboardData.folders?.filter(f => f.type === 'url') || []}
                 activeFolderId={activeUrlFolderId}
                 onMoveItem={handleMoveItem}
-                onFolderClick={setActiveUrlFolderId}
+                onFolderClick={(id) => handleFolderNavigation('url', id)}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
                 onBatchAction={handleBatchAction}
@@ -1125,11 +1168,11 @@ export const UserPage: React.FC<UserPageProps> = ({
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 onShareFolder={(folderId) => {
-                  const url = `${window.location.origin}/user/${data.user?.username}?tab=url&folder=${folderId}`;
+                  const url = `${window.location.origin}/${data.user?.username}?tab=url&folder=${folderId}`;
                   navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
                 }}
                 onQrCodeFolder={(folderId: string) => {
-                  const url = `${window.location.origin}/user/${data.user?.username}?tab=url&folder=${folderId}`;
+                  const url = `${window.location.origin}/${data.user?.username}?tab=url&folder=${folderId}`;
                   setQrUrl(url);
                 }}
                 onPreview={(note) => setPreviewFile(note)}
