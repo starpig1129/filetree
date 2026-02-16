@@ -19,7 +19,7 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
       ref={ref}
       {...props}
       style={style}
-      className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4 pb-20 sm:pb-24"
+      className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4 pb-24 sm:pb-32 pt-4 sm:pt-6"
     >
       {children}
     </div>
@@ -34,7 +34,7 @@ const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
       ref={ref}
       {...props}
       style={style}
-      className="flex flex-col gap-2 pb-20 sm:pb-24"
+      className="flex flex-col gap-2 pb-24 sm:pb-32 pt-4 sm:pt-6"
     >
       {children}
     </div>

@@ -39,6 +39,7 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   <div
     ref={ref}
     {...props}
+    className="pt-4 sm:pt-6 pb-24 sm:pb-32"
     style={{
       ...style,
       display: 'grid',
@@ -55,6 +56,7 @@ const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
   <div
     ref={ref}
     {...props}
+    className="pt-4 sm:pt-6 pb-24 sm:pb-32"
     style={{
       ...style,
       display: 'flex',
