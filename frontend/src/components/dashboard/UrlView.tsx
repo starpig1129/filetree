@@ -248,7 +248,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
     React.useCallback(() => {
       onBatchSelect([], 'set');
     }, [onBatchSelect])
-  );
+  , isDesktop);
 
   const selectableUrls = filteredUrls.filter(u => !u.is_locked || isAuthenticated);
   const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));

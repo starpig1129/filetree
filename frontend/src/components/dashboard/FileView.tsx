@@ -209,7 +209,7 @@ export const FileView: React.FC<FileViewProps> = ({
     React.useCallback(() => {
       onBatchSelect([], 'set');
     }, [onBatchSelect])
-  );
+  , isDesktop);
 
   const selectableFiles = files?.filter(f => !f.is_locked || isAuthenticated) || [];
   const isAllSelected = selectableFiles.length > 0 && selectableFiles.every(f => selectedItems.some(i => i.type === 'file' && i.id === f.name));

@@ -17,7 +17,8 @@ export const useSelectionBox = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   itemSelector: string,
   onSelectionChange: (result: { visibleIds: string[]; intersectingIds: string[] }) => void,
-  onSelectionClear?: () => void
+  onSelectionClear?: () => void,
+  enabled = true
 ) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectionBox, setSelectionBox] = useState<Box | null>(null);
@@ -102,6 +103,7 @@ export const useSelectionBox = (
 
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (!enabled) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
     const target = e.target as HTMLElement;
@@ -127,9 +129,10 @@ export const useSelectionBox = (
     setIsDragging(true);
     // Initial box is zero usage, but we set it to current pos
     setSelectionBox({ x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY });
-  }, [containerRef, itemSelector, getScroller]);
+  }, [containerRef, itemSelector, getScroller, enabled]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!enabled) return;
     const target = e.target as HTMLElement;
     if (target.closest('button, a, input, [role="button"]')) return;
 
@@ -152,7 +155,7 @@ export const useSelectionBox = (
 
     setIsDragging(true);
     setSelectionBox({ x1: touch.clientX, y1: touch.clientY, x2: touch.clientX, y2: touch.clientY });
-  }, [containerRef, itemSelector, getScroller]);
+  }, [containerRef, itemSelector, getScroller, enabled]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging || !containerRef.current) return;
