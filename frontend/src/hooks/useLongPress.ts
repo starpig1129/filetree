@@ -15,39 +15,72 @@ export const useLongPress = (
 ) => {
   const [longPressTriggered, setLongPressTriggered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
+  const isCanceled = useRef(false);
 
   const start = useCallback(
     (event: React.MouseEvent | React.TouchEvent) => {
-      // Modern React (17+) does not need event.persist() for async access
+      const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+      const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+      startPos.current = { x: clientX, y: clientY };
+      isCanceled.current = false;
+
       timerRef.current = setTimeout(() => {
-        onLongPress(event);
-        setLongPressTriggered(true);
+        if (!isCanceled.current) {
+          onLongPress(event);
+          setLongPressTriggered(true);
+        }
       }, delay);
     },
     [onLongPress, delay]
+  );
+
+  const handleMove = useCallback(
+    (event: React.MouseEvent | React.TouchEvent) => {
+      if (!startPos.current || isCanceled.current) return;
+
+      const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+      const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+
+      const dx = clientX - startPos.current.x;
+      const dy = clientY - startPos.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > 10) {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        isCanceled.current = true;
+      }
+    },
+    []
   );
 
   const clear = useCallback(
     (event: React.MouseEvent | React.TouchEvent, shouldTriggerClick = true) => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
-      if (shouldTriggerClick && !longPressTriggered && onClick) {
+      if (shouldTriggerClick && !longPressTriggered && !isCanceled.current && onClick) {
         onClick(event);
       }
       setLongPressTriggered(false);
+      startPos.current = null;
+      isCanceled.current = false;
     },
     [onClick, longPressTriggered]
   );
 
   return {
     onMouseDown: (e: React.MouseEvent) => start(e),
+    onMouseMove: (e: React.MouseEvent) => handleMove(e),
     onMouseUp: (e: React.MouseEvent) => clear(e),
     onMouseLeave: (e: React.MouseEvent) => clear(e, false),
     onTouchStart: (e: React.TouchEvent) => start(e),
+    onTouchMove: (e: React.TouchEvent) => handleMove(e),
     onTouchEnd: (e: React.TouchEvent) => {
-      // Prevent browser from firing subsequent mouse/click events (ghost clicks)
-      // This solves the issue where "Toggle Select" triggers twice (Select -> Deselect)
       if (e.cancelable) e.preventDefault();
       clear(e);
     },

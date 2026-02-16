@@ -274,7 +274,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
         }}
         onLongPress={() => onSelectionModeChange(true)}
         className={cn(
-          "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
+          "relative group flex items-center gap-2 sm:gap-4 p-1.5 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
           isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
           file.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
         )}
@@ -524,7 +524,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
       {/* Selection Checkbox (top-left) */}
       {!isLocked && (
         <div className={cn(
-          "absolute top-3 left-3 z-30 transition-opacity",
+          "absolute top-2 left-2 z-30 transition-opacity",
           (isSelected || isSelectionMode) 
             ? "opacity-100 pointer-events-auto" 
             : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
@@ -543,7 +543,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
       {/* Mobile Action Menu (top-right, lg:hidden) */}
       {!isSelectionMode && (
         <div 
-          className="absolute top-3 right-3 z-30 lg:hidden" 
+          className="absolute top-2 right-2 z-30 lg:hidden" 
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onMouseUp={(e) => e.stopPropagation()}
@@ -697,7 +697,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
       </div>
 
       {/* File Info for Grid */}
-      <div className="p-3 sm:p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
+      <div className="p-2 sm:p-3 bg-white/50 dark:bg-white/5 flex-1 flex flex-col justify-between backdrop-blur-sm border-t border-white/20 dark:border-white/5">
         <div className="mb-2">
           {renamingFile === file.name ? (
             <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -733,7 +733,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
           ) : (
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                <div className="text-xs font-bold text-gray-900 dark:text-white truncate">
                   {file.name}
                 </div>
                 {file.is_locked && (

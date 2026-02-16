@@ -236,7 +236,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
         }}
         onLongPress={() => onSelectionModeChange(true)}
         className={cn(
-          "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent rounded-xl transition-all duration-300 cursor-pointer shadow-sm folder-card",
+          "relative group flex items-center gap-2 sm:gap-4 p-1.5 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent rounded-xl transition-all duration-300 cursor-pointer shadow-sm folder-card",
           isSelected 
             ? "bg-cyan-500/10 dark:bg-cyan-500/20 ring-1 ring-cyan-500/50 shadow-md"
             : "hover:border-cyan-500/30",
@@ -520,7 +520,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     >
       {/* Selection Checkbox */}
       <div className={cn(
-        "absolute top-3 left-3 z-30 transition-opacity",
+        "absolute top-2 left-2 z-30 transition-opacity",
         (isSelected || isSelectionMode) 
           ? "opacity-100 pointer-events-auto" 
           : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
@@ -539,8 +539,8 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
 
       {folder.is_locked && (
         <div className={cn(
-          "absolute top-3 z-20 pointer-events-none",
-          (isSelected || isSelectionMode) ? "left-10" : "left-3"
+          "absolute top-2 z-20 pointer-events-none",
+          (isSelected || isSelectionMode) ? "left-10" : "left-2"
         )}>
           <div className="p-1 rounded bg-white/90 dark:bg-black/80 shadow-sm text-violet-600">
             <Lock className="w-3.5 h-3.5" />
@@ -576,8 +576,8 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
       )}
 
       <div className="flex items-center gap-3">
-        <div className="p-2.5 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-xl shrink-0">
-          <FolderIcon className="w-6 h-6" />
+        <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-xl shrink-0">
+          <FolderIcon className="w-5 h-5" />
         </div>
         <div className="min-w-0 flex-1">
           {renamingFolderId === folder.id ? (
@@ -621,7 +621,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
               </button>
             </div>
           ) : (
-            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate group-hover:text-cyan-600 transition-colors">
+            <h4 className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate group-hover:text-cyan-600 transition-colors">
               {folder.name}
             </h4>
           )}

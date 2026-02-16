@@ -39,12 +39,12 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   <div
     ref={ref}
     {...props}
-    className="pt-4 sm:pt-6 pb-24 sm:pb-32"
+    className="pt-2 sm:pt-6 pb-24 sm:pb-32"
     style={{
       ...style,
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-      gap: '1rem',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+      gap: '0.5rem',
     }}
   >
     {children}
@@ -56,12 +56,12 @@ const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
   <div
     ref={ref}
     {...props}
-    className="pt-4 sm:pt-6 pb-24 sm:pb-32"
+    className="pt-2 sm:pt-6 pb-24 sm:pb-32"
     style={{
       ...style,
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.5rem',
+      gap: '0.4rem',
     }}
   >
     {children}
@@ -318,7 +318,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 min-w-0 overflow-hidden p-3 sm:p-6 custom-scrollbar touch-pan-y relative flex flex-col"
+        className="flex-1 min-w-0 overflow-hidden p-2 sm:p-6 custom-scrollbar touch-pan-y relative flex flex-col"
       >
         {selectionBox && createPortal(
           <div
@@ -340,9 +340,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
               Folders
             </h3>
             <div className={cn(
-              "grid gap-4",
+              "grid gap-2 sm:gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-[repeat(auto-fill,minmax(160px,1fr))]" 
+                ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {
@@ -433,7 +433,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
                       className={cn(
-                        "relative group bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden flex flex-col p-3 sm:p-4 space-y-2 rounded-2xl",
+                        "relative group bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden flex flex-col p-2.5 sm:p-4 space-y-2 rounded-2xl",
                         isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
                         url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                       )}
@@ -462,12 +462,12 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" 
                             : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                         )}>
-                          {isActuallyUrl ? <LinkIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                          {isActuallyUrl ? <LinkIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                         </div>
 
                         {!isLocked && (
                           <div className={cn(
-                            "transition-opacity z-30 pointer-events-auto absolute top-2 left-2",
+                            "transition-opacity z-30 pointer-events-auto absolute top-1.5 left-1.5",
                             (isSelected || isSelectionMode) 
                               ? "opacity-100" 
                               : "opacity-0 lg:group-hover:opacity-100"
@@ -575,7 +575,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
 
                         {!isLocked && (
                            <div 
-                             className="absolute top-3 right-3 z-30 lg:hidden" 
+                             className="absolute top-2 right-2 z-30 lg:hidden" 
                              onClick={(e) => e.stopPropagation()}
                              onMouseDown={(e) => e.stopPropagation()}
                              onMouseUp={(e) => e.stopPropagation()}
@@ -659,7 +659,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
                       className={cn(
-                        "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-xl transition-all duration-300 shadow-sm cursor-pointer url-item",
+                        "relative group flex items-center gap-2 sm:gap-4 p-1.5 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-xl transition-all duration-300 shadow-sm cursor-pointer url-item",
                         isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
                         url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                       )}
@@ -706,7 +706,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" 
                             : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                         )}>
-                          {isActuallyUrl ? <LinkIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                          {isActuallyUrl ? <LinkIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                         </div>
                       </div>
 

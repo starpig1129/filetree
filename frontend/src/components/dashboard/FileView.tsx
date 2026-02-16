@@ -19,7 +19,7 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
       ref={ref}
       {...props}
       style={style}
-      className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 sm:gap-4 pb-24 sm:pb-32 pt-4 sm:pt-6"
+      className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 sm:gap-4 pb-24 sm:pb-32 pt-2 sm:pt-6"
     >
       {children}
     </div>
@@ -34,7 +34,7 @@ const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
       ref={ref}
       {...props}
       style={style}
-      className="flex flex-col gap-2 pb-24 sm:pb-32 pt-4 sm:pt-6"
+      className="flex flex-col gap-1.5 sm:gap-2 pb-24 sm:pb-32 pt-2 sm:pt-6"
     >
       {children}
     </div>
@@ -290,7 +290,7 @@ export const FileView: React.FC<FileViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 min-h-0 min-w-0 flex flex-col p-3 sm:p-6 custom-scrollbar touch-pan-y relative overflow-hidden"
+        className="flex-1 min-h-0 min-w-0 flex flex-col p-2 sm:p-6 custom-scrollbar touch-pan-y relative overflow-hidden"
       >
         {selectionBox && createPortal(
           <div
@@ -312,9 +312,9 @@ export const FileView: React.FC<FileViewProps> = ({
               Folders
             </h3>
             <div className={cn(
-              "grid gap-4",
+              "grid gap-2 sm:gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-[repeat(auto-fill,minmax(180px,1fr))]" 
+                ? "grid-cols-[repeat(auto-fill,minmax(150px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {

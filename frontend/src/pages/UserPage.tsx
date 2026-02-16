@@ -803,15 +803,15 @@ export const UserPage: React.FC<UserPageProps> = ({
       </div>
 
       {/* Header - Optimized Horizontal Layout for Mobile */}
-      <header className="flex flex-col gap-2 sm:gap-3 px-3 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6 relative z-10 lg:pl-6 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
+      <header className="flex flex-col gap-1 sm:gap-3 px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6 relative z-10 lg:pl-6 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
         
         {/* Row 1: Logo & Global Actions */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           
           <div className="flex items-center gap-2 sm:gap-4">
 
-            <div className="flex items-center gap-2 sm:gap-3 group cursor-default">
-              <div className="p-1.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
+            <div className="flex items-center gap-1.5 sm:gap-3 group cursor-default">
+              <div className="p-1 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
                 <div className="text-cyan-600 dark:text-quantum-cyan font-black text-xs">FN</div>
               </div>
               <h1 className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-30 sm:max-w-none">
@@ -833,7 +833,7 @@ export const UserPage: React.FC<UserPageProps> = ({
             <button
               onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
               className={cn(
-                "p-2.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-10 min-h-10",
+                "p-1.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-8 min-h-8 sm:min-w-10 sm:min-h-10",
                 isAuthenticated
                   ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20"
                   : "bg-white/80 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
@@ -846,7 +846,7 @@ export const UserPage: React.FC<UserPageProps> = ({
             {/* Settings - Touch-friendly */}
             <button
               onClick={() => setShowSettingsModal(true)}
-              className="p-2.5 sm:p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20 min-w-10 min-h-10 flex items-center justify-center"
+              className="p-1.5 sm:p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20 min-w-8 min-h-8 sm:min-w-10 sm:min-h-10 flex items-center justify-center"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -859,7 +859,7 @@ export const UserPage: React.FC<UserPageProps> = ({
           <button
             onClick={() => handleTabChange('files')}
             className={cn(
-              "flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden",
+              "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
               activeTab === 'files'
                 ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                 : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
@@ -871,7 +871,7 @@ export const UserPage: React.FC<UserPageProps> = ({
           <button
             onClick={() => handleTabChange('urls')}
             className={cn(
-              "flex-1 sm:flex-none px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-2 relative overflow-hidden",
+              "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
               activeTab === 'urls'
                 ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
                 : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
@@ -884,7 +884,7 @@ export const UserPage: React.FC<UserPageProps> = ({
       </header>
 
       {/* Main Content Area - Reduced gap on mobile */}
-      <main className="flex-1 min-h-0 px-2 pb-2 lg:px-6 lg:pb-6 relative z-10 overflow-hidden flex gap-2 lg:gap-4">
+      <main className="flex-1 min-h-0 px-1 pb-1 lg:px-6 lg:pb-6 relative z-10 overflow-hidden flex gap-1 lg:gap-4">
         <div className="relative flex">
           <AnimatePresence mode="wait">
             {isSidebarOpen && (
@@ -941,14 +941,14 @@ export const UserPage: React.FC<UserPageProps> = ({
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="flex-1 min-w-0 h-full flex flex-col gap-4"
+              className="flex-1 min-w-0 h-full flex flex-col gap-2 sm:gap-4"
             >
               {/* Breadcrumbs for Files */}
               <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
                 <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
                   <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
+                    className="p-1.5 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
                     aria-label="資料夾"
                   >
                     <FolderIcon className="w-4 h-4" />
@@ -957,7 +957,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   <button
                     onClick={() => handleFolderNavigation('file', null)}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
+                      "px-2 py-1 rounded-lg text-xs font-bold transition-all shrink-0",
                       activeFileFolderId === null
                         ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                         : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
@@ -971,7 +971,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                       <button
                         onClick={() => handleFolderNavigation('file', crumb.id)}
                         className={cn(
-                          "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                          "px-2 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
                           idx === arr.length - 1
                             ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
                             : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
@@ -1082,7 +1082,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
                   <button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-2 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
+                    className="p-1.5 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
                     aria-label="資料夾"
                   >
                     <FolderIcon className="w-4 h-4" />
@@ -1091,7 +1091,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   <button
                     onClick={() => handleFolderNavigation('url', null)}
                     className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
+                      "px-2 py-1 rounded-lg text-xs font-bold transition-all shrink-0",
                       activeUrlFolderId === null
                         ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
                         : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
@@ -1105,7 +1105,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                       <button
                         onClick={() => handleFolderNavigation('url', crumb.id)}
                         className={cn(
-                          "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                          "px-2 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
                           idx === arr.length - 1
                             ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
                             : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
