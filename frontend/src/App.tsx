@@ -179,7 +179,7 @@ const MainLayout: React.FC<{
         <main className={cn(
           "flex-1 min-w-0 flex flex-col transition-all duration-300 relative",
           location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
-          (isDashboard || location.pathname === '/') ? "overflow-hidden" : "overflow-y-auto"
+          (isDashboard || location.pathname === '/') ? "overflow-hidden" : "overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         )}>
           <MainContent 
             users={users} 
@@ -279,7 +279,7 @@ const AppContent: React.FC = () => {
             } />
             
             <Route path="/help" element={
-              <MainContent users={users} config={config} loading={loading} />
+              <MainLayout users={users} config={config} loading={loading} />
             } />
 
             {/* Catch-all 404 route */}
