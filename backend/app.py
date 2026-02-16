@@ -7,7 +7,7 @@ import sys
 import asyncio
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.routes.api import router as api_router
@@ -161,6 +161,65 @@ async def serve_spa(request: Request, path: str):
     # IMPORTANT: no-cache for index.html to prevent stale JS bundle references
     index_path = static_path / "index.html"
     if index_path.exists():
+        if path.startswith("share/"):
+            try:
+                token = path.rstrip("/").split("/")[-1]
+                from backend.services.token_service import token_service
+                info = token_service.validate_token(token)
+                if info:
+                    from backend.services.user_service import user_service
+                    from backend.services.database import get_files_db
+                    import mimetypes
+                    import re
+
+                    user = await user_service.get_user_by_name(info.username)
+                    if user:
+                        db = await get_files_db()
+                        cursor = await db.execute(
+                            "SELECT size_bytes FROM files WHERE username = ? AND filename = ?",
+                            (user["folder"], info.filename),
+                        )
+                        row = await cursor.fetchone()
+                        size_str = ""
+                        if row:
+                            sb = row["size_bytes"]
+                            sm = round(sb / (1024 * 1024), 2)
+                            size_str = f"{sm} MB" if sm >= 0.1 else f"{round(sb/1024, 2)} KB"
+                        
+                        title = f"分享檔案: {info.filename}"
+                        description = f"來自 @{info.username} 的分享 | 大小: {size_str}"
+                        # Need absolute URL for social previews
+                        base = str(request.base_url).rstrip("/")
+                        image_url = f"{base}/api/thumbnail/{info.username}/{info.filename}?token={token}"
+                        video_url = f"{base}/api/download/{info.username}/{info.filename}?token={token}&inline=true"
+                        
+                        mime_type, _ = mimetypes.guess_type(info.filename)
+                        is_video = mime_type and mime_type.startswith("video")
+
+                        with open(index_path, "r", encoding="utf-8") as f:
+                            content = f.read()
+                        
+                        logger.info(f"Injecting meta tags for token: {token} | Video: {is_video}")
+                        
+                        # Use loose regex to match tags regardless of attribute order or newlines
+                        content = re.sub(r'<title>.*?</title>', f'<title>{title}</title>', content, flags=re.DOTALL)
+                        content = re.sub(r'<meta[^>]*name=["\']description["\'][^>]*>', f'<meta name="description" content="{description}" />', content, flags=re.DOTALL | re.IGNORECASE)
+                        content = re.sub(r'<meta[^>]*property=["\']og:title["\'][^>]*>', f'<meta property="og:title" content="{title}" />', content, flags=re.DOTALL | re.IGNORECASE)
+                        content = re.sub(r'<meta[^>]*property=["\']og:description["\'][^>]*>', f'<meta property="og:description" content="{description}" />', content, flags=re.DOTALL | re.IGNORECASE)
+                        content = re.sub(r'<meta[^>]*property=["\']og:image["\'][^>]*>', f'<meta property="og:image" content="{image_url}" />', content, flags=re.DOTALL | re.IGNORECASE)
+
+                        if is_video:
+                            # Replace og:type and add video tags
+                            content = re.sub(r'<meta[^>]*property=["\']og:type["\'][^>]*>', 
+                                           f'<meta property="og:type" content="video.other" />\n    <meta property="og:video" content="{video_url}" />\n    <meta property="og:video:type" content="{mime_type}" />', 
+                                           content, flags=re.DOTALL | re.IGNORECASE)
+                        
+                        return HTMLResponse(content=content, headers={"Cache-Control": "no-cache, no-store, must-revalidate"})
+                else:
+                    logger.warning(f"Meta injection: Token {token} not found or expired")
+            except Exception as e:
+                logger.error(f"Meta injection failed: {e}")
+
         return FileResponse(
             index_path,
             headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
