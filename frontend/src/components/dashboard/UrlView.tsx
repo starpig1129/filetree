@@ -1,57 +1,102 @@
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Copy, MoreVertical,
-  Folder as FolderIcon, LayoutGrid, List, FileText, Link as LinkIcon
+import { 
+  ExternalLink, 
+  Lock, 
+  Unlock, 
+  Trash2, 
+  CheckSquare, 
+  Square,
+  MoreVertical,
+  QrCode,
+  Copy,
+  LayoutGrid,
+  List,
+  FolderIcon,
+  Link as LinkIcon,
+  FileText
 } from 'lucide-react';
-import { DropdownMenu } from '../ui/DropdownMenu';
-import { CascadingMenu } from '../ui/CascadingMenu';
-import { cn } from '../../lib/utils';
-import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { useLongPress } from '../../hooks/useLongPress';
-import { setDragPreview, type DragItem } from '../../utils/dragUtils';
+import { cn } from '../../lib/utils';
+import { CascadingMenu } from '../ui/CascadingMenu';
 import { BatchActionBar } from './BatchActionBar';
+import { DropdownMenu } from '../ui/DropdownMenu';
+import { createPortal } from 'react-dom';
+import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { FolderItem } from './FolderItem';
-import type { Folder } from './FolderSidebar';
+import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
+import { setDragPreview, type DragItem } from '../../utils/dragUtils';
 
 export interface UrlItem {
   url: string;
-  created: string;
+  created: string | number;
   is_locked?: boolean;
   folder_id?: string | null;
 }
 
-const isValidUrl = (text: string): boolean => {
-  if (!text) return false;
-  const trimmed = text.trim();
-  if (trimmed.includes(' ')) return false;
+// Stable Virtuoso List components to prevent remounting on re-render
+const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    {...props}
+    style={{
+      ...style,
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+      gap: '1rem',
+    }}
+  >
+    {children}
+  </div>
+));
+GridListContainer.displayName = 'GridListContainer';
 
-  // Protocol check
-  if (/^https?:\/\//i.test(trimmed)) return true;
-  
-  // Starts with www.
-  if (/^www\./i.test(trimmed)) return true;
+const ListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    {...props}
+    style={{
+      ...style,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.5rem',
+    }}
+  >
+    {children}
+  </div>
+));
+ListContainer.displayName = 'ListContainer';
 
-  // Must have a dot that is not at the start or end
-  const dotIndex = trimmed.indexOf('.');
-  return dotIndex > 0 && dotIndex < trimmed.length - 1;
-};
+// Custom Scroller to apply project scrollbar styling
+const CustomScroller = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => (
+  <div
+    ref={ref}
+    {...props}
+    className="custom-scrollbar"
+    style={{
+      ...style,
+      overflowY: 'auto',
+      height: '100%',
+    }}
+  >
+    {children}
+  </div>
+));
+CustomScroller.displayName = 'CustomScroller';
 
 interface UrlViewProps {
   urls: UrlItem[];
-  selectedItems: { type: 'file' | 'url' | 'folder'; id: string }[];
+  selectedItems: any[];
   isAuthenticated: boolean;
-  onToggleSelect: (type: 'file' | 'url' | 'folder', id: string) => void;
-  onSelectAll: (selected: boolean) => void;
-  onBatchSelect: (items: { type: 'file' | 'url' | 'folder'; id: string }[], action: 'add' | 'remove' | 'set') => void;
-  onToggleLock: (type: 'file' | 'url' | 'folder', id: string, currentStatus: boolean) => void;
+  onToggleSelect: (type: 'url' | 'folder' | 'file', id: string) => void;
+  onSelectAll: (isSelected: boolean) => void;
+  onBatchSelect: (items: any[], mode: 'set' | 'add') => void;
+  onToggleLock: (type: 'url' | 'folder' | 'file', id: string, isLocked: boolean) => void;
   onQrCode: (url: string) => void;
-  onDelete: (url: string) => void;
+  onDelete: (id: string) => void;
   onCopy: (url: string) => void;
-  folders: Folder[];
+  folders: any[];
   activeFolderId: string | null;
-  onMoveItem: (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => void;
+  onMoveItem: (type: 'url' | 'file' | 'folder', id: string, folderId: string | null) => void;
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
@@ -64,55 +109,52 @@ interface UrlViewProps {
   onShareFolder?: (folderId: string) => void;
   onQrCodeFolder?: (folderId: string) => void;
   onDownloadFolder?: (folderId: string) => void;
-
 }
 
-import type { HTMLMotionProps } from 'framer-motion';
+const isValidUrl = (url: string) => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
-interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> {
+interface ItemWrapperProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'onDragStart'> {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  isSelectionMode?: boolean;
+  draggable?: boolean;
 }
 
-const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; draggable?: boolean }> = ({ 
-  onClick, onLongPress, isSelectionMode, draggable, ...props 
+const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
+  onClick, onLongPress, isSelectionMode, draggable, children, ...props 
 }) => {
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
   
-  // In selection mode, bypass useLongPress to ensure immediate click response on mobile
-  const motionProps = props as HTMLMotionProps<"div">;
-  
-  // On desktop, if draggable is true, we should let the browser handle mousedown/mouseup for dragging
-  // useLongPress mouse handlers can sometimes interfere with native drag start
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filteredHandlers: Record<string, any> = { ...handlers };
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024; // lg breakpoint
-  
   if (isDesktop && draggable) {
     delete filteredHandlers.onMouseDown;
     delete filteredHandlers.onMouseUp;
   }
 
   return (
-    <motion.div 
-      {...motionProps} 
+    <div 
+      {...props}
       draggable={draggable}
       {...(isSelectionMode 
         ? { onClick } 
         : (isDesktop && draggable 
             ? { ...filteredHandlers, onClick } 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            : (filteredHandlers as any)
+            : filteredHandlers
           )
       )}
     >
-      {props.children}
-    </motion.div>
+      {children}
+    </div>
   );
 };
 
@@ -139,24 +181,29 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onViewModeChange,
   isSelectionMode,
   onSelectionModeChange,
-  // onShareFolder, onQrCodeFolder, onDownloadFolder available via UrlViewProps
   onShareFolder,
   onQrCodeFolder,
   onDownloadFolder,
-
 }) => {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
-
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  // Filter folders for current view
-  const currentSubfolders = folders.filter(f => f.parent_id === activeFolderId && f.type === 'url');
+  const currentSubfolders = useMemo(() => 
+    folders.filter(f => f.parent_id === activeFolderId && f.type === 'url'),
+    [folders, activeFolderId]
+  );
+  const filteredUrls = useMemo(() => urls || [], [urls]);
 
+  const gridComponents = useMemo(() => ({
+    List: GridListContainer,
+    Scroller: CustomScroller,
+  }), []);
 
-  const filteredUrls = useMemo(() => {
-    return urls;
-  }, [urls]);
+  const listComponents = useMemo(() => ({
+    List: ListContainer,
+    Scroller: CustomScroller,
+  }), []);
 
   const { selectionBox, handlePointerDown, handlePointerMove, handlePointerUp, handleTouchStart, handleTouchMove } = useSelectionBox(
     containerRef,
@@ -179,7 +226,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
       onBatchSelect(selectedItemsList, 'set');
     }, [filteredUrls, currentSubfolders, onBatchSelect])
   );
-
 
   const selectableUrls = filteredUrls.filter(u => !u.is_locked || isAuthenticated);
   const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
@@ -209,7 +255,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
           <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
             <button
               onClick={() => onViewModeChange('grid')}
@@ -231,7 +276,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
             </button>
           </div>
 
-
           {selectedItems.length > 0 && onBatchAction && (
              <BatchActionBar
                 selectedCount={selectedItems.length}
@@ -251,7 +295,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 min-w-0 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
+        className="flex-1 min-w-0 overflow-hidden p-3 sm:p-6 custom-scrollbar touch-pan-y relative flex flex-col"
       >
         {selectionBox && createPortal(
           <div
@@ -280,7 +324,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
             )}>
               {currentSubfolders.map(folder => {
                 const isSelected = !!selectedItems.find(i => i.type === 'folder' && i.id === folder.id);
-
                 return (
                   <FolderItem
                     key={folder.id}
@@ -318,62 +361,57 @@ export const UrlView: React.FC<UrlViewProps> = ({
             </div>
             <p className="text-sm font-medium">尚無連結</p>
           </div>
-        ) : (!urls || urls.length === 0) ? null : (
-          <div className={cn(
-            "grid pb-20 sm:pb-24",
-            viewMode === 'grid' 
-              ? "grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 sm:gap-4" 
-              : "grid-cols-1 gap-2"
-          )}>
-            <AnimatePresence>
-              {filteredUrls.map((url, idx) => {
-                const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
-                const isLocked = url.is_locked && !isAuthenticated;
-                const isActuallyUrl = isValidUrl(url.url);
+        ) : (urls && urls.length > 0) ? (
+          <div className="flex-1 min-h-0 flex flex-col">
+            {viewMode === 'grid' ? (
+              <VirtuosoGrid
+                style={{ flex: 1, minHeight: 0 }}
+                data={filteredUrls}
+                totalCount={filteredUrls.length}
+                overscan={200}
+                components={gridComponents}
+                itemContent={(_index, url) => {
+                  const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
+                  const isLocked = url.is_locked && !isAuthenticated;
+                  const isActuallyUrl = isValidUrl(url.url);
 
-                return (
-                  <ItemWrapper
-                    key={url.url}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.02 }}
-                    isSelectionMode={isSelectionMode}
-                    className={cn(
-                      "relative group bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden",
-                      viewMode === 'list' ? "flex flex-row items-center p-2 sm:p-3 rounded-xl" : "flex flex-col p-3 sm:p-4 space-y-2 rounded-2xl",
-                      isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
-                      url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
-                    )}
-                    draggable={!isSelectionMode}
-                    onDragStart={(event) => {
-                      const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
-                      const itemsToDrag: DragItem[] = isUrlSelected
-                        ? (selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as DragItem[])
-                        : [{ type: 'url', id: url.url }];
-
-                      e.dataTransfer.setData('application/json', JSON.stringify({ 
-                        items: itemsToDrag,
-                        type: 'url',
-                        id: url.url
-                      }));
-                      e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag);
-                    }}
-                    onClick={() => {
-                      if (isSelectionMode) {
-                        onToggleSelect('url', url.url);
-                        return;
-                      }
-                      if (!isLocked) {
-                        window.open(url.url, '_blank');
-                      }
-                    }}
-                    onLongPress={() => onSelectionModeChange(true)}
-                  >
-                     <div className="shrink-0 pt-1 pointer-events-none">
-                      {/* Icon Indicator for Grid View */}
-                      {viewMode === 'grid' && (
+                  return (
+                    <ItemWrapper
+                      key={url.url}
+                      isSelectionMode={isSelectionMode}
+                      className={cn(
+                        "relative group bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden flex flex-col p-3 sm:p-4 space-y-2 rounded-2xl",
+                        isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
+                        url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
+                      )}
+                      draggable={!isSelectionMode}
+                      onDragStart={(event) => {
+                        const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                        const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
+                        const itemsToDrag: DragItem[] = isUrlSelected
+                          ? (selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as DragItem[])
+                          : [{ type: 'url', id: url.url }];
+                        
+                        e.dataTransfer.setData('application/json', JSON.stringify({ 
+                          items: itemsToDrag,
+                          type: 'url',
+                          id: url.url
+                        }));
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDragPreview(e, itemsToDrag);
+                      }}
+                      onClick={() => {
+                        if (isSelectionMode) {
+                          onToggleSelect('url', url.url);
+                          return;
+                        }
+                        if (!isLocked) {
+                          window.open(url.url, '_blank');
+                        }
+                      }}
+                      onLongPress={() => onSelectionModeChange(true)}
+                    >
+                       <div className="shrink-0 pt-1 pointer-events-none">
                         <div className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center transition-colors mb-3",
                           isActuallyUrl 
@@ -382,182 +420,239 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         )}>
                           {isActuallyUrl ? <LinkIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                         </div>
-                      )}
 
-                      {/* Selection Checkbox - Visible on hover or selection mode */}
-                      {!isLocked && (
-                        <div className={cn(
-                          "transition-opacity z-30 pointer-events-auto",
-                          viewMode === 'grid' && "absolute top-2 left-2",
-                          (isSelected || isSelectionMode) 
-                            ? "opacity-100" 
-                            : "opacity-0 lg:group-hover:opacity-100"
-                        )}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm flex items-center justify-center"
-                          >
-                            {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Desktop Grid Hover Overlay */}
-                      {!isLocked && viewMode === 'grid' && (
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 pointer-events-none">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
-                            title="開啟連結"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-violet-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
-                            title="QR Code"
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                            className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
-                            title="複製網址"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          {isAuthenticated && (
-                            <>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseUp={(e) => e.stopPropagation()}
-                                onTouchStart={(e) => e.stopPropagation()}
-                                onTouchEnd={(e) => e.stopPropagation()}
-                                className={cn(
-                                  "p-2 bg-white rounded-full shadow-lg transition-transform hover:scale-110 pointer-events-auto",
-                                  url.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
-                                )}
-                                title={url.is_locked ? "解除鎖定" : "鎖定項目"}
-                              >
-                                {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                              </button>
-                              <CascadingMenu
-                                folders={folders}
-                                onSelect={(folderId) => onMoveItem('url', url.url, folderId)}
-                                trigger={
-                                  <button 
-                                    className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
-                                    title="移動到..."
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onMouseUp={(e) => e.stopPropagation()}
-                                    onTouchStart={(e) => e.stopPropagation()}
-                                    onTouchEnd={(e) => e.stopPropagation()}
-                                  >
-                                    <FolderIcon className="w-4 h-4" />
-                                  </button>
-                                }
-                              />
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseUp={(e) => e.stopPropagation()}
-                                onTouchStart={(e) => e.stopPropagation()}
-                                onTouchEnd={(e) => e.stopPropagation()}
-                                className="p-2 bg-white rounded-full text-gray-700 hover:text-red-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
-                                title="刪除項目"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                     <div className={cn("flex-1 min-w-0 flex flex-col justify-center", viewMode === 'grid' && "mt-1")}>
-                      <div className={cn("flex items-start gap-3", viewMode === 'grid' && "mb-1")}>
-                        {viewMode === 'list' && (
+                        {!isLocked && (
                           <div className={cn(
-                            "p-2 rounded-lg shrink-0",
-                            isActuallyUrl 
-                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" 
-                              : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            "transition-opacity z-30 pointer-events-auto absolute top-2 left-2",
+                            (isSelected || isSelectionMode) 
+                              ? "opacity-100" 
+                              : "opacity-0 lg:group-hover:opacity-100"
                           )}>
-                            {isActuallyUrl ? <LinkIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm flex items-center justify-center"
+                            >
+                              {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
+                            </button>
                           </div>
                         )}
-                        <p className={cn(
-                          "flex-1 text-sm font-medium transition-all break-all overflow-hidden",
-                          viewMode === 'list' ? "truncate pt-1.5" : "line-clamp-2",
-                          isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
-                        )}>
-                          {url.url}
-                        </p>
+
+                        {!isLocked && (
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 pointer-events-none">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                              title="開啟連結"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="p-2 bg-white rounded-full text-gray-700 hover:text-violet-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                              title="QR Code"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                              title="複製網址"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            {isAuthenticated && (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className={cn(
+                                    "p-2 bg-white rounded-full shadow-lg transition-transform hover:scale-110 pointer-events-auto",
+                                    url.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
+                                  )}
+                                  title={url.is_locked ? "解除鎖定" : "鎖定項目"}
+                                >
+                                  {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                </button>
+                                <CascadingMenu
+                                  folders={folders}
+                                  onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
+                                  trigger={
+                                    <button 
+                                      className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
+                                      title="移動到..."
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                    >
+                                      <FolderIcon className="w-4 h-4" />
+                                    </button>
+                                  }
+                                />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="p-2 bg-white rounded-full text-gray-700 hover:text-red-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
+                                  title="刪除項目"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {viewMode === 'grid' && (
+
+                       <div className="flex-1 min-w-0 flex flex-col justify-center mt-1">
+                        <div className="flex items-start gap-3 mb-1">
+                          <p className={cn(
+                            "flex-1 text-sm font-medium transition-all break-all overflow-hidden line-clamp-2",
+                            isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
+                          )}>
+                            {url.url}
+                          </p>
+                        </div>
                         <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 dark:text-white/30 tracking-widest uppercase mt-auto">
                           <span>{new Date(url.created).toLocaleDateString()}</span>
                         </div>
-                      )}
 
-                      {/* Mobile Top Actions - Grid View Only */}
-                      {viewMode === 'grid' && !isLocked && (
-                         <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
-                             <DropdownMenu
-                               trigger={
-                                 <button
-                                   className="p-2 sm:p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500 min-w-10 min-h-10 flex items-center justify-center"
-                                   onMouseDown={(e) => e.stopPropagation()}
-                                   onMouseUp={(e) => e.stopPropagation()}
-                                   onTouchStart={(e) => e.stopPropagation()}
-                                   onTouchEnd={(e) => e.stopPropagation()}
-                                 >
-                                   <MoreVertical className="w-4 h-4" />
-                                 </button>
-                               }
-                               items={[
-                                 { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
-                                 { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
-                                 { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
-                                 { 
-                                   label: url.is_locked ? '解除鎖定' : '鎖定項目', 
-                                   icon: url.is_locked ? <Lock className="w-4 h-4 text-violet-600" /> : <Unlock className="w-4 h-4 text-cyan-600" />, 
-                                   onClick: () => onToggleLock('url', url.url, !!url.is_locked),
-                                   hidden: !isAuthenticated
-                                 },
-                                 { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
-                                 { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
-                               ]}
-                             />
-                         </div>
-                      )}
+                        {!isLocked && (
+                           <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+                               <DropdownMenu
+                                 trigger={
+                                   <button
+                                     className="p-2 sm:p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500 min-w-10 min-h-10 flex items-center justify-center"
+                                     onMouseDown={(e) => e.stopPropagation()}
+                                   >
+                                     <MoreVertical className="w-4 h-4" />
+                                   </button>
+                                 }
+                                 items={[
+                                   { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
+                                   { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
+                                   { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                   { 
+                                     label: url.is_locked ? '解除鎖定' : '鎖定項目', 
+                                     icon: url.is_locked ? <Lock className="w-4 h-4 text-violet-600" /> : <Unlock className="w-4 h-4 text-cyan-600" />, 
+                                     onClick: () => onToggleLock('url', url.url, !!url.is_locked),
+                                     hidden: !isAuthenticated
+                                   },
+                                   { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                                   { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
+                                 ]}
+                               />
+                           </div>
+                        )}
+                      </div>
+                    </ItemWrapper>
+                  );
+                }}
+              />
+            ) : (
+                <Virtuoso
+                style={{ flex: 1, minHeight: 0 }}
+                data={filteredUrls}
+                totalCount={filteredUrls.length}
+                overscan={200}
+                components={listComponents}
+                itemContent={(_index, url) => {
+                  const isSelected = !!selectedItems.find(i => i.type === 'url' && i.id === url.url);
+                  const isLocked = url.is_locked && !isAuthenticated;
+                  const isActuallyUrl = isValidUrl(url.url);
 
-                      {/* List View Actions (Desktop & Mobile) */}
-                      {viewMode === 'list' && !isLocked && (
+                  return (
+                    <ItemWrapper
+                      key={url.url}
+                      isSelectionMode={isSelectionMode}
+                      className={cn(
+                        "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-xl transition-all duration-300 shadow-sm cursor-pointer url-item",
+                        isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
+                        url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
+                      )}
+                      draggable={!isSelectionMode}
+                      onDragStart={(event) => {
+                        const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                        const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
+                        const itemsToDrag: DragItem[] = isUrlSelected
+                          ? (selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as DragItem[])
+                          : [{ type: 'url', id: url.url }];
+
+                        e.dataTransfer.setData('application/json', JSON.stringify({ 
+                          items: itemsToDrag,
+                          type: 'url',
+                          id: url.url
+                        }));
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDragPreview(e, itemsToDrag);
+                      }}
+                      onClick={() => {
+                        if (isSelectionMode) {
+                          onToggleSelect('url', url.url);
+                          return;
+                        }
+                        if (!isLocked) {
+                          window.open(url.url, '_blank');
+                        }
+                      }}
+                      onLongPress={() => onSelectionModeChange(true)}
+                    >
+                      <div className="flex items-center gap-3 shrink-0 pointer-events-none">
+                        {!isLocked && (
+                          <div className={cn(
+                            "transition-opacity z-30 pointer-events-auto",
+                            (isSelected || isSelectionMode) 
+                              ? "opacity-100" 
+                              : "opacity-0 lg:group-hover:opacity-100"
+                          )}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                            >
+                              {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
+                            </button>
+                          </div>
+                        )}
+
+                        <div className={cn(
+                          "p-2 rounded-xl transition-all",
+                          isActuallyUrl 
+                            ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" 
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        )}>
+                          {isActuallyUrl ? <LinkIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className={cn(
+                            "flex-1 text-sm font-bold transition-all truncate",
+                            isLocked ? "blur-[5px] select-none text-gray-300" : "text-gray-900 dark:text-white"
+                          )}>
+                            {url.url}
+                          </p>
+                          {url.is_locked && (
+                            <div className={cn(
+                              "p-1 rounded-md",
+                              isLocked ? "bg-black/40 text-white/70" : "bg-violet-500/10 text-violet-500"
+                            )}>
+                              <Lock className="w-3 h-3" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-400 dark:text-white/20 uppercase tracking-widest mt-0.5">
+                          {new Date(url.created).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {!isLocked && (
                         <div className="shrink-0 flex items-center gap-1 ml-auto" onClick={(e) => e.stopPropagation()}>
-                          {/* Desktop List Actions */}
                           <div className="hidden lg:flex items-center gap-1">
                             <button
                                onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
                                onMouseDown={(e) => e.stopPropagation()}
-                               onMouseUp={(e) => e.stopPropagation()}
-                               onTouchStart={(e) => e.stopPropagation()}
-                               onTouchEnd={(e) => e.stopPropagation()}
                                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/5 rounded-lg transition-colors"
                             >
                               <ExternalLink className="w-4 h-4" />
@@ -565,9 +660,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
-                              onMouseUp={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-violet-500 hover:bg-violet-500/5 rounded-lg transition-colors"
                               title="QR Code"
                             >
@@ -576,9 +668,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
-                              onMouseUp={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
                               title="複製網址"
                             >
@@ -589,9 +678,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
                                   onMouseDown={(e) => e.stopPropagation()}
-                                  onMouseUp={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                  onTouchEnd={(e) => e.stopPropagation()}
                                    className={cn(
                                      "p-2 rounded-lg transition-all duration-300",
                                      url.is_locked 
@@ -603,15 +689,12 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 </button>
                                 <CascadingMenu
                                   folders={folders}
-                                  onSelect={(folderId) => onMoveItem('url', url.url, folderId)}
+                                  onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
                                   trigger={
                                     <button
                                       className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
                                       title="移動到..."
                                       onMouseDown={(e) => e.stopPropagation()}
-                                      onMouseUp={(e) => e.stopPropagation()}
-                                      onTouchStart={(e) => e.stopPropagation()}
-                                      onTouchEnd={(e) => e.stopPropagation()}
                                     >
                                       <FolderIcon className="w-4 h-4" />
                                     </button>
@@ -620,9 +703,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
                                   onMouseDown={(e) => e.stopPropagation()}
-                                  onMouseUp={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                  onTouchEnd={(e) => e.stopPropagation()}
                                   className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -631,47 +711,41 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             )}
                           </div>
 
-                          {/* Mobile List Dropdown */}
                           <div className="lg:hidden">
                              <DropdownMenu
-                              trigger={
-                                <button 
-                                  className="p-2 text-gray-400 hover:text-violet-500 rounded-lg transition-colors"
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onMouseUp={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                  onTouchEnd={(e) => e.stopPropagation()}
-                                >
-                                  <MoreVertical className="w-5 h-5" />
-                                </button>
-                              }
-                              items={[
-                                { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
-                                { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
-                                { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
-                                { 
-                                  label: url.is_locked ? '解除鎖定' : '鎖定項目', 
-                                  icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
-                                  onClick: () => onToggleLock('url', url.url, !!url.is_locked),
-                                  hidden: !isAuthenticated
-                                },
-                                { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
-                                { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
-                              ]}
-                            />
+                               trigger={
+                                 <button 
+                                   className="p-2 text-gray-400 hover:text-violet-500 rounded-lg transition-colors"
+                                   onMouseDown={(e) => e.stopPropagation()}
+                                 >
+                                   <MoreVertical className="w-5 h-5" />
+                                 </button>
+                               }
+                               items={[
+                                 { label: '開啟連結', icon: <ExternalLink className="w-4 h-4 text-blue-500" />, onClick: () => window.open(url.url, '_blank') },
+                                 { label: 'QR Code', icon: <QrCode className="w-4 h-4 text-violet-500" />, onClick: () => onQrCode(url.url) },
+                                 { label: '複製網址', icon: <Copy className="w-4 h-4 text-cyan-500" />, onClick: () => onCopy(url.url) },
+                                 { 
+                                   label: url.is_locked ? '解除鎖定' : '鎖定項目', 
+                                   icon: url.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />, 
+                                   onClick: () => onToggleLock('url', url.url, !!url.is_locked),
+                                   hidden: !isAuthenticated
+                                 },
+                                 { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+                                 { label: '刪除項目', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete(url.url), variant: 'danger', hidden: !isAuthenticated }
+                               ]}
+                             />
                           </div>
                         </div>
                       )}
-                    </div>
-
-                  </ItemWrapper>
-                );
-              })}
-            </AnimatePresence>
+                    </ItemWrapper>
+                  );
+                }}
+              />
+            )}
           </div>
-        )}
+        ) : null}
       </div>
-
     </section>
   );
 };
