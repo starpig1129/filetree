@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Ghost, Home, RefreshCw } from 'lucide-react';
-import { Starfield } from '../components/Starfield';
-import { useTheme } from '../contexts/ThemeContext';
 
 interface MemeData {
     title: string;
@@ -12,7 +10,6 @@ interface MemeData {
 }
 
 export const NotFoundPage: React.FC = () => {
-    const { theme } = useTheme();
     const [meme, setMeme] = useState<MemeData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -47,7 +44,6 @@ export const NotFoundPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-            {theme === 'dark' && <Starfield />}
 
             {/* Background Ambient */}
             <div className="absolute top-1/4 -left-20 w-[60vw] h-[50vh] bg-violet-500/10 blur-[8rem] rounded-full -z-10 animate-pulse" />

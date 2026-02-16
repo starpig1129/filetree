@@ -82,7 +82,7 @@ export const SharePage: React.FC = () => {
   const isExpired = expiryDate < new Date();
 
   return (
-    <div className="min-h-dvh bg-space-black text-white selection:bg-quantum-cyan/30 flex flex-col">
+    <div className="min-h-dvh bg-transparent text-white selection:bg-quantum-cyan/30 flex flex-col">
       {/* Background patterns */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-20">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-quantum-cyan/20 blur-[120px] rounded-full" />

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Terminal, Activity, UserPlus, ChevronLeft, ShieldCheck, KeyRound, Save, X, Edit3, Trash2 } from 'lucide-react';
-import { Starfield } from '../components/Starfield';
 import { cn } from '../lib/utils';
 import { NotFoundPage } from './NotFoundPage';
 
@@ -321,7 +320,6 @@ export const AdminPage: React.FC = () => {
   if (!isAuthorized) {
     return (
       <div className="relative min-h-screen flex items-center justify-center p-4">
-        <Starfield />
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -358,7 +356,6 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="relative min-h-screen p-[clamp(1rem,3vw,2rem)] sm:p-[clamp(1.5rem,4vw,3rem)] space-y-[clamp(1.5rem,4vh,3rem)] overflow-hidden">
-      <Starfield />
 
       {/* Background Ambient Elements */}
       <div className="absolute top-1/4 -left-20 w-[60vw] h-[50vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" />
