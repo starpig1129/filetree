@@ -242,7 +242,10 @@ export const UrlView: React.FC<UrlViewProps> = ({
       });
       
       onBatchSelect(newSelection, 'set');
-    }, [onBatchSelect, selectedItems])
+    }, [onBatchSelect, selectedItems]),
+    React.useCallback(() => {
+      onBatchSelect([], 'set');
+    }, [onBatchSelect])
   );
 
   const selectableUrls = filteredUrls.filter(u => !u.is_locked || isAuthenticated);

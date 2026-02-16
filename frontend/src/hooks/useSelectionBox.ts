@@ -16,7 +16,8 @@ export interface Box {
 export const useSelectionBox = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   itemSelector: string,
-  onSelectionChange: (result: { visibleIds: string[]; intersectingIds: string[] }) => void
+  onSelectionChange: (result: { visibleIds: string[]; intersectingIds: string[] }) => void,
+  onSelectionClear?: () => void
 ) => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectionBox, setSelectionBox] = useState<Box | null>(null);
@@ -171,7 +172,12 @@ export const useSelectionBox = (
   const handlePointerUp = useCallback(() => {
     if (isDragging && !hasMoved.current && !isPointerOnItem.current) {
       // Empty click on container - deselect all
-      onSelectionChange({ visibleIds: [], intersectingIds: [] });
+      if (onSelectionClear) {
+        onSelectionClear();
+      } else {
+        // Fallback for backward compatibility (though likely logic-breaking for Delta Update consumers)
+        onSelectionChange({ visibleIds: [], intersectingIds: [] });
+      }
     }
 
     setIsDragging(false);
@@ -180,7 +186,7 @@ export const useSelectionBox = (
       cancelAnimationFrame(scrollRequestRef.current);
       scrollRequestRef.current = null;
     }
-  }, [isDragging, onSelectionChange]);
+  }, [isDragging, onSelectionChange, onSelectionClear]);
 
   useEffect(() => {
     if (isDragging) {

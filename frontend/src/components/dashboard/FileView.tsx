@@ -205,7 +205,10 @@ export const FileView: React.FC<FileViewProps> = ({
       });
       
       onBatchSelect(newSelection, 'set');
-    }, [onBatchSelect, selectedItems])
+    }, [onBatchSelect, selectedItems]),
+    React.useCallback(() => {
+      onBatchSelect([], 'set');
+    }, [onBatchSelect])
   );
 
   const selectableFiles = files?.filter(f => !f.is_locked || isAuthenticated) || [];
