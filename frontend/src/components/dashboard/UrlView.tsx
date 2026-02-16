@@ -43,7 +43,7 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
     style={{
       ...style,
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
       gap: '0.5rem',
     }}
   >
@@ -342,7 +342,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
             <div className={cn(
               "grid gap-2 sm:gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]" 
+                ? "grid-cols-[repeat(auto-fill,minmax(120px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {

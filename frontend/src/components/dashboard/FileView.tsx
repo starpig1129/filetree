@@ -19,7 +19,7 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
       ref={ref}
       {...props}
       style={style}
-      className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 sm:gap-4 pb-24 sm:pb-32 pt-2 sm:pt-6"
+      className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2 sm:gap-4 pb-24 sm:pb-32 pt-2 sm:pt-6"
     >
       {children}
     </div>
@@ -314,7 +314,7 @@ export const FileView: React.FC<FileViewProps> = ({
             <div className={cn(
               "grid gap-2 sm:gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-[repeat(auto-fill,minmax(150px,1fr))]" 
+                ? "grid-cols-[repeat(auto-fill,minmax(120px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {
