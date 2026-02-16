@@ -195,7 +195,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const lastClickTimeRef = React.useRef<number>(0);
 
   const currentSubfolders = useMemo(() => 
     folders.filter(f => f.parent_id === activeFolderId && f.type === 'url'),
@@ -216,23 +215,34 @@ export const UrlView: React.FC<UrlViewProps> = ({
   const { selectionBox, handlePointerDown, handlePointerMove, handlePointerUp, handleTouchStart, handleTouchMove } = useSelectionBox(
     containerRef,
     ".url-item, .folder-card",
-    React.useCallback((indices: number[]) => {
-      const selectedItemsList: { type: 'file' | 'url' | 'folder'; id: string }[] = [];
-      const folderCount = currentSubfolders.length;
+    React.useCallback(({ visibleIds, intersectingIds }: { visibleIds: string[], intersectingIds: string[] }) => {
+      
+      const visibleSet = new Set(visibleIds);
+      
+      const preservedSelection = selectedItems.filter(item => {
+        const dataId = item.type === 'folder' ? `folder:${item.id}` : `url:${item.id}`;
+        return !visibleSet.has(dataId);
+      });
 
-      indices.forEach(idx => {
-        if (idx < folderCount) {
-          selectedItemsList.push({ type: 'folder', id: currentSubfolders[idx].id });
-        } else {
-          const urlIdx = idx - folderCount;
-          if (filteredUrls && filteredUrls[urlIdx]) {
-            selectedItemsList.push({ type: 'url', id: filteredUrls[urlIdx].url });
-          }
+      const newSelection = [...preservedSelection];
+
+      intersectingIds.forEach(dataId => {
+        const [type, ...rest] = dataId.split(':');
+        const id = rest.join(':');
+
+        if (type === 'folder') {
+           if (!newSelection.some(i => i.type === 'folder' && i.id === id)) {
+             newSelection.push({ type: 'folder', id });
+           }
+        } else if (type === 'url') {
+           if (!newSelection.some(i => i.type === 'url' && i.id === id)) {
+             newSelection.push({ type: 'url', id });
+           }
         }
       });
       
-      onBatchSelect(selectedItemsList, 'set');
-    }, [filteredUrls, currentSubfolders, onBatchSelect])
+      onBatchSelect(newSelection, 'set');
+    }, [onBatchSelect, selectedItems])
   );
 
   const selectableUrls = filteredUrls.filter(u => !u.is_locked || isAuthenticated);
@@ -389,22 +399,31 @@ export const UrlView: React.FC<UrlViewProps> = ({
                       key={url.url}
                       isDesktop={isDesktop}
                       onClick={() => {
-                        const now = Date.now();
-                        if (now - lastClickTimeRef.current < 500) return;
-                        lastClickTimeRef.current = now;
-
                         if (isSelectionMode) {
                           onToggleSelect('url', url.url);
                         } else if (isDesktop) {
-                          // Desktop: Single click selects in normal mode
+                          // Desktop: Single click selects
                           onToggleSelect('url', url.url);
                         } else {
-                          // Mobile: Enter/Navigate
-                          if (isActuallyUrl) {
-                            window.open(url.url, '_blank', 'noopener,noreferrer');
-                          } else {
-                            onPreview({ name: '筆記預覽', size: 'Note', url: url.url });
+                          // Mobile: Open directly
+                          if (!isLocked) {
+                            if (isActuallyUrl) {
+                               if (window.confirm('是否開啟外部連結？')) {
+                                 window.open(url.url, '_blank', 'noopener,noreferrer');
+                               }
+                            } else {
+                              onPreview({ name: '筆記預覽', size: 'Note', url: url.url });
+                            }
                           }
+                        }
+                      }}
+                      onDoubleClick={() => {
+                        if (isDesktop && !isSelectionMode && !isLocked) {
+                           if (isActuallyUrl) {
+                              window.open(url.url, '_blank', 'noopener,noreferrer');
+                           } else {
+                              onPreview({ name: '筆記預覽', size: 'Note', url: url.url });
+                           }
                         }
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
@@ -429,6 +448,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         e.dataTransfer.effectAllowed = 'move';
                         setDragPreview(e, itemsToDrag);
                       }}
+                      data-id={`url:${url.url}`}
                     >
                        <div className="shrink-0 pt-1 pointer-events-none">
                         <div className={cn(
@@ -604,28 +624,32 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   return (
                     <ItemWrapper
                       key={url.url}
-                      isDesktop={isDesktop}
+                       isDesktop={isDesktop}
                       onClick={() => {
-                        const now = Date.now();
-                        if (now - lastClickTimeRef.current < 500) return;
-                        lastClickTimeRef.current = now;
-
                         if (isSelectionMode) {
                           onToggleSelect('url', url.url);
-                          return;
-                        }
-                        if (!isLocked) {
-                          if (isActuallyUrl) {
-                            if (window.confirm('是否開啟外部連結？')) {
-                              window.open(url.url, '_blank');
+                        } else if (isDesktop) {
+                          onToggleSelect('url', url.url);
+                        } else {
+                          // Mobile: Open directly
+                          if (!isLocked) {
+                            if (isActuallyUrl) {
+                              if (window.confirm('是否開啟外部連結？')) {
+                                window.open(url.url, '_blank');
+                              }
+                            } else {
+                              onPreview({ name: '筆記預覽', size: 'Note', url: url.url });
                             }
-                          } else {
-                            onPreview({
-                              name: '筆記預覽',
-                              size: 'Note',
-                              url: url.url
-                            });
                           }
+                        }
+                      }}
+                      onDoubleClick={() => {
+                        if (isDesktop && !isSelectionMode && !isLocked) {
+                           if (isActuallyUrl) {
+                              window.open(url.url, '_blank');
+                           } else {
+                              onPreview({ name: '筆記預覽', size: 'Note', url: url.url });
+                           }
                         }
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
@@ -650,6 +674,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         e.dataTransfer.effectAllowed = 'move';
                         setDragPreview(e, itemsToDrag);
                       }}
+                      data-id={`url:${url.url}`}
                     >
                       <div className="flex items-center gap-3 shrink-0 pointer-events-none">
                         {!isLocked && (

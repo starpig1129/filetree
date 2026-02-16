@@ -255,6 +255,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
         onDragEnter={handleDragEnterFolder}
         onDragLeave={handleDragLeaveFolder}
         onDrop={handleDrop}
+        data-id={`folder:${folder.id}`}
       >
         {/* Selection Checkbox + Icon */}
         <div className="flex items-center gap-3 shrink-0">
@@ -480,7 +481,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     <ItemWrapper
       isDesktop={isDesktop}
       className={cn(
-        "group relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-500 overflow-hidden cursor-pointer",
+        "group relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-500 overflow-hidden cursor-pointer folder-card",
         isSelected 
           ? "bg-cyan-500/10 dark:bg-cyan-500/20 ring-1 ring-cyan-500/50 shadow-lg scale-[1.02]" 
           : "bg-white/40 dark:bg-white/2 hover:bg-white/60 dark:hover:bg-white/5 border border-white/20 shadow-sm hover:shadow-xl hover:-translate-y-1",
@@ -515,6 +516,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
       onDragEnter={handleDragEnterFolder}
       onDragLeave={handleDragLeaveFolder}
       onDrop={handleDrop}
+      data-id={`folder:${folder.id}`}
     >
       {/* Selection Checkbox */}
       <div className={cn(

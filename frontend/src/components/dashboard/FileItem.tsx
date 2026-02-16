@@ -280,6 +280,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
         )}
         draggable={!isSelectionMode}
         onDragStart={(event) => handleDragStart(event as unknown as React.DragEvent<HTMLDivElement>)}
+        data-id={`file:${file.name}`}
       >
         {/* Selection Checkbox + Icon */}
         <div className="flex items-center gap-3 shrink-0">
@@ -518,6 +519,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
       )}
       draggable={!isSelectionMode}
       onDragStart={(event) => handleDragStart(event as unknown as React.DragEvent<HTMLDivElement>)}
+      data-id={`file:${file.name}`}
     >
       {/* Selection Checkbox (top-left) */}
       {!isLocked && (

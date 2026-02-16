@@ -168,23 +168,44 @@ export const FileView: React.FC<FileViewProps> = ({
   const { selectionBox, handlePointerDown, handlePointerMove, handlePointerUp, handleTouchStart, handleTouchMove } = useSelectionBox(
     containerRef,
     ".folder-card, .file-item",
-    React.useCallback((indices: number[]) => {
-      const selectedItemsList: { type: 'file' | 'url' | 'folder'; id: string }[] = [];
-      const folderCount = currentSubfolders.length;
+    React.useCallback(({ visibleIds, intersectingIds }: { visibleIds: string[], intersectingIds: string[] }) => {
+      onBatchSelect([], 'set'); // Clear previous selection first? No, we are setting new state.
 
-      indices.forEach(idx => {
-        if (idx < folderCount) {
-          selectedItemsList.push({ type: 'folder', id: currentSubfolders[idx].id });
-        } else {
-          const fileIdx = idx - folderCount;
-          if (files && files[fileIdx]) {
-            selectedItemsList.push({ type: 'file', id: files[fileIdx].name });
-          }
+      // Delta Update Logic:
+      // 1. Identify items that are currently selected AND NOT visible. Keep them.
+      // 2. Identify items that are intersecting. Add them.
+      // 3. Items that are visible but not intersecting will be implicitly removed (by not adding them).
+
+      const visibleSet = new Set(visibleIds);
+      
+      // Filter out items that are visible from the previous selection
+      // (If they are visible and still selected, they will be re-added by intersectingIds)
+      // (If they are visible and NOT selected anymore, they won't be in intersectingIds)
+      const preservedSelection = selectedItems.filter(item => {
+        // Construct the data-id for this item to check visibility
+        const dataId = item.type === 'folder' ? `folder:${item.id}` : `file:${item.id}`;
+        return !visibleSet.has(dataId);
+      });
+
+      const newSelection = [...preservedSelection];
+
+      intersectingIds.forEach(dataId => {
+        const [type, ...rest] = dataId.split(':');
+        const id = rest.join(':');
+
+        if (type === 'folder') {
+           if (!newSelection.some(i => i.type === 'folder' && i.id === id)) {
+             newSelection.push({ type: 'folder', id });
+           }
+        } else if (type === 'file') {
+           if (!newSelection.some(i => i.type === 'file' && i.id === id)) {
+             newSelection.push({ type: 'file', id });
+           }
         }
       });
       
-      onBatchSelect(selectedItemsList, 'set');
-    }, [files, currentSubfolders, onBatchSelect])
+      onBatchSelect(newSelection, 'set');
+    }, [onBatchSelect, selectedItems])
   );
 
   const selectableFiles = files?.filter(f => !f.is_locked || isAuthenticated) || [];
