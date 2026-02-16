@@ -512,7 +512,14 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
 
       {/* Mobile Action Menu (top-right, lg:hidden) */}
       {!isSelectionMode && (
-        <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="absolute top-3 right-3 z-30 lg:hidden" 
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           <DropdownMenu
             trigger={
               <button 

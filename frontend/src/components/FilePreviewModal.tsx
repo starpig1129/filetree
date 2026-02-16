@@ -44,27 +44,39 @@ const FilePreviewContent: React.FC<{
     // State is reset by key prop on parent, no need to manual reset here
     const type = getFileType(file.name);
 
-    if (type === 'text' || type === 'code') {
-      fetch(file.url)
-        .then(res => {
-          if (!res.ok) throw new Error("無法讀取檔案內容");
-          return res.text();
-        })
-        .then(text => {
-          setTextContent(text);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error(err);
-          setError("預覽失敗：無法載入內容");
+    if (type === 'text' || type === 'code' || file.size === 'Note') {
+      // Check if it's a URL or literal content
+      const isUrl = file.url.startsWith('http') || file.url.startsWith('/') || file.url.startsWith('blob:');
+      
+      if (isUrl) {
+        fetch(file.url)
+          .then(res => {
+            if (!res.ok) throw new Error("無法讀取檔案內容");
+            return res.text();
+          })
+          .then(text => {
+            setTextContent(text);
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setError("預覽失敗：無法載入內容");
+            setLoading(false);
+          });
+      } else {
+        // Literal content
+        Promise.resolve().then(() => {
+          setTextContent(file.url);
           setLoading(false);
         });
+      }
     } else {
       // Media types: loading is handled by onLoad events in the render
     }
   }, [file, setLoading, setError]);
 
-  const fileType = getFileType(file.name);
+  const isNote = file.size === 'Note' || file.name === '筆記預覽';
+  const fileType = isNote ? 'text' : getFileType(file.name);
   // ... (rest of component)
 
   if (error) {

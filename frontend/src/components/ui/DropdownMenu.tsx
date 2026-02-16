@@ -93,6 +93,10 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
             className
           )}
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col gap-0.5">
             {visibleItems.map((item, index) => (
@@ -106,6 +110,10 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                       item.onClick();
                       setIsOpen(false);
                     }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
                     className={cn(
                       "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all text-left",
                       item.variant === 'danger' 

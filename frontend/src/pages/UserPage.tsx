@@ -1128,11 +1128,11 @@ export const UserPage: React.FC<UserPageProps> = ({
                   const url = `${window.location.origin}/user/${data.user?.username}?tab=url&folder=${folderId}`;
                   navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
                 }}
-                onQrCodeFolder={(folderId) => {
+                onQrCodeFolder={(folderId: string) => {
                   const url = `${window.location.origin}/user/${data.user?.username}?tab=url&folder=${folderId}`;
                   setQrUrl(url);
                 }}
-
+                onPreview={(note) => setPreviewFile(note)}
               />
             </motion.div>
           )}

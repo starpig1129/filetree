@@ -431,7 +431,14 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                  </div>
 
                  {/* Mobile Actions Menu */}
-                 <div className="lg:hidden">
+                 <div 
+                   className="lg:hidden"
+                   onClick={(e) => e.stopPropagation()}
+                   onMouseDown={(e) => e.stopPropagation()}
+                   onMouseUp={(e) => e.stopPropagation()}
+                   onTouchStart={(e) => e.stopPropagation()}
+                   onTouchEnd={(e) => e.stopPropagation()}
+                 >
                     <DropdownMenu
                       trigger={
                         <button 
@@ -519,7 +526,14 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
 
       {/* Mobile Action Menu (top-right) */}
       {!isSelectionMode && (
-        <div className="absolute top-1.5 right-1.5 z-30 lg:hidden">
+        <div 
+          className="absolute top-1.5 right-1.5 z-30 lg:hidden"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           <DropdownMenu
             trigger={
               <button

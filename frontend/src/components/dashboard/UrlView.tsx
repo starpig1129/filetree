@@ -109,6 +109,7 @@ interface UrlViewProps {
   onShareFolder?: (folderId: string) => void;
   onQrCodeFolder?: (folderId: string) => void;
   onDownloadFolder?: (folderId: string) => void;
+  onPreview: (note: { name: string; size: string; url: string }) => void;
 }
 
 const isValidUrl = (url: string) => {
@@ -184,6 +185,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onShareFolder,
   onQrCodeFolder,
   onDownloadFolder,
+  onPreview,
 }) => {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -406,7 +408,17 @@ export const UrlView: React.FC<UrlViewProps> = ({
                           return;
                         }
                         if (!isLocked) {
-                          window.open(url.url, '_blank');
+                          if (isActuallyUrl) {
+                            if (window.confirm('是否開啟外部連結？')) {
+                              window.open(url.url, '_blank');
+                            }
+                          } else {
+                            onPreview({
+                              name: '筆記預覽',
+                              size: 'Note',
+                              url: url.url
+                            });
+                          }
                         }
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
@@ -431,6 +443,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
                               className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm flex items-center justify-center"
                             >
                               {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
@@ -443,6 +456,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 bg-white rounded-full text-gray-700 hover:text-blue-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                               title="開啟連結"
                             >
@@ -451,6 +467,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 bg-white rounded-full text-gray-700 hover:text-violet-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                               title="QR Code"
                             >
@@ -459,6 +478,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                               title="複製網址"
                             >
@@ -469,6 +491,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
                                   onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                                   className={cn(
                                     "p-2 bg-white rounded-full shadow-lg transition-transform hover:scale-110 pointer-events-auto",
                                     url.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
@@ -485,6 +510,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                       className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
                                       title="移動到..."
                                       onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                                     >
                                       <FolderIcon className="w-4 h-4" />
                                     </button>
@@ -493,6 +521,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
                                   onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                                   className="p-2 bg-white rounded-full text-gray-700 hover:text-red-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                                   title="刪除項目"
                                 >
@@ -518,12 +549,22 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         </div>
 
                         {!isLocked && (
-                           <div className="absolute top-3 right-3 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+                           <div 
+                             className="absolute top-3 right-3 z-30 lg:hidden" 
+                             onClick={(e) => e.stopPropagation()}
+                             onMouseDown={(e) => e.stopPropagation()}
+                             onMouseUp={(e) => e.stopPropagation()}
+                             onTouchStart={(e) => e.stopPropagation()}
+                             onTouchEnd={(e) => e.stopPropagation()}
+                           >
                                <DropdownMenu
                                  trigger={
                                    <button
                                      className="p-2 sm:p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500 min-w-10 min-h-10 flex items-center justify-center"
                                      onMouseDown={(e) => e.stopPropagation()}
+                                     onMouseUp={(e) => e.stopPropagation()}
+                                     onTouchStart={(e) => e.stopPropagation()}
+                                     onTouchEnd={(e) => e.stopPropagation()}
                                    >
                                      <MoreVertical className="w-4 h-4" />
                                    </button>
@@ -592,7 +633,17 @@ export const UrlView: React.FC<UrlViewProps> = ({
                           return;
                         }
                         if (!isLocked) {
-                          window.open(url.url, '_blank');
+                          if (isActuallyUrl) {
+                            if (window.confirm('是否開啟外部連結？')) {
+                              window.open(url.url, '_blank');
+                            }
+                          } else {
+                            onPreview({
+                              name: '筆記預覽',
+                              size: 'Note',
+                              url: url.url
+                            });
+                          }
                         }
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
@@ -608,6 +659,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
                               className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                             >
                               {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
@@ -653,6 +705,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                                onClick={(e) => { e.stopPropagation(); window.open(url.url, '_blank'); }}
                                onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/5 rounded-lg transition-colors"
                             >
                               <ExternalLink className="w-4 h-4" />
@@ -660,6 +715,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-violet-500 hover:bg-violet-500/5 rounded-lg transition-colors"
                               title="QR Code"
                             >
@@ -668,6 +726,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onCopy(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
                               title="複製網址"
                             >
@@ -678,6 +739,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onToggleLock('url', url.url, !!url.is_locked); }}
                                   onMouseDown={(e) => e.stopPropagation()}
+                               onMouseUp={(e) => e.stopPropagation()}
+                               onTouchStart={(e) => e.stopPropagation()}
+                               onTouchEnd={(e) => e.stopPropagation()}
                                    className={cn(
                                      "p-2 rounded-lg transition-all duration-300",
                                      url.is_locked 
@@ -687,36 +751,52 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                  >
                                    {url.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                                 </button>
-                                <CascadingMenu
-                                  folders={folders}
-                                  onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
-                                  trigger={
-                                    <button
-                                      className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
-                                      title="移動到..."
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                    >
-                                      <FolderIcon className="w-4 h-4" />
-                                    </button>
-                                  }
-                                />
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </>
+                                 <CascadingMenu
+                                   folders={folders}
+                                   onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
+                                   trigger={
+                                     <button
+                                       className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                                       title="移動到..."
+                                       onMouseDown={(e) => e.stopPropagation()}
+                                       onMouseUp={(e) => e.stopPropagation()}
+                                       onTouchStart={(e) => e.stopPropagation()}
+                                       onTouchEnd={(e) => e.stopPropagation()}
+                                     >
+                                       <FolderIcon className="w-4 h-4" />
+                                     </button>
+                                   }
+                                 />
+                                 <button
+                                   onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
+                                   onMouseDown={(e) => e.stopPropagation()}
+                                   onMouseUp={(e) => e.stopPropagation()}
+                                   onTouchStart={(e) => e.stopPropagation()}
+                                   onTouchEnd={(e) => e.stopPropagation()}
+                                   className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
+                                 >
+                                   <Trash2 className="w-4 h-4" />
+                                 </button>
+                               </>
                             )}
                           </div>
 
-                          <div className="lg:hidden">
+                           <div 
+                             className="lg:hidden"
+                             onClick={(e) => e.stopPropagation()}
+                             onMouseDown={(e) => e.stopPropagation()}
+                             onMouseUp={(e) => e.stopPropagation()}
+                             onTouchStart={(e) => e.stopPropagation()}
+                             onTouchEnd={(e) => e.stopPropagation()}
+                           >
                              <DropdownMenu
                                trigger={
                                  <button 
                                    className="p-2 text-gray-400 hover:text-violet-500 rounded-lg transition-colors"
                                    onMouseDown={(e) => e.stopPropagation()}
+                                   onMouseUp={(e) => e.stopPropagation()}
+                                   onTouchStart={(e) => e.stopPropagation()}
+                                   onTouchEnd={(e) => e.stopPropagation()}
                                  >
                                    <MoreVertical className="w-5 h-5" />
                                  </button>
