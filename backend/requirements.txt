@@ -10,3 +10,4 @@ bcrypt
 boto3
 slowapi
 Pillow
+aiosqlite

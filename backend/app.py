@@ -21,6 +21,17 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Initialize databases
+    from backend.services.database import init_db, close_all
+    from backend.services.file_service import file_service
+    logger.info("Startup: Initializing databases...")
+    await init_db()
+
+    # Startup: Reconcile disk ↔ DB
+    logger.info("Startup: Reconciling file index...")
+    stats = await file_service.reconcile_all_users()
+    logger.info(f"Reconciliation: {stats}")
+
     # Startup: Run cleanup immediately
     try:
         logger.info("Startup: Running stale upload cleanup...")
@@ -50,6 +61,9 @@ async def lifespan(app: FastAPI):
         await cleanup_task
     except asyncio.CancelledError:
         pass
+
+    # Shutdown: Close database connections
+    await close_all()
 
 
 def suppress_connection_reset_error(loop, context):
