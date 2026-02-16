@@ -69,11 +69,45 @@ async def lifespan(app: FastAPI):
 def suppress_connection_reset_error(loop, context):
     """Custom exception handler to suppress ConnectionResetError on Windows."""
     exception = context.get("exception")
-    if isinstance(exception, ConnectionResetError):
-        # Silently ignore ConnectionResetError (WinError 10054)
+    if isinstance(exception, (ConnectionResetError, ConnectionAbortedError)):
+        # Silently ignore ConnectionResetError (WinError 10054) and similar
         return
     # For all other exceptions, use the default handler
     loop.default_exception_handler(context)
+
+
+def apply_windows_patches():
+    """Apply monkey-patches to asyncio for Windows to suppress specific errors."""
+    if sys.platform == "win32":
+        try:
+            from asyncio.proactor_events import _ProactorBasePipeTransport
+            import socket
+
+            # Backup the original method
+            orig_call_connection_lost = _ProactorBasePipeTransport._call_connection_lost
+
+            def patched_call_connection_lost(self, exc):
+                try:
+                    orig_call_connection_lost(self, exc)
+                except (ConnectionResetError, ConnectionAbortedError):
+                    # Suppress the error during shutdown or connection loss
+                    pass
+                except socket.error as e:
+                    # Capture specific WinError 10054 or 10038
+                    if getattr(e, "winerror", None) in (10054, 10038):
+                        pass
+                    else:
+                        raise
+
+            # Apply the monkey-patch
+            _ProactorBasePipeTransport._call_connection_lost = patched_call_connection_lost
+            logger.info("Windows-specific asyncio patches applied.")
+        except (ImportError, AttributeError) as e:
+            logger.debug(f"Could not apply Windows patches: {e}")
+
+
+# Apply patches immediately during module load
+apply_windows_patches()
 
 
 from slowapi import _rate_limit_exceeded_handler
@@ -230,10 +264,14 @@ async def serve_spa(request: Request, path: str):
 if __name__ == "__main__":
     import uvicorn
     
-    # Suppress ConnectionResetError on Windows
-    loop = asyncio.new_event_loop()
+    # Init loop with custom exception handler
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
     loop.set_exception_handler(suppress_connection_reset_error)
-    asyncio.set_event_loop(loop)
     
     uvicorn.run(
         "backend.app:app",
