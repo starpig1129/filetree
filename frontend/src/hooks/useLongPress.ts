@@ -45,6 +45,11 @@ export const useLongPress = (
     onMouseUp: (e: React.MouseEvent) => clear(e),
     onMouseLeave: (e: React.MouseEvent) => clear(e, false),
     onTouchStart: (e: React.TouchEvent) => start(e),
-    onTouchEnd: (e: React.TouchEvent) => clear(e),
+    onTouchEnd: (e: React.TouchEvent) => {
+      // Prevent browser from firing subsequent mouse/click events (ghost clicks)
+      // This solves the issue where "Toggle Select" triggers twice (Select -> Deselect)
+      if (e.cancelable) e.preventDefault();
+      clear(e);
+    },
   };
 };

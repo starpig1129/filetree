@@ -31,6 +31,7 @@ interface FolderSidebarProps {
   onDeleteFolder: (id: string) => void;
   onMoveItem: (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => void;
   onClose?: () => void;
+  isDesktop?: boolean;
 }
 
 const FolderTreeItem: React.FC<{
@@ -39,6 +40,7 @@ const FolderTreeItem: React.FC<{
   depth: number;
   activeFolderId: string | null;
   isAuthenticated: boolean;
+  isDesktop?: boolean;
   onSelectFolder: (id: string | null) => void;
   onUpdateFolder: (id: string, name: string) => void;
   onDeleteFolder: (id: string) => void;
@@ -50,6 +52,7 @@ const FolderTreeItem: React.FC<{
   depth, 
   activeFolderId, 
   isAuthenticated,
+  isDesktop = true,
   onSelectFolder, 
   onUpdateFolder, 
   onDeleteFolder,
@@ -131,8 +134,19 @@ const FolderTreeItem: React.FC<{
           isDragOver && "bg-cyan-100 dark:bg-cyan-500/20 border-cyan-500 ring-2 ring-cyan-500/30"
         )}
         style={{ paddingLeft: `${12 + depth * 16}px` }}
-        onClick={() => onSelectFolder(folder.id)}
-        draggable
+        onClick={() => {
+          if (isDesktop) {
+            setIsExpanded(!isExpanded);
+          } else {
+            onSelectFolder(folder.id);
+          }
+        }}
+        onDoubleClick={() => {
+          if (isDesktop) {
+            onSelectFolder(folder.id);
+          }
+        }}
+        draggable={isDesktop}
         onDragStart={(e) => {
             e.stopPropagation();
             e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
@@ -230,6 +244,7 @@ const FolderTreeItem: React.FC<{
                 onDeleteFolder={onDeleteFolder}
                 onCreateSubfolder={onCreateSubfolder}
                 onMoveItem={onMoveItem}
+                isDesktop={isDesktop}
               />
             ))}
           </motion.div>
@@ -249,7 +264,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   onUpdateFolder,
   onDeleteFolder,
   onMoveItem,
-  onClose
+  onClose,
+  isDesktop
 }) => {
   const [isAdding, setIsAdding] = React.useState<{ active: boolean; parentId: string | null }>({
     active: false,
@@ -328,6 +344,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               onDeleteFolder={onDeleteFolder}
               onCreateSubfolder={(parentId) => setIsAdding({ active: true, parentId })}
               onMoveItem={onMoveItem}
+              isDesktop={isDesktop}
             />
           ))}
         </AnimatePresence>

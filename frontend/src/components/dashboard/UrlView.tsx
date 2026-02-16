@@ -25,6 +25,7 @@ import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { FolderItem } from './FolderItem';
 import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
 import { setDragPreview, type DragItem } from '../../utils/dragUtils';
+import type { Folder } from './FolderSidebar';
 
 export interface UrlItem {
   url: string;
@@ -85,16 +86,16 @@ CustomScroller.displayName = 'CustomScroller';
 
 interface UrlViewProps {
   urls: UrlItem[];
-  selectedItems: any[];
+  selectedItems: { type: 'file' | 'url' | 'folder'; id: string }[];
   isAuthenticated: boolean;
   onToggleSelect: (type: 'url' | 'folder' | 'file', id: string) => void;
   onSelectAll: (isSelected: boolean) => void;
-  onBatchSelect: (items: any[], mode: 'set' | 'add') => void;
+  onBatchSelect: (items: { type: 'file' | 'url' | 'folder'; id: string }[], mode: 'set' | 'add') => void;
   onToggleLock: (type: 'url' | 'folder' | 'file', id: string, isLocked: boolean) => void;
   onQrCode: (url: string) => void;
   onDelete: (id: string) => void;
   onCopy: (url: string) => void;
-  folders: any[];
+  folders: Folder[];
   activeFolderId: string | null;
   onMoveItem: (type: 'url' | 'file' | 'folder', id: string, folderId: string | null) => void;
   onFolderClick: (folderId: string) => void;
@@ -110,6 +111,7 @@ interface UrlViewProps {
   onQrCodeFolder?: (folderId: string) => void;
   onDownloadFolder?: (folderId: string) => void;
   onPreview: (note: { name: string; size: string; url: string }) => void;
+  isDesktop?: boolean;
 }
 
 const isValidUrl = (url: string) => {
@@ -121,38 +123,40 @@ const isValidUrl = (url: string) => {
   }
 };
 
-interface ItemWrapperProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'onDragStart'> {
+interface ItemWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
-  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
-  isSelectionMode?: boolean;
+  onDoubleClick?: (e: React.MouseEvent | React.TouchEvent) => void;
   draggable?: boolean;
+  isDesktop?: boolean;
 }
 
 const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
-  onClick, onLongPress, isSelectionMode, draggable, children, ...props 
+  onClick, onLongPress, onDoubleClick, draggable, isDesktop: propIsDesktop, children, ...props 
 }) => {
+  const isDesktop = propIsDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 1024);
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const filteredHandlers: Record<string, any> = { ...handlers };
-  if (isDesktop && draggable) {
-    delete filteredHandlers.onMouseDown;
-    delete filteredHandlers.onMouseUp;
+  if (isDesktop) {
+    return (
+      <div 
+        {...props} 
+        draggable={draggable}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+      >
+        {children}
+      </div>
+    );
   }
 
+  // Mobile behavior
   return (
     <div 
-      {...props}
-      draggable={draggable}
-      {...(isSelectionMode 
-        ? { onClick } 
-        : (isDesktop && draggable 
-            ? { ...filteredHandlers, onClick } 
-            : filteredHandlers
-          )
-      )}
+      {...props} 
+      {...handlers}
+      draggable={false}
+      onDoubleClick={onDoubleClick}
     >
       {children}
     </div>
@@ -186,6 +190,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onQrCodeFolder,
   onDownloadFolder,
   onPreview,
+  isDesktop = true
 }) => {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
@@ -350,6 +355,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     onDownloadFolder={onDownloadFolder}
                     onToggleLock={onToggleLock}
                     viewMode={viewMode}
+                    isDesktop={isDesktop}
                   />
                 );
               })}
@@ -381,7 +387,27 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   return (
                     <ItemWrapper
                       key={url.url}
-                      isSelectionMode={isSelectionMode}
+                      isDesktop={isDesktop}
+                      onClick={() => {
+                        const now = Date.now();
+                        if (now - lastClickTimeRef.current < 500) return;
+                        lastClickTimeRef.current = now;
+
+                        if (isSelectionMode) {
+                          onToggleSelect('url', url.url);
+                        } else if (isDesktop) {
+                          // Desktop: Single click selects in normal mode
+                          onToggleSelect('url', url.url);
+                        } else {
+                          // Mobile: Enter/Navigate
+                          if (isActuallyUrl) {
+                            window.open(url.url, '_blank', 'noopener,noreferrer');
+                          } else {
+                            onPreview({ name: '筆記預覽', size: 'Note', url: url.url });
+                          }
+                        }
+                      }}
+                      onLongPress={() => onSelectionModeChange(true)}
                       className={cn(
                         "relative group bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden flex flex-col p-3 sm:p-4 space-y-2 rounded-2xl",
                         isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
@@ -403,30 +429,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         e.dataTransfer.effectAllowed = 'move';
                         setDragPreview(e, itemsToDrag);
                       }}
-                      onClick={() => {
-                        const now = Date.now();
-                        if (now - lastClickTimeRef.current < 500) return;
-                        lastClickTimeRef.current = now;
-
-                        if (isSelectionMode) {
-                          onToggleSelect('url', url.url);
-                          return;
-                        }
-                        if (!isLocked) {
-                          if (isActuallyUrl) {
-                            if (window.confirm('是否開啟外部連結？')) {
-                              window.open(url.url, '_blank');
-                            }
-                          } else {
-                            onPreview({
-                              name: '筆記預覽',
-                              size: 'Note',
-                              url: url.url
-                            });
-                          }
-                        }
-                      }}
-                      onLongPress={() => onSelectionModeChange(true)}
                     >
                        <div className="shrink-0 pt-1 pointer-events-none">
                         <div className={cn(
@@ -602,28 +604,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                   return (
                     <ItemWrapper
                       key={url.url}
-                      isSelectionMode={isSelectionMode}
-                      className={cn(
-                        "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-xl transition-all duration-300 shadow-sm cursor-pointer url-item",
-                        isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
-                        url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
-                      )}
-                      draggable={!isSelectionMode}
-                      onDragStart={(event) => {
-                        const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                        const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
-                        const itemsToDrag: DragItem[] = isUrlSelected
-                          ? (selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as DragItem[])
-                          : [{ type: 'url', id: url.url }];
-
-                        e.dataTransfer.setData('application/json', JSON.stringify({ 
-                          items: itemsToDrag,
-                          type: 'url',
-                          id: url.url
-                        }));
-                        e.dataTransfer.effectAllowed = 'move';
-                        setDragPreview(e, itemsToDrag);
-                      }}
+                      isDesktop={isDesktop}
                       onClick={() => {
                         const now = Date.now();
                         if (now - lastClickTimeRef.current < 500) return;
@@ -648,6 +629,27 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         }
                       }}
                       onLongPress={() => onSelectionModeChange(true)}
+                      className={cn(
+                        "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-xl transition-all duration-300 shadow-sm cursor-pointer url-item",
+                        isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
+                        url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
+                      )}
+                      draggable={!isSelectionMode}
+                      onDragStart={(event) => {
+                        const e = event as unknown as React.DragEvent<HTMLDivElement>;
+                        const isUrlSelected = selectedItems.some((i: { type: string; id: string }) => i.type === 'url' && i.id === url.url);
+                        const itemsToDrag: DragItem[] = isUrlSelected
+                          ? (selectedItems.filter(i => (i.type === 'url' || i.type === 'folder' || i.type === 'file')) as DragItem[])
+                          : [{ type: 'url', id: url.url }];
+
+                        e.dataTransfer.setData('application/json', JSON.stringify({ 
+                          items: itemsToDrag,
+                          type: 'url',
+                          id: url.url
+                        }));
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDragPreview(e, itemsToDrag);
+                      }}
                     >
                       <div className="flex items-center gap-3 shrink-0 pointer-events-none">
                         {!isLocked && (

@@ -52,7 +52,7 @@ export const UserPage: React.FC<UserPageProps> = ({
   const [activeFileFolderId, setActiveFileFolderId] = useState<string | null>(null);
   const [activeUrlFolderId, setActiveUrlFolderId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
 
   // Responsive check
@@ -60,9 +60,8 @@ export const UserPage: React.FC<UserPageProps> = ({
     const checkDesktop = () => {
       const isLg = window.matchMedia('(min-width: 1024px)').matches;
       setIsDesktop(isLg);
-      // Auto-collapse on mobile, auto-expand on desktop initial load
+      // Auto-collapse on mobile
       if (!isLg) setIsSidebarOpen(false);
-      else setIsSidebarOpen(true);
     };
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
@@ -917,6 +916,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                     activeFolderId={activeTab === 'files' ? activeFileFolderId : activeUrlFolderId}
                     activeType={activeTab === 'files' ? 'file' : 'url'}
                     isAuthenticated={isAuthenticated}
+                    isDesktop={isDesktop}
                     onSelectFolder={(id) => {
                        handleFolderNavigation(activeTab === 'files' ? 'file' : 'url', id);
                        // Close on selection if mobile
@@ -1066,6 +1066,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   window.open(downloadUrl, '_blank');
                 }}
                 onToggleFolderLock={(type, id, status) => toggleItemLock(type, id, !!status)}
+                isDesktop={isDesktop}
               />
             </motion.div>
           ) : (
@@ -1176,6 +1177,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   setQrUrl(url);
                 }}
                 onPreview={(note) => setPreviewFile(note)}
+                isDesktop={isDesktop}
               />
             </motion.div>
           )}

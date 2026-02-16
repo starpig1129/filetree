@@ -12,44 +12,46 @@ import { CascadingMenu } from '../ui/CascadingMenu';
 
 // ItemWrapper with long-press and drag support 
 interface ItemWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
-  onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
-  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
-  isSelectionMode?: boolean;
+  onClick: (e: React.MouseEvent | React.TouchEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent | React.TouchEvent) => void;
   draggable?: boolean;
+  isDesktop?: boolean;
 }
 
 const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
-  onClick, onLongPress, isSelectionMode, draggable, children, ...props 
+  onClick, onLongPress, onDoubleClick, draggable, isDesktop: propIsDesktop, children, ...props 
 }) => {
-  const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
-  
+  const isDesktop = propIsDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 1024);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const filteredHandlers: Record<string, any> = { ...handlers };
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+  const handlers = useLongPress(onLongPress as any, onClick as any, { delay: 600 });
   
-  if (isDesktop && draggable) {
-    delete filteredHandlers.onMouseDown;
-    delete filteredHandlers.onMouseUp;
+  if (isDesktop) {
+    return (
+      <div 
+        {...props} 
+        draggable={draggable}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+      >
+        {children}
+      </div>
+    );
   }
 
+  // Mobile behavior: Use long-press synthesis for better touch control
   return (
     <div 
       {...props} 
-      draggable={draggable}
-      {...(isSelectionMode 
-        ? { onClick } 
-        : (isDesktop && draggable 
-            ? { ...filteredHandlers, onClick } 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            : (filteredHandlers as any)
-          )
-      )}
+      {...handlers}
+      draggable={false}
+      onDoubleClick={onDoubleClick}
     >
       {children}
     </div>
   );
 };
+
 
 interface FolderItemProps {
   folder: Folder;
@@ -72,6 +74,7 @@ interface FolderItemProps {
   onDownloadFolder?: (folderId: string) => void;
   onToggleLock?: (type: 'folder', id: string, currentStatus: boolean) => void;
   viewMode: 'grid' | 'list';
+  isDesktop?: boolean;
 }
 
 export const FolderItem: React.FC<FolderItemProps> = React.memo(({
@@ -95,7 +98,9 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
   onDownloadFolder,
   onToggleLock,
   viewMode,
+  isDesktop: propIsDesktop
 }) => {
+  const isDesktop = propIsDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [newName, setNewName] = useState(folder.name);
   const [isRenaming, setIsRenaming] = useState(false);
 
@@ -209,15 +214,23 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     }
   ];
 
-  // ─── LIST VIEW ───
   if (viewMode === 'list') {
     return (
       <ItemWrapper
-        isSelectionMode={isSelectionMode}
+        isDesktop={isDesktop}
         onClick={() => {
           if (isSelectionMode) {
             onToggleSelect('folder', folder.id);
+          } else if (isDesktop) {
+            // Desktop: Select on single click in normal mode
+            onToggleSelect('folder', folder.id);
           } else {
+            // Mobile: Enter on single click in normal mode
+            onFolderClick(folder.id);
+          }
+        }}
+        onDoubleClick={() => {
+          if (!isSelectionMode && isDesktop) {
             onFolderClick(folder.id);
           }
         }}
@@ -465,7 +478,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
   // ─── GRID VIEW ───
   return (
     <ItemWrapper
-      isSelectionMode={isSelectionMode}
+      isDesktop={isDesktop}
       className={cn(
         "group relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-500 overflow-hidden cursor-pointer",
         isSelected 
@@ -484,10 +497,19 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
       onClick={() => {
         if (isSelectionMode) {
           onToggleSelect('folder', folder.id);
+        } else if (isDesktop) {
+          // Desktop: Select on single click in normal mode
+          onToggleSelect('folder', folder.id);
         } else {
+          // Mobile: Enter on single click
           onFolderClick(folder.id);
         }
       }} 
+      onDoubleClick={() => {
+        if (!isSelectionMode && isDesktop) {
+          onFolderClick(folder.id);
+        }
+      }}
       onLongPress={() => onSelectionModeChange(true)}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnterFolder}

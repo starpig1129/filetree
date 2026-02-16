@@ -76,37 +76,37 @@ const getLifecycleColor = (file: FileItemData) => {
 interface ItemWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
-  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
-  isSelectionMode?: boolean;
+  onDoubleClick?: (e: React.MouseEvent | React.TouchEvent) => void;
   draggable?: boolean;
+  isDesktop?: boolean;
 }
 
 const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
-  onClick, onLongPress, isSelectionMode, draggable, children, ...props 
+  onClick, onLongPress, onDoubleClick, draggable, isDesktop: propIsDesktop, children, ...props 
 }) => {
+  const isDesktop = propIsDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 1024);
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
   
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const filteredHandlers: Record<string, any> = { ...handlers };
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-  
-  if (isDesktop && draggable) {
-    delete filteredHandlers.onMouseDown;
-    delete filteredHandlers.onMouseUp;
+  if (isDesktop) {
+    return (
+      <div 
+        {...props} 
+        draggable={draggable}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+      >
+        {children}
+      </div>
+    );
   }
 
+  // Mobile behavior
   return (
     <div 
       {...props} 
-      draggable={draggable}
-      {...(isSelectionMode 
-        ? { onClick } 
-        : (isDesktop && draggable 
-            ? { ...filteredHandlers, onClick } 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            : (filteredHandlers as any)
-          )
-      )}
+      {...handlers}
+      draggable={false}
+      onDoubleClick={onDoubleClick}
     >
       {children}
     </div>
@@ -143,6 +143,7 @@ interface FileItemProps {
   newName: string;
   isRenaming: boolean;
   handleRename: (oldName: string) => void;
+  isDesktop?: boolean;
 }
 
 export const FileItem: React.FC<FileItemProps> = React.memo(({
@@ -170,7 +171,9 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
   newName,
   isRenaming,
   handleRename,
+  isDesktop: propIsDesktop
 }) => {
+  const isDesktop = propIsDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 1024);
   const isLocked = file.is_locked && !isAuthenticated;
   const isDisplayable = !isLocked && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'webm', 'mov'].includes(file.name.split('.').pop()?.toLowerCase() || '');
 
@@ -179,12 +182,19 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
       onToggleSelect('file', file.name);
       return;
     }
-    if (!isLocked) {
-      onPreview({
-        name: file.name,
-        size: formatSize(file.size_bytes),
-        url: `/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
-      });
+    
+    if (isDesktop) {
+      // Desktop: Single click selects in normal mode
+      onToggleSelect('file', file.name);
+    } else {
+      // Mobile: Single click enters (preview)
+      if (!isLocked) {
+        onPreview({
+          name: file.name,
+          size: formatSize(file.size_bytes),
+          url: `/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+        });
+      }
     }
   };
 
@@ -251,8 +261,17 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
   if (viewMode === 'list') {
     return (
       <ItemWrapper
-        isSelectionMode={isSelectionMode}
+        isDesktop={isDesktop}
         onClick={handleClick}
+        onDoubleClick={() => {
+          if (!isSelectionMode && isDesktop && !isLocked) {
+            onPreview({
+              name: file.name,
+              size: formatSize(file.size_bytes),
+              url: `/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+            });
+          }
+        }}
         onLongPress={() => onSelectionModeChange(true)}
         className={cn(
           "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
@@ -480,8 +499,17 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
   // ─── GRID VIEW ───
   return (
     <ItemWrapper
-      isSelectionMode={isSelectionMode}
+      isDesktop={isDesktop}
       onClick={handleClick}
+      onDoubleClick={() => {
+        if (!isSelectionMode && isDesktop && !isLocked) {
+          onPreview({
+            name: file.name,
+            size: formatSize(file.size_bytes),
+            url: `/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`
+          });
+        }
+      }}
       onLongPress={() => onSelectionModeChange(true)}
       className={cn(
         "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-2xl transition-all duration-300 cursor-pointer shadow-sm hover:shadow-xl hover:-translate-y-1 file-item h-full",
