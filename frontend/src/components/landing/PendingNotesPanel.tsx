@@ -12,7 +12,7 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
   onRemoveNote,
 }) => {
   return (
-    <div className="glass-card h-full w-full p-4 lg:p-[1.5vw] rounded-3xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/5 flex flex-col shadow-lg relative group overflow-hidden">
+    <div className="glass-card-premium h-full w-full p-4 lg:p-[1.5vw] rounded-3xl flex flex-col shadow-lg relative group overflow-hidden">
       <div className="flex items-center justify-between mb-3 lg:mb-[2vh]">
         <h3 className="text-xs lg:text-[clamp(0.65rem,0.7vw,0.8rem)] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] flex items-center gap-2">
           <Terminal className="w-4 h-4 text-orange-500" />
@@ -20,7 +20,7 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
         </h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1 relative z-10 min-h-[100px]">
+      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1 relative z-10 min-h-25">
         <AnimatePresence mode="popLayout">
           {pendingNotes.length === 0 ? (
             <motion.div
@@ -28,9 +28,9 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-3 lg:space-y-4 min-h-[100px]"
+              className="flex-1 flex flex-col items-center justify-center text-center space-y-4 min-h-25"
             >
-              <div className="w-10 h-10 lg:w-[8vh] lg:h-[8vh] max-w-[4rem] max-h-[4rem] rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50">
+              <div className="w-10 h-10 lg:w-[8vh] lg:h-[8vh] max-w-16 max-h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50">
                 <Zap className="w-1/2 h-1/2" />
               </div>
               <p className="text-[0.6rem] lg:text-[0.65rem] uppercase tracking-widest text-center font-bold">

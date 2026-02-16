@@ -427,7 +427,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     // Outer container:
     // Mobile/Tablet: min-h-dvh (grows with content), standard scrolling allowed.
     // Large Desktop (lg+): h-screen, global overflow hidden (internal scaling).
-    <div className="relative h-full w-full overflow-x-hidden bg-gray-50 dark:bg-transparent custom-scrollbar">
+    <div className="relative h-full w-full overflow-x-hidden bg-transparent custom-scrollbar">
       
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block pointer-events-none" />

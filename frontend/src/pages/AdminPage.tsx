@@ -319,11 +319,11 @@ export const AdminPage: React.FC = () => {
 
   if (!isAuthorized) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center p-4">
+      <div className="relative min-h-screen flex items-center justify-center p-4 bg-transparent">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-12 w-full max-w-md space-y-8 relative z-10"
+          className="glass-card-premium p-12 w-full max-w-md space-y-8 relative z-10 rounded-3xl"
         >
           <div className="text-center space-y-4">
             <ShieldAlert className="w-16 h-16 text-violet-600 dark:text-neural-violet mx-auto animate-pulse" />
@@ -355,7 +355,7 @@ export const AdminPage: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen p-[clamp(1rem,3vw,2rem)] sm:p-[clamp(1.5rem,4vw,3rem)] space-y-[clamp(1.5rem,4vh,3rem)] overflow-hidden">
+    <div className="relative min-h-screen p-[clamp(1rem,3vw,2rem)] sm:p-[clamp(1.5rem,4vw,3rem)] space-y-[clamp(1.5rem,4vh,3rem)] overflow-hidden bg-transparent">
 
       {/* Background Ambient Elements */}
       <div className="absolute top-1/4 -left-20 w-[60vw] h-[50vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,8rem)] rounded-full -z-10 animate-pulse" />

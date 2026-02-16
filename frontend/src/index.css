@@ -73,7 +73,7 @@
   /* Light mode overrides */
   [data-theme="light"] body {
     @apply text-black;
-    background-color: var(--color-light-bg);
+    background-color: transparent;
     background-image: none;
     &::before {
       display: none;
@@ -97,6 +97,16 @@
 
   [data-theme="light"] .glass-card {
     @apply bg-white/95 border-gray-200 shadow-md shadow-gray-200/50;
+  }
+
+  /* Pro Max Glassmorphism */
+  .glass-card-premium {
+    @apply backdrop-blur-[60px] saturate-150 bg-white/40 dark:bg-black/40 border border-white/20 dark:border-white/10;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+
+  .glass-header-premium {
+    @apply sticky top-0 z-50 backdrop-blur-2xl saturate-200 bg-white/60 dark:bg-black/60 border-b border-white/10;
   }
 
   .btn-stellar {

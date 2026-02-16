@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Database, FileText, X, Clock, TrendingUp } from 'lucide-react';
+import { Database, FileText, X, Clock, TrendingUp, FileUp } from 'lucide-react';
 import type { UppyFile } from '@uppy/core';
 
 interface ExtendedFileProgress {
@@ -39,7 +39,7 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
   onRemoveFile,
 }) => {
   return (
-    <div className="glass-card h-full w-full p-4 lg:p-[1.5vw] rounded-3xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/5 flex flex-col shadow-lg relative overflow-hidden">
+    <div className="glass-card-premium h-full w-full p-4 lg:p-[1.5vw] rounded-3xl flex flex-col shadow-lg relative overflow-hidden">
       <div className="flex items-center justify-between mb-3 lg:mb-[2vh]">
         <h3 className="text-xs lg:text-[clamp(0.65rem,0.7vw,0.8rem)] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] flex items-center gap-2">
           <Database className="w-4 h-4 text-purple-500" />
@@ -47,7 +47,7 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
         </h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pl-1 relative z-10 min-h-[100px]">
+      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pl-1 relative z-10">
         <AnimatePresence mode="popLayout">
           {pendingFiles.length === 0 ? (
             <motion.div
@@ -55,10 +55,10 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-3 lg:space-y-4 min-h-[100px]"
+              className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-3 lg:space-y-4 min-h-25"
             >
-              <div className="w-10 h-10 lg:w-[8vh] lg:h-[8vh] max-w-[4rem] max-h-[4rem] rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50">
-                <FileText className="w-1/2 h-1/2" />
+              <div className="p-4 rounded-full bg-linear-to-br from-cyan-500/10 to-violet-500/10 dark:from-quantum-cyan/20 dark:to-digital-violet/20 group-hover:scale-110 transition-transform duration-500 max-w-16 max-h-16 flex items-center justify-center">
+                <FileUp className="w-8 h-8 text-cyan-600 dark:text-quantum-cyan" />
               </div>
               <p className="text-[0.6rem] lg:text-[0.65rem] uppercase tracking-widest text-center font-bold">
                 拖放檔案
@@ -117,11 +117,11 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
                           <>
                             <div className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
                               <TrendingUp className="w-2.5 h-2.5" />
-                              {formatBytes(Number(file.meta.uploadSpeed) || 0)}/s
+                              {formatBytes(Number(file.meta?.uploadSpeed) || 0)}/s
                             </div>
                             <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 justify-self-end">
                               <Clock className="w-2.5 h-2.5" />
-                              {formatDuration(Number(file.meta.eta) || 0)}
+                              {formatDuration(Number(file.meta?.eta) || 0)}
                             </div>
                           </>
                         )}

@@ -8,6 +8,7 @@ const HelpPage = React.lazy(() => import('./pages/HelpPage').then(module => ({ d
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
 const SharePage = React.lazy(() => import('./pages/SharePage').then(module => ({ default: module.SharePage })));
 import { Starfield } from './components/Starfield';
+import { AuraField } from './components/AuraField';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -142,31 +143,36 @@ const MainLayout: React.FC<{
   }, []);
 
   return (
-    <div className="h-dvh flex flex-col relative overflow-hidden bg-white dark:bg-transparent">
-      {/* Global Stable Header - Always visible on mobile, provides consistent toggles */}
-      <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/60 dark:bg-black/20 backdrop-blur-xl border-b border-gray-200 dark:border-white/5 z-50">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-xl bg-white/60 dark:bg-white/5 text-gray-600 dark:text-quantum-cyan hover:bg-cyan-500/10 transition-colors border border-white/20"
-          aria-label="選單"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="p-1.5 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
-            <div className="text-cyan-600 dark:text-quantum-cyan font-black text-[10px]">FN</div>
+    <div className="h-dvh flex flex-col relative overflow-hidden bg-transparent">
+      <header className="glass-header-premium lg:hidden">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="w-10 h-10 bg-linear-to-br from-quantum-cyan to-digital-violet rounded-xl flex items-center justify-center p-2 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-quantum-cyan/20">
+                <svg className="w-full h-full text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H10a2 2 0 00-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v10a2 2 0 002 2h3m8-11h.01" />
+                </svg>
+              </div>
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-linear-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400">
+                FileNexus
+              </span>
+            </Link>
           </div>
-          <span className="text-sm font-black tracking-tighter text-gray-900 dark:text-white">FileNexus</span>
-        </Link>
-
-        <button
-          onClick={() => setDirectoryOpen(!directoryOpen)}
-          className="p-2 rounded-xl bg-white/60 dark:bg-white/5 text-gray-600 dark:text-neural-violet hover:bg-purple-500/10 transition-colors border border-white/20"
-          aria-label="目錄"
-        >
-          <Users className="w-5 h-5" />
-        </button>
+          <button
+            onClick={() => setDirectoryOpen(!directoryOpen)}
+            className="p-2 rounded-xl bg-white/60 dark:bg-white/5 text-gray-600 dark:text-neural-violet hover:bg-purple-500/10 transition-colors border border-white/20"
+            aria-label="目錄"
+          >
+            <Users className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex relative overflow-hidden">
@@ -253,8 +259,8 @@ const AppContent: React.FC = () => {
   return (
     <BrowserRouter>
       <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30">
-        {/* Only show Starfield in dark mode */}
-        {theme === 'dark' && <Starfield />}
+        {/* Background Layer - Dynamic based on theme */}
+        {theme === 'dark' ? <Starfield /> : <AuraField />}
 
         <React.Suspense fallback={
            <div className="flex items-center justify-center min-h-screen">
