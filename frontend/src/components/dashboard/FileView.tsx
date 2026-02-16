@@ -84,6 +84,9 @@ interface FileViewProps {
   onViewModeChange: (mode: 'grid' | 'list') => void;
   isSelectionMode: boolean;
   onSelectionModeChange: (active: boolean) => void;
+  onShareFolder?: (folderId: string) => void;
+  onQrCodeFolder?: (folderId: string) => void;
+  onDownloadFolder?: (folderId: string) => void;
 }
 
 export const FileView: React.FC<FileViewProps> = ({
@@ -112,7 +115,10 @@ export const FileView: React.FC<FileViewProps> = ({
   viewMode,
   onViewModeChange,
   isSelectionMode,
-  onSelectionModeChange
+  onSelectionModeChange,
+  onShareFolder,
+  onQrCodeFolder,
+  onDownloadFolder
 }) => {
   const [renamingFile, setRenamingFile] = React.useState<string | null>(null);
   const [newName, setNewName] = React.useState<string>('');
@@ -302,6 +308,10 @@ export const FileView: React.FC<FileViewProps> = ({
                     setDragOverFolderId={setDragOverFolderId}
                     renamingFolderId={renamingFolderId}
                     setRenamingFolderId={setRenamingFolderId}
+                    folders={folders}
+                    onShare={onShareFolder}
+                    onQrCode={onQrCodeFolder}
+                    onDownloadFolder={onDownloadFolder}
                   />
                 );
               })}

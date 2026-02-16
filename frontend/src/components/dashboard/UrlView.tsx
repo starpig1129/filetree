@@ -60,6 +60,9 @@ interface UrlViewProps {
   onViewModeChange: (mode: 'grid' | 'list') => void;
   isSelectionMode: boolean;
   onSelectionModeChange: (active: boolean) => void;
+  onShareFolder?: (folderId: string) => void;
+  onQrCodeFolder?: (folderId: string) => void;
+  onDownloadFolder?: (folderId: string) => void;
 }
 
 import type { HTMLMotionProps } from 'framer-motion';
@@ -133,7 +136,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
   viewMode,
   onViewModeChange,
   isSelectionMode,
-  onSelectionModeChange
+  onSelectionModeChange,
+  // onShareFolder, onQrCodeFolder, onDownloadFolder available via UrlViewProps
 }) => {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -490,8 +494,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     transition={{ delay: idx * 0.02 }}
                     isSelectionMode={isSelectionMode}
                     className={cn(
-                      "relative group flex flex-col bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden",
-                      viewMode === 'list' ? "flex-row items-center p-2 sm:p-3" : "p-3 sm:p-4 space-y-2",
+                      "relative group bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-violet-500/30 transition-all duration-300 shadow-sm hover:shadow-md url-item cursor-pointer overflow-hidden",
+                      viewMode === 'list' ? "flex flex-row items-center p-2 sm:p-3 rounded-xl" : "flex flex-col p-3 sm:p-4 space-y-2 rounded-2xl",
                       isSelected && "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10",
                       url.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
                     )}
@@ -641,7 +645,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                     </div>
 
                      <div className={cn("flex-1 min-w-0 flex flex-col justify-center", viewMode === 'grid' && "mt-1")}>
-                      <div className="flex items-start gap-3 mb-1">
+                      <div className={cn("flex items-start gap-3", viewMode === 'grid' && "mb-1")}>
                         {viewMode === 'list' && (
                           <div className={cn(
                             "p-2 rounded-lg shrink-0",
@@ -660,12 +664,11 @@ export const UrlView: React.FC<UrlViewProps> = ({
                           {url.url}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 dark:text-white/30 tracking-widest uppercase mt-auto">
-                        <span>{new Date(url.created).toLocaleDateString()}</span>
-                        {viewMode === 'grid' && url.is_locked && (
-                           null
-                        )}
-                      </div>
+                      {viewMode === 'grid' && (
+                        <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 dark:text-white/30 tracking-widest uppercase mt-auto">
+                          <span>{new Date(url.created).toLocaleDateString()}</span>
+                        </div>
+                      )}
 
                       {/* Mobile Top Actions - Grid View Only */}
                       {viewMode === 'grid' && !isLocked && (
@@ -753,6 +756,22 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                  >
                                    {url.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                                 </button>
+                                <CascadingMenu
+                                  folders={folders}
+                                  onSelect={(folderId) => onMoveItem('url', url.url, folderId)}
+                                  trigger={
+                                    <button
+                                      className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                                      title="移動到..."
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onMouseUp={(e) => e.stopPropagation()}
+                                      onTouchStart={(e) => e.stopPropagation()}
+                                      onTouchEnd={(e) => e.stopPropagation()}
+                                    >
+                                      <FolderIcon className="w-4 h-4" />
+                                    </button>
+                                  }
+                                />
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
                                   onMouseDown={(e) => e.stopPropagation()}

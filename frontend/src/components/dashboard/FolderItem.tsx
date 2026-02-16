@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
-import { Folder as FolderIcon, CheckSquare, Square, Edit3, Trash2, Check, X } from 'lucide-react';
+import {
+  Folder as FolderIcon, CheckSquare, Square, Edit3, Trash2, Check, X,
+  MoreVertical, Share2, QrCode, Download
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview, type DragItem } from '../../utils/dragUtils';
 import type { Folder } from './FolderSidebar';
+import { DropdownMenu } from '../ui/DropdownMenu';
+import { CascadingMenu } from '../ui/CascadingMenu';
 
 interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
@@ -64,6 +69,11 @@ interface FolderItemProps {
   setDragOverFolderId: (id: string | null) => void;
   renamingFolderId: string | null;
   setRenamingFolderId: (id: string | null) => void;
+  // New props for full folder actions
+  folders?: Folder[];
+  onShare?: (folderId: string) => void;
+  onQrCode?: (folderId: string) => void;
+  onDownloadFolder?: (folderId: string) => void;
 }
 
 export const FolderItem: React.FC<FolderItemProps> = React.memo(({
@@ -80,7 +90,11 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
   dragOverFolderId,
   setDragOverFolderId,
   renamingFolderId,
-  setRenamingFolderId
+  setRenamingFolderId,
+  folders = [],
+  onShare,
+  onQrCode,
+  onDownloadFolder,
 }) => {
   const [newName, setNewName] = useState(folder.name);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -142,6 +156,46 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     }
   };
 
+  // Dropdown items for mobile menu
+  const dropdownItems = [
+    {
+      label: '分享',
+      icon: <Share2 className="w-4 h-4 text-blue-500" />,
+      onClick: () => onShare?.(folder.id),
+      hidden: !onShare
+    },
+    {
+      label: 'QR Code',
+      icon: <QrCode className="w-4 h-4 text-violet-500" />,
+      onClick: () => onQrCode?.(folder.id),
+      hidden: !onQrCode
+    },
+    {
+      label: '下載資料夾',
+      icon: <Download className="w-4 h-4 text-green-500" />,
+      onClick: () => onDownloadFolder?.(folder.id),
+      hidden: !onDownloadFolder
+    },
+    {
+      label: '重命名',
+      icon: <Edit3 className="w-4 h-4 text-cyan-500" />,
+      onClick: () => { setRenamingFolderId(folder.id); setNewName(folder.name); },
+      hidden: !onUpdateFolder || !isAuthenticated
+    },
+    { label: 'separator', icon: null, onClick: () => {}, hidden: !isAuthenticated },
+    {
+      label: '刪除',
+      icon: <Trash2 className="w-4 h-4" />,
+      onClick: () => {
+        if (window.confirm(`確定要刪除資料夾 "${folder.name}" 嗎？`)) {
+          onDeleteFolder?.(folder.id);
+        }
+      },
+      variant: 'danger' as const,
+      hidden: !onDeleteFolder || !isAuthenticated
+    }
+  ];
+
   return (
     <ItemWrapper
       layout
@@ -191,6 +245,26 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
         </button>
       </div>
 
+      {/* Mobile Action Menu (top-right) */}
+      {!isSelectionMode && (
+        <div className="absolute top-1.5 right-1.5 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu
+            trigger={
+              <button
+                className="p-1.5 rounded-lg backdrop-blur-sm transition-all shadow-sm bg-white/80 dark:bg-black/50 text-gray-500 hover:text-cyan-500 min-w-8 min-h-8 flex items-center justify-center"
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+            }
+            items={dropdownItems}
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-lg shrink-0">
           <FolderIcon className="w-6 h-6" />
@@ -231,8 +305,60 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
           )}
         </div>
         
+        {/* Desktop hover actions */}
         {isAuthenticated && !renamingFolderId && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
+          <div className="hidden lg:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-0.5 shrink-0">
+            {onShare && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onShare(folder.id); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-blue-600"
+                title="分享"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onQrCode && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onQrCode(folder.id); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-violet-600"
+                title="QR Code"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onDownloadFolder && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDownloadFolder(folder.id); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-green-600"
+                title="下載資料夾"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {folders.length > 0 && (
+              <CascadingMenu
+                folders={folders}
+                onSelect={(folderId) => onMoveItem('folder', folder.id, folderId)}
+                trigger={
+                  <button
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-cyan-600"
+                    title="移動到..."
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                  >
+                    <FolderIcon className="w-3.5 h-3.5" />
+                  </button>
+                }
+              />
+            )}
             {onUpdateFolder && (
               <button
                 onClick={(e) => {
@@ -241,7 +367,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   setNewName(folder.name);
                 }}
                 className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-cyan-600"
-                title="Rename"
+                title="重命名"
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
@@ -255,7 +381,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   }
                 }}
                 className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-500"
-                title="Delete"
+                title="刪除"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

@@ -385,6 +385,21 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
+                    onQrCode(url);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseUp={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                  className="p-2 text-gray-400 hover:text-violet-600 hover:bg-violet-500/5 rounded-lg transition-colors"
+                  title="QR Code"
+                >
+                  <QrCode className="w-4 h-4" />
+                </button>
                 <a
                   href={`/api/download/${username}/${file.name}${token ? `?token=${token}` : ''}`}
                   onClick={(e) => e.stopPropagation()}
@@ -411,6 +426,19 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
                     </button>
                   }
                 />
+                {isAuthenticated && onRename && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setRenamingFile(file.name); setNewName(file.name); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                    title="重命名"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
                 {isAuthenticated && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(file.name); }}
