@@ -138,10 +138,10 @@ async def create_tus_upload(
         
         # Calculate fingerprint
         fingerprint = calculate_fingerprint(filename, upload_length, metadata.get('lastModified'))
-        logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user.username}")
+        logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user['username']}")
         
         # Check for existing upload (resume)
-        existing = metadata_store.get_upload_by_fingerprint(fingerprint, user.username)
+        existing = metadata_store.get_upload_by_fingerprint(fingerprint, user['username'])
         
         if existing and existing['status'] == 'active':
             logger.info(f"TUS Resume: Found existing upload {existing['id']}, offset={existing['offset']}")
@@ -171,7 +171,7 @@ async def create_tus_upload(
         created = metadata_store.create_upload(
             upload_id=upload_id,
             fingerprint=fingerprint,
-            username=user.username,
+            username=user['username'],
             size=upload_length,
             filename=filename,
             content_type=content_type,
