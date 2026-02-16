@@ -970,7 +970,7 @@ export const UserPage: React.FC<UserPageProps> = ({
               <FileView
                 files={filteredFiles}
                 isAuthenticated={isAuthenticated}
-                selectedItems={selectedItems.filter(i => i.type === 'file')}
+                selectedItems={selectedItems.filter(i => i.type === 'file' || i.type === 'folder')}
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
                 onSelectAll={(selected) => handleSelectAll('file', selected)}
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}
@@ -1007,6 +1007,18 @@ export const UserPage: React.FC<UserPageProps> = ({
                   setQrUrl(url);
                 }}
                 onDownloadFolder={(folderId) => {
+                  const hasFiles = (fId: string): boolean => {
+                     const directFiles = dashboardData.files?.some(f => f.folder_id === fId);
+                     if (directFiles) return true;
+                     const subfolders = dashboardData.folders?.filter(f => f.parent_id === fId) || [];
+                     return subfolders.some(sub => hasFiles(sub.id));
+                  };
+
+                  if (!hasFiles(folderId)) {
+                    alert('資料夾內無檔案可下載');
+                    return;
+                  }
+                  
                   const downloadUrl = `/api/user/${data.user?.username}/folders/${folderId}/download?token=${token || ''}`;
                   window.open(downloadUrl, '_blank');
                 }}
@@ -1091,7 +1103,7 @@ export const UserPage: React.FC<UserPageProps> = ({
               <UrlView
                 urls={filteredUrls}
                 isAuthenticated={isAuthenticated}
-                selectedItems={selectedItems.filter(i => i.type === 'url')}
+                selectedItems={selectedItems.filter(i => i.type === 'url' || i.type === 'folder')}
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
                 onSelectAll={(selected) => handleSelectAll('url', selected)}
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}

@@ -315,6 +315,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     onQrCode={onQrCodeFolder}
                     onDownloadFolder={onDownloadFolder}
                     onToggleLock={onToggleFolderLock}
+                    viewMode={viewMode}
                   />
                 );
               })}

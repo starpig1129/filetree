@@ -3,8 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Copy, MoreVertical,
-  Folder as FolderIcon, LayoutGrid, List, Edit3, Check, X, FileText, Link as LinkIcon,
-  Share2, Download
+  Folder as FolderIcon, LayoutGrid, List, FileText, Link as LinkIcon
 } from 'lucide-react';
 import { DropdownMenu } from '../ui/DropdownMenu';
 import { CascadingMenu } from '../ui/CascadingMenu';
@@ -13,6 +12,7 @@ import { useSelectionBox } from '../../hooks/useSelectionBox';
 import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview, type DragItem } from '../../utils/dragUtils';
 import { BatchActionBar } from './BatchActionBar';
+import { FolderItem } from './FolderItem';
 import type { Folder } from './FolderSidebar';
 
 export interface UrlItem {
@@ -146,74 +146,13 @@ export const UrlView: React.FC<UrlViewProps> = ({
 
 }) => {
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
-  const [newName, setNewName] = useState('');
-  const [isRenaming, setIsRenaming] = useState(false);
+
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Filter folders for current view
   const currentSubfolders = folders.filter(f => f.parent_id === activeFolderId && f.type === 'url');
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDragEnterFolder = (e: React.DragEvent, folderId: string) => {
-    e.preventDefault();
-    setDragOverFolderId(folderId);
-  };
-
-  const handleDragLeaveFolder = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverFolderId(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, targetFolderId: string) => {
-    e.preventDefault();
-    setDragOverFolderId(null);
-    const data = e.dataTransfer.getData('application/json');
-    if (!data) return;
-    
-    try {
-      const parsed = JSON.parse(data);
-      
-      // Handle batch items
-      if (parsed.items && Array.isArray(parsed.items)) {
-        parsed.items.forEach((item: { type: 'file' | 'url' | 'folder', id: string }) => {
-          if (item.type === 'folder' && item.id === targetFolderId) return; // Prevent self-drop
-          onMoveItem(item.type, item.id, targetFolderId);
-        });
-        return;
-      }
-
-      // Handle single item (backward compatibility)
-      const { type, id } = parsed;
-      if (type && id) {
-        if (type === 'folder' && id === targetFolderId) return;
-        onMoveItem(type, id, targetFolderId);
-      }
-    } catch (err) {
-      console.error("Drop error:", err);
-    }
-  };
-
-  const handleRenameFolder = async (id: string) => {
-    if (!newName || !onUpdateFolder) {
-      setRenamingFolderId(null);
-      return;
-    }
-
-    setIsRenaming(true);
-    try {
-      await onUpdateFolder(id, newName);
-      setRenamingFolderId(null);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsRenaming(false);
-    }
-  };
 
   const filteredUrls = useMemo(() => {
     return urls;
@@ -343,252 +282,29 @@ export const UrlView: React.FC<UrlViewProps> = ({
                 const isSelected = !!selectedItems.find(i => i.type === 'folder' && i.id === folder.id);
 
                 return (
-                  <ItemWrapper
+                  <FolderItem
                     key={folder.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    folder={folder}
+                    isSelected={isSelected}
                     isSelectionMode={isSelectionMode}
-                    className={cn(
-                      "group relative p-3 rounded-2xl border transition-all cursor-pointer folder-card shadow-sm hover:shadow-xl hover:-translate-y-1",
-                      folder.id === dragOverFolderId && "ring-2 ring-violet-500 bg-violet-100 dark:bg-violet-900/30 scale-105 z-10",
-                      isSelected 
-                        ? "ring-2 ring-violet-500 bg-violet-50 dark:bg-violet-900/10 border-transparent" 
-                        : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-violet-500/50 hover:bg-violet-500/5"
-                    )}
-                    draggable={!isSelectionMode}
-                    onDragStart={(event) => {
-                      const e = event as unknown as React.DragEvent<HTMLDivElement>;
-                      const itemsToDrag: { type: 'file' | 'url' | 'folder', id: string }[] = [{ type: 'folder', id: folder.id }];
-
-                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
-                      e.dataTransfer.effectAllowed = 'move';
-                      setDragPreview(e, itemsToDrag);
-                    }}
-                    onClick={() => {
-                      if (isSelectionMode) {
-                        onToggleSelect('folder', folder.id);
-                      } else {
-                        onFolderClick(folder.id);
-                      }
-                    }} 
-                    onLongPress={() => onSelectionModeChange(true)}
-                    onDragOver={handleDragOver}
-                    onDragEnter={(e) => handleDragEnterFolder(e, folder.id)}
-                    onDragLeave={handleDragLeaveFolder}
-                    onDrop={(e) => handleDrop(e, folder.id)}
-                  >
-                    {/* Selection Checkbox */}
-                    <div className={cn(
-                      "absolute top-3 left-3 z-30 transition-opacity",
-                      (isSelected || isSelectionMode) 
-                        ? "opacity-100 pointer-events-auto" 
-                        : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
-                    )}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onToggleSelect('folder', folder.id); }}
-                        className="p-1.5 rounded-lg bg-white/90 dark:bg-black/80 shadow-sm hover:bg-white dark:hover:bg-black flex items-center justify-center"
-                      >
-                         {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 rounded-xl">
-                        <FolderIcon className="w-6 h-6" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        {renamingFolderId === folder.id ? (
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              autoFocus
-                              value={newName}
-                              onChange={(e) => setNewName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleRenameFolder(folder.id);
-                                if (e.key === 'Escape') setRenamingFolderId(null);
-                              }}
-                              className="w-full text-xs p-1 rounded border border-violet-500/50 bg-white dark:bg-black/20 outline-none"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id); }}
-                              disabled={isRenaming}
-                              className="p-1 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded"
-                            >
-                              <Check className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setRenamingFolderId(null); }}
-                              disabled={isRenaming}
-                              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate group-hover:text-violet-600 transition-colors">
-                            {folder.name}
-                          </h4>
-                        )}
-                      </div>
-  
-                      
-                      {!renamingFolderId && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          {/* Desktop hover actions */}
-                          <div className="hidden lg:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-0.5">
-                            {onShareFolder && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onShareFolder(folder.id); }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseUp={(e) => e.stopPropagation()}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-blue-600"
-                                title="分享"
-                              >
-                                <Share2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {onQrCodeFolder && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onQrCodeFolder(folder.id); }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseUp={(e) => e.stopPropagation()}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-violet-600"
-                                title="QR Code"
-                              >
-                                <QrCode className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {onDownloadFolder && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); onDownloadFolder(folder.id); }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onMouseUp={(e) => e.stopPropagation()}
-                                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-green-600"
-                                title="下載資料夾"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            {isAuthenticated && (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRenamingFolderId(folder.id);
-                                      setNewName(folder.name);
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onMouseUp={(e) => e.stopPropagation()}
-                                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-400 hover:text-cyan-600"
-                                    title="重命名"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                                {/* Lock Toggle */}
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); onToggleLock('folder', folder.id, !!folder.is_locked); }}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onMouseUp={(e) => e.stopPropagation()}
-                                  className={cn(
-                                    "p-1.5 rounded-lg transition-all",
-                                    folder.is_locked
-                                      ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20"
-                                      : "text-gray-400 hover:text-cyan-600 hover:bg-gray-100 dark:hover:bg-white/10"
-                                  )}
-                                  title={folder.is_locked ? '解除鎖定' : '鎖定'}
-                                >
-                                  {folder.is_locked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                                </button>
-                                
-                                {onDeleteFolder && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (window.confirm(`確定要刪除資料夾 "${folder.name}" 嗎？`)) {
-                                        onDeleteFolder(folder.id);
-                                      }
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onMouseUp={(e) => e.stopPropagation()}
-                                    className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-500"
-                                    title="刪除"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
-
-                           {/* Mobile Dropdown */}
-                           <div 
-                             className="lg:hidden" 
-                             onClick={(e) => e.stopPropagation()} 
-                             onTouchStart={(e) => e.stopPropagation()} 
-                             onTouchEnd={(e) => e.stopPropagation()}
-                           >
-                            <DropdownMenu
-                              trigger={
-                                <button 
-                                  className="p-1.5 -mr-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                  onClick={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                  onTouchEnd={(e) => e.stopPropagation()}
-                                >
-                                  <MoreVertical className="w-4 h-4" />
-                                </button>
-                              }
-                              items={[
-                                { 
-                                  label: '分享', 
-                                  icon: <Share2 className="w-4 h-4 text-blue-500" />, 
-                                  onClick: () => onShareFolder?.(folder.id),
-                                  hidden: !onShareFolder
-                                },
-                                {
-                                  label: 'QR Code',
-                                  icon: <QrCode className="w-4 h-4 text-violet-500" />,
-                                  onClick: () => onQrCodeFolder?.(folder.id),
-                                  hidden: !onQrCodeFolder
-                                },
-                                {
-                                  label: '下載',
-                                  icon: <Download className="w-4 h-4 text-green-500" />,
-                                  onClick: () => onDownloadFolder?.(folder.id),
-                                  hidden: !onDownloadFolder
-                                },
-                                {
-                                  label: '重命名',
-                                  icon: <Edit3 className="w-4 h-4 text-cyan-500" />,
-                                  onClick: () => { setRenamingFolderId(folder.id); setNewName(folder.name); },
-                                  hidden: !isAuthenticated
-                                },
-                                {
-                                  label: folder.is_locked ? '解除鎖定' : '鎖定資料夾',
-                                  icon: folder.is_locked ? <Unlock className="w-4 h-4 text-violet-500" /> : <Lock className="w-4 h-4 text-gray-400" />,
-                                  onClick: () => onToggleLock('folder', folder.id, !!folder.is_locked),
-                                  hidden: !isAuthenticated
-                                },
-                                {
-                                  label: '刪除',
-                                  icon: <Trash2 className="w-4 h-4" />,
-                                  onClick: () => {
-                                    if (window.confirm(`確定要刪除資料夾 "${folder.name}" 嗎？`)) {
-                                      onDeleteFolder?.(folder.id);
-                                    }
-                                  },
-                                  variant: 'danger',
-                                  hidden: !onDeleteFolder || !isAuthenticated
-                                }
-                              ]}
-                            />
-                           </div>
-                        </div>
-                      )}
-                    </div>
-                  </ItemWrapper>
+                    isAuthenticated={isAuthenticated}
+                    onToggleSelect={onToggleSelect}
+                    onFolderClick={onFolderClick}
+                    onSelectionModeChange={onSelectionModeChange}
+                    onUpdateFolder={onUpdateFolder}
+                    onDeleteFolder={onDeleteFolder}
+                    onMoveItem={onMoveItem}
+                    dragOverFolderId={dragOverFolderId}
+                    setDragOverFolderId={setDragOverFolderId}
+                    renamingFolderId={renamingFolderId}
+                    setRenamingFolderId={setRenamingFolderId}
+                    folders={folders}
+                    onShare={onShareFolder}
+                    onQrCode={onQrCodeFolder}
+                    onDownloadFolder={onDownloadFolder}
+                    onToggleLock={onToggleLock}
+                    viewMode={viewMode}
+                  />
                 );
               })}
             </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
 import {
   Folder as FolderIcon, CheckSquare, Square, Edit3, Trash2, Check, X,
   MoreVertical, Share2, QrCode, Download, Lock, Unlock
@@ -11,21 +10,19 @@ import type { Folder } from './FolderSidebar';
 import { DropdownMenu } from '../ui/DropdownMenu';
 import { CascadingMenu } from '../ui/CascadingMenu';
 
-interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, 'onClick' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> {
+// ItemWrapper with long-press and drag support 
+interface ItemWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  isSelectionMode?: boolean;
+  draggable?: boolean;
 }
 
-const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; draggable?: boolean }> = ({ 
-  onClick, onLongPress, isSelectionMode, draggable, ...props 
+const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
+  onClick, onLongPress, isSelectionMode, draggable, children, ...props 
 }) => {
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
-  const motionProps = props as HTMLMotionProps<"div">;
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filteredHandlers: Record<string, any> = { ...handlers };
@@ -37,8 +34,8 @@ const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; drag
   }
 
   return (
-    <motion.div 
-      {...motionProps} 
+    <div 
+      {...props} 
       draggable={draggable}
       {...(isSelectionMode 
         ? { onClick } 
@@ -49,8 +46,8 @@ const ItemWrapper: React.FC<ItemWrapperProps & { isSelectionMode?: boolean; drag
           )
       )}
     >
-      {props.children}
-    </motion.div>
+      {children}
+    </div>
   );
 };
 
@@ -69,12 +66,12 @@ interface FolderItemProps {
   setDragOverFolderId: (id: string | null) => void;
   renamingFolderId: string | null;
   setRenamingFolderId: (id: string | null) => void;
-  // New props for full folder actions
   folders?: Folder[];
   onShare?: (folderId: string) => void;
   onQrCode?: (folderId: string) => void;
   onDownloadFolder?: (folderId: string) => void;
   onToggleLock?: (type: 'folder', id: string, currentStatus: boolean) => void;
+  viewMode: 'grid' | 'list';
 }
 
 export const FolderItem: React.FC<FolderItemProps> = React.memo(({
@@ -97,6 +94,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
   onQrCode,
   onDownloadFolder,
   onToggleLock,
+  viewMode,
 }) => {
   const [newName, setNewName] = useState(folder.name);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -192,7 +190,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     },
     {
       label: '移動',
-      icon: <CheckSquare className="w-4 h-4 text-orange-500" />,
+      icon: <FolderIcon className="w-4 h-4 text-orange-500" />,
       onClick: () => {}, // Triggered via cascading menu
       isCascading: true,
       hidden: !onMoveItem || !isAuthenticated
@@ -211,18 +209,262 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     }
   ];
 
+  // ─── LIST VIEW ───
+  if (viewMode === 'list') {
+    return (
+      <ItemWrapper
+        isSelectionMode={isSelectionMode}
+        onClick={() => {
+          if (isSelectionMode) {
+            onToggleSelect('folder', folder.id);
+          } else {
+            onFolderClick(folder.id);
+          }
+        }}
+        onLongPress={() => onSelectionModeChange(true)}
+        className={cn(
+          "relative group flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent rounded-xl transition-all duration-300 cursor-pointer shadow-sm folder-card",
+          isSelected 
+            ? "bg-cyan-500/10 dark:bg-cyan-500/20 ring-1 ring-cyan-500/50 shadow-md"
+            : "hover:border-cyan-500/30",
+          folder.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95",
+          folder.id === dragOverFolderId && "ring-2 ring-cyan-500 bg-cyan-100 dark:bg-cyan-900/30 scale-105 z-10"
+        )}
+        draggable={!isSelectionMode}
+        onDragStart={(event) => {
+          const e = event as unknown as React.DragEvent<HTMLDivElement>;
+          const itemsToDrag: DragItem[] = [{ type: 'folder', id: folder.id }];
+          e.dataTransfer.setData('application/json', JSON.stringify({ type: 'folder', id: folder.id }));
+          e.dataTransfer.effectAllowed = 'move';
+          setDragPreview(e, itemsToDrag);
+        }}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnterFolder}
+        onDragLeave={handleDragLeaveFolder}
+        onDrop={handleDrop}
+      >
+        {/* Selection Checkbox + Icon */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className={cn(
+            "transition-opacity relative",
+            (isSelected || isSelectionMode) 
+              ? "opacity-100" 
+              : "opacity-0 group-hover:opacity-100"
+          )}>
+             {folder.is_locked && (
+                <div className="absolute -top-1.5 -left-1.5 bg-violet-600 text-white p-1 rounded-lg shadow-xl z-20 ring-2 ring-white dark:ring-black">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+              )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleSelect('folder', folder.id); }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onMouseUp={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+            >
+               {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
+            </button>
+          </div>
+
+          <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-xl">
+            <FolderIcon className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Folder Info */}
+        <div className="flex-1 min-w-0">
+          {renamingFolderId === folder.id ? (
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <input
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameFolder();
+                  if (e.key === 'Escape') setRenamingFolderId(null);
+                }}
+                className="w-full text-sm p-1.5 rounded-lg border border-cyan-500/50 bg-white dark:bg-black/20 outline-none"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); handleRenameFolder(); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                disabled={isRenaming}
+                className="p-1.5 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded-lg"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setRenamingFolderId(null); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                disabled={isRenaming}
+                className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="flex-1 font-bold text-sm text-gray-700 dark:text-gray-200 truncate">
+                {folder.name}
+              </h3>
+              {folder.is_locked && (
+                 <div className={cn(
+                  "p-1 rounded-md",
+                  "bg-violet-500/10 text-violet-500"
+                )}>
+                  <Lock className="w-3 h-3" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        {!isSelectionMode && (
+          <div className="shrink-0 flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity pr-2">
+            {!renamingFolderId && (
+              <div className="flex items-center gap-1">
+                 {/* Desktop Actions */}
+                 <div className="hidden lg:flex items-center gap-1">
+                    {isAuthenticated && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onToggleLock?.('folder', folder.id, !!folder.is_locked); }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        className={cn(
+                          "p-2 rounded-lg transition-all duration-300",
+                          folder.is_locked 
+                            ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20 shadow-md" 
+                            : "text-cyan-600 bg-cyan-600/10 hover:bg-cyan-600/20 shadow-sm"
+                        )}
+                      >
+                         {folder.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                      </button>
+                    )}
+                    {onShare && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onShare(folder.id); }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {onQrCode && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onQrCode(folder.id); }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        className="p-2 text-gray-400 hover:text-violet-600 hover:bg-violet-500/5 rounded-lg transition-colors"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </button>
+                    )}
+                    {onDownloadFolder && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDownloadFolder(folder.id); }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-500/5 rounded-lg transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                    )}
+                     {folders.length > 0 && isAuthenticated && (
+                      <CascadingMenu
+                        folders={folders}
+                        onSelect={(folderId) => onMoveItem?.('folder', folder.id, folderId)}
+                        trigger={
+                          <button
+                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                             onMouseDown={(e) => e.stopPropagation()}
+                             onMouseUp={(e) => e.stopPropagation()}
+                             onTouchStart={(e) => e.stopPropagation()}
+                             onTouchEnd={(e) => e.stopPropagation()}
+                          >
+                            <FolderIcon className="w-4 h-4" />
+                          </button>
+                        }
+                      />
+                    )}
+                    {isAuthenticated && (
+                       <>
+                         <button
+                           onClick={(e) => { e.stopPropagation(); setRenamingFolderId(folder.id); setNewName(folder.name); }}
+                           onMouseDown={(e) => e.stopPropagation()}
+                           onMouseUp={(e) => e.stopPropagation()}
+                           className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                         >
+                           <Edit3 className="w-4 h-4" />
+                         </button>
+                         {onDeleteFolder && (
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               if (window.confirm(`確定要刪除資料夾 "${folder.name}" 嗎？`)) {
+                                 onDeleteFolder(folder.id);
+                               }
+                             }}
+                             onMouseDown={(e) => e.stopPropagation()}
+                             onMouseUp={(e) => e.stopPropagation()}
+                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                         )}
+                       </>
+                    )}
+                 </div>
+
+                 {/* Mobile Actions Menu */}
+                 <div className="lg:hidden">
+                    <DropdownMenu
+                      trigger={
+                        <button 
+                          className="p-2 text-gray-400 hover:text-cyan-600 rounded-lg transition-colors"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onMouseUp={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onTouchEnd={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="w-5 h-5" />
+                        </button>
+                      }
+                      items={mobileDropdownItems}
+                    />
+                 </div>
+              </div>
+            )}
+          </div>
+        )}
+      </ItemWrapper>
+    );
+  }
+
+  // ─── GRID VIEW ───
   return (
     <ItemWrapper
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
       isSelectionMode={isSelectionMode}
       className={cn(
-        "group relative p-3 rounded-2xl border transition-all cursor-pointer folder-card h-full shadow-sm hover:shadow-xl hover:-translate-y-1",
-        folder.id === dragOverFolderId && "ring-2 ring-cyan-500 bg-cyan-100 dark:bg-cyan-900/30 scale-105 z-10",
+        "group relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-500 overflow-hidden cursor-pointer",
         isSelected 
-          ? "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10 border-transparent" 
-          : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5"
+          ? "bg-cyan-500/10 dark:bg-cyan-500/20 ring-1 ring-cyan-500/50 shadow-lg scale-[1.02]" 
+          : "bg-white/40 dark:bg-white/2 hover:bg-white/60 dark:hover:bg-white/5 border border-white/20 shadow-sm hover:shadow-xl hover:-translate-y-1",
+        dragOverFolderId === folder.id && "ring-2 ring-cyan-500 bg-cyan-500/10 scale-[1.05]"
       )}
       draggable={!isSelectionMode}
       onDragStart={(event) => {
@@ -247,34 +489,37 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
     >
       {/* Selection Checkbox */}
       <div className={cn(
-        "absolute top-1.5 left-1.5 z-30 transition-opacity",
+        "absolute top-3 left-3 z-30 transition-opacity",
         (isSelected || isSelectionMode) 
           ? "opacity-100 pointer-events-auto" 
           : "opacity-0 pointer-events-none lg:group-hover:opacity-100 lg:group-hover:pointer-events-auto"
       )}>
         <button
           onClick={(e) => { e.stopPropagation(); onToggleSelect('folder', folder.id); }}
-          className="p-1 rounded bg-white/90 dark:bg-black/80 shadow-sm hover:bg-white dark:hover:bg-black"
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="p-1.5 rounded-lg bg-white/90 dark:bg-black/80 shadow-sm hover:bg-white dark:hover:bg-black flex items-center justify-center"
         >
-           {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-cyan-600" /> : <Square className="w-3.5 h-3.5 text-gray-400" />}
+           {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
         </button>
       </div>
 
-       {/* Lock Badge (Top-Left, below checkbox if selected) */}
-       {folder.is_locked && (
+      {folder.is_locked && (
         <div className={cn(
-          "absolute top-1.5 z-20 pointer-events-none",
-          (isSelected || isSelectionMode) ? "left-8" : "left-1.5"
+          "absolute top-3 z-20 pointer-events-none",
+          (isSelected || isSelectionMode) ? "left-10" : "left-3"
         )}>
-          <div className="p-1 rounded bg-white/90 dark:bg-black/80 shadow-sm">
-            <Lock className="w-3.5 h-3.5 text-gray-400" />
+          <div className="p-1 rounded bg-white/90 dark:bg-black/80 shadow-sm text-violet-600">
+            <Lock className="w-3.5 h-3.5" />
           </div>
         </div>
       )}
 
       {/* Mobile Action Menu (top-right) */}
       {!isSelectionMode && (
-        <div className="absolute top-1.5 right-1.5 z-30 lg:hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute top-1.5 right-1.5 z-30 lg:hidden">
           <DropdownMenu
             trigger={
               <button
@@ -293,7 +538,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
       )}
 
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-lg shrink-0">
+        <div className="p-2.5 bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 rounded-xl shrink-0">
           <FolderIcon className="w-6 h-6" />
         </div>
         <div className="min-w-0 flex-1">
@@ -309,9 +554,17 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                 }}
                 className="w-full text-xs p-1 rounded border border-cyan-500/50 bg-white dark:bg-black/20 outline-none"
                 onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
               />
               <button
                 onClick={(e) => { e.stopPropagation(); handleRenameFolder(); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 disabled={isRenaming}
                 className="p-1 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 rounded"
               >
@@ -319,6 +572,10 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setRenamingFolderId(null); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 disabled={isRenaming}
                 className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded"
               >
@@ -326,7 +583,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
               </button>
             </div>
           ) : (
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate group-hover:text-cyan-600 transition-colors">
+            <h4 className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate group-hover:text-cyan-600 transition-colors">
               {folder.name}
             </h4>
           )}
