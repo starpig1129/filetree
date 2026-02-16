@@ -5,7 +5,7 @@ Handles all URL/note record operations independently from user service.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from backend.services.database import get_notes_db
 
@@ -38,11 +38,14 @@ class NoteService:
         await db.commit()
         return cursor.lastrowid
 
-    async def get_urls(self, username: str) -> List[dict]:
+    async def get_urls(
+        self, username: str, excluded_folder_ids: Optional[Set[str]] = None
+    ) -> List[dict]:
         """Fetch all URL records for a user.
 
         Args:
             username: The username.
+            excluded_folder_ids: Optional set of folder IDs to exclude.
 
         Returns:
             List of URL record dicts.
@@ -56,6 +59,8 @@ class NoteService:
         result = []
         for row in rows:
             d = dict(row)
+            if excluded_folder_ids and d["folder_id"] in excluded_folder_ids:
+                continue
             d["is_locked"] = bool(d["is_locked"])
             result.append(d)
         return result

@@ -632,3 +632,108 @@ async def batch_download(
         filename=f"{username}_batch_download.zip",
         background=BackgroundTask(os.unlink, temp_zip_path),
     )
+
+
+@router.get("/user/{username}/folders/{folder_id}/download")
+async def download_folder(
+    username: str,
+    folder_id: str,
+    token: Optional[str] = None
+):
+    """Download a specific folder as a zip archive."""
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_folder = await user_service.get_folder_by_id(folder_id)
+    if not target_folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    is_authenticated = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            is_authenticated = True
+
+    if target_folder["is_locked"] and not is_authenticated:
+        raise HTTPException(status_code=403, detail="Folder is locked")
+
+    all_folders = await user_service.get_folders_by_username(username)
+    folder_map = {f["id"]: f for f in all_folders}
+    
+    # 1. Identify all descendant folder IDs
+    descendants = set()
+    stack = [folder_id]
+    while stack:
+        current_id = stack.pop()
+        descendants.add(current_id)
+        for f in all_folders:
+            if f["parent_id"] == current_id:
+                stack.append(f["id"])
+
+    # 2. Check locks in descendants if unauthenticated
+    if not is_authenticated:
+        for fid in descendants:
+            if folder_map.get(fid, {}).get("is_locked"):
+                raise HTTPException(status_code=403, detail="Contains locked content")
+
+    # 3. Get all files and filter
+    files = await file_service.get_user_files(username, user.get("data_retention_days"))
+    target_files = [f for f in files if f["folder_id"] in descendants]
+    
+    if not target_files:
+        raise HTTPException(status_code=404, detail="Folder is empty")
+
+    if not is_authenticated:
+        for f in target_files:
+            if f["is_locked"]:
+                raise HTTPException(status_code=403, detail="Contains locked files")
+
+    # 4. Create Zip
+    import tempfile
+    import zipfile
+
+    temp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temp_zip_path = temp_zip.name
+    temp_zip.close()
+
+    # Helper: resolve path from root
+    def get_path_from_root(fid):
+        path = []
+        curr = fid
+        while curr and curr in folder_map:
+            f = folder_map[curr]
+            path.insert(0, f["name"])
+            curr = f["parent_id"]
+        return path
+
+    target_root_path = get_path_from_root(folder_id)
+    # The number of path components to strip to make paths relative to the zip root
+    # e.g. target is "A/B". We want files in B to be at root of zip? 
+    # Usually zip of "B" contains "B/file". 
+    # If we want "B/...", we strip "A". Length of target_root_path is 2. Strip 1.
+    strip_count = max(0, len(target_root_path) - 1)
+
+    with zipfile.ZipFile(temp_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_info in target_files:
+            fname = file_info["name"]
+            fid = file_info["folder_id"]
+            
+            # Physical path needs names from root
+            full_path_names = get_path_from_root(fid)
+            
+            # Get physical path
+            folder_path = file_service._get_folder_path(user["folder"], full_path_names)
+            file_path = folder_path / fname
+            
+            if file_path.exists():
+                # Archive path: relative to the parent of the target folder
+                rel_path_names = full_path_names[strip_count:]
+                arcname = os.path.join(*rel_path_names, fname)
+                zf.write(file_path, arcname=arcname)
+
+    return FileResponse(
+        path=temp_zip_path,
+        filename=f"{target_folder['name']}.zip",
+        background=BackgroundTask(os.unlink, temp_zip_path),
+    )

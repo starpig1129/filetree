@@ -17,6 +17,7 @@ export type Folder = {
   name: string;
   type: 'file' | 'url';
   parent_id?: string | null;
+  is_locked?: boolean;
 };
 
 interface FolderSidebarProps {

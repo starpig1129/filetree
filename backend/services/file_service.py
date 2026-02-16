@@ -12,7 +12,7 @@ import tempfile
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import aiofiles.os
 import logging
@@ -77,6 +77,7 @@ class FileService:
         self,
         username: str,
         retention_days: Optional[int] = None,
+        excluded_folder_ids: Optional[Set[str]] = None,
     ) -> List[dict]:
         """Fetch all files for a user from the DB index.
 
@@ -100,6 +101,10 @@ class FileService:
         files = []
         for row in rows:
             r = dict(row)
+            # Skip if file is in an excluded folder
+            if excluded_folder_ids and r["folder_id"] in excluded_folder_ids:
+                continue
+                
             created_time = datetime.fromisoformat(r["created_at"])
             size_bytes = r["size_bytes"]
 

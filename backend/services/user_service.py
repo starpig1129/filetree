@@ -6,7 +6,8 @@ Replaces JSON-based storage with aiosqlite queries for users and folders.
 
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
+from collections import defaultdict
 
 from backend.config import settings
 from backend.core.auth import generate_salt, hash_password, verify_password
@@ -340,11 +341,53 @@ class UserService:
         """
         db = await get_users_db()
         cursor = await db.execute(
-            "SELECT id, name, type, parent_id FROM folders WHERE user_id = ?",
+            "SELECT id, name, type, parent_id, is_locked FROM folders WHERE user_id = ?",
             (user_id,),
         )
         rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        return [{**dict(r), "is_locked": bool(r["is_locked"])} for r in rows]
+
+    async def get_visible_folders_and_hidden_ids(
+        self, user_id: str, is_authenticated: bool
+    ) -> Tuple[List[dict], Set[str]]:
+        """Get visible folders and a set of hidden/locked folder IDs.
+
+        If not authenticated, locked folders and their descendants are hidden.
+
+        Args:
+            user_id: The user ID.
+            is_authenticated: Whether the requester is authenticated.
+
+        Returns:
+            Tuple of (visible_folders_list, hidden_folder_ids_set).
+        """
+        all_folders = await self._get_user_folders(user_id)
+        
+        if is_authenticated:
+            return all_folders, set()
+
+        # Build tree to find descendants
+        children = defaultdict(list)
+        for f in all_folders:
+            if f["parent_id"]:
+                children[f["parent_id"]].append(f["id"])
+
+        hidden_ids = set()
+        
+        def mark_hidden(fid: str):
+            if fid in hidden_ids:
+                return
+            hidden_ids.add(fid)
+            for child_id in children[fid]:
+                mark_hidden(child_id)
+
+        # Identify roots of hidden subtrees (locked folders)
+        for f in all_folders:
+            if f["is_locked"]:
+                mark_hidden(f["id"])
+
+        visible = [f for f in all_folders if f["id"] not in hidden_ids]
+        return visible, hidden_ids
 
     async def get_folders_by_username(self, username: str) -> List[dict]:
         """Fetch all folders for a user by username.
@@ -357,13 +400,13 @@ class UserService:
         """
         db = await get_users_db()
         cursor = await db.execute(
-            "SELECT f.id, f.name, f.type, f.parent_id "
+            "SELECT f.id, f.name, f.type, f.parent_id, f.is_locked "
             "FROM folders f JOIN users u ON f.user_id = u.id "
             "WHERE u.username = ?",
             (username,),
         )
         rows = await cursor.fetchall()
-        return [dict(r) for r in rows]
+        return [{**dict(r), "is_locked": bool(r["is_locked"])} for r in rows]
 
     async def add_folder(
         self,
@@ -600,11 +643,44 @@ class UserService:
         """
         db = await get_users_db()
         cursor = await db.execute(
-            "SELECT id, user_id, name, type, parent_id FROM folders WHERE id = ?",
+            "SELECT id, user_id, name, type, parent_id, is_locked FROM folders WHERE id = ?",
             (folder_id,),
         )
         row = await cursor.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        result = dict(row)
+        result["is_locked"] = bool(result["is_locked"])
+        return result
+
+    async def toggle_folder_lock(
+        self, username: str, folder_id: str, is_locked: bool
+    ) -> bool:
+        """Toggle the lock status of a folder.
+
+        Args:
+            username: The username.
+            folder_id: The folder ID.
+            is_locked: New lock status.
+
+        Returns:
+            True if successful, False if folder not found.
+        """
+        db = await get_users_db()
+        cursor = await db.execute(
+            "SELECT f.id FROM folders f JOIN users u ON f.user_id = u.id "
+            "WHERE f.id = ? AND u.username = ?",
+            (folder_id, username),
+        )
+        if not await cursor.fetchone():
+            return False
+
+        await db.execute(
+            "UPDATE folders SET is_locked = ? WHERE id = ?",
+            (int(is_locked), folder_id),
+        )
+        await db.commit()
+        return True
 
 
 # Singleton instance

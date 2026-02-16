@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Set
 from fastapi import APIRouter, HTTPException, Request, Form, Depends
 from backend.services.user_service import user_service
 from backend.services.file_service import file_service
@@ -30,17 +30,23 @@ async def get_user_dashboard(request: Request, username: str, token: Optional[st
         if info and info.username == username:
             is_authenticated = True
 
-    # Files from files.db
+    # Get folders with visibility logic (hides locked folders + descendants if unauth)
+    visible_folders, hidden_folder_ids = await user_service.get_visible_folders_and_hidden_ids(
+        user["id"], is_authenticated
+    )
+
+    # Files from files.db (exclude those in hidden folders)
     all_files = await file_service.get_user_files(
         user["folder"],
         user.get("data_retention_days"),
+        excluded_folder_ids=hidden_folder_ids,
     )
 
-    # URLs from notes.db
-    urls = await note_service.get_urls(username)
-
-    # Folders from users.db
-    folders = user.get("folders", [])
+    # URLs from notes.db (exclude those in hidden folders)
+    urls = await note_service.get_urls(
+        username,
+        excluded_folder_ids=hidden_folder_ids,
+    )
 
     return {
         "user": {
@@ -52,7 +58,7 @@ async def get_user_dashboard(request: Request, username: str, token: Optional[st
         "usage": 0,  # TODO: Calculate total usage
         "files": all_files,
         "urls": urls,
-        "folders": folders,
+        "folders": visible_folders,
     }
 
 
@@ -128,6 +134,10 @@ async def toggle_item_lock(username: str, data: ToggleLockRequest):
         )
     elif data.item_type == "url":
         success = await note_service.toggle_url_lock(
+            username, data.item_id, data.is_locked
+        )
+    elif data.item_type == "folder":
+        success = await user_service.toggle_folder_lock(
             username, data.item_id, data.is_locked
         )
     else:

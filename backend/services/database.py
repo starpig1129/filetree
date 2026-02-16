@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS folders (
     name TEXT NOT NULL,
     type TEXT NOT NULL DEFAULT 'file',
     parent_id TEXT,
+    is_locked INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
 );

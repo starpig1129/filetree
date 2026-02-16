@@ -307,7 +307,7 @@ export const UserPage: React.FC<UserPageProps> = ({
     handleUnlock(password);
   };
 
-  const toggleItemLock = async (type: 'file' | 'url', itemId: string, currentStatus: boolean) => {
+  const toggleItemLock = async (type: 'file' | 'url' | 'folder', itemId: string, currentStatus: boolean) => {
     if (!isAuthenticated) {
       setShowAuthModal(true);
       return;
@@ -320,10 +320,15 @@ export const UserPage: React.FC<UserPageProps> = ({
         ...prev,
         files: prev.files?.map(f => f.name === itemId ? { ...f, is_locked: newLockStatus } : f)
       }));
-    } else {
+    } else if (type === 'url') {
       setDashboardData(prev => ({
         ...prev,
         urls: prev.urls?.map(u => u.url === itemId ? { ...u, is_locked: newLockStatus } : u)
+      }));
+    } else if (type === 'folder') {
+      setDashboardData(prev => ({
+        ...prev,
+        folders: prev.folders?.map(f => f.id === itemId ? { ...f, is_locked: newLockStatus } : f)
       }));
     }
 
@@ -993,6 +998,19 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onViewModeChange={setViewMode}
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
+                onShareFolder={(folderId) => {
+                  const url = `${window.location.origin}/user/${data.user?.username}?tab=file&folder=${folderId}`;
+                  navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
+                }}
+                onQrCodeFolder={(folderId) => {
+                  const url = `${window.location.origin}/user/${data.user?.username}?tab=file&folder=${folderId}`;
+                  setQrUrl(url);
+                }}
+                onDownloadFolder={(folderId) => {
+                  const downloadUrl = `/api/user/${data.user?.username}/folders/${folderId}/download?token=${token || ''}`;
+                  window.open(downloadUrl, '_blank');
+                }}
+                onToggleFolderLock={(type, id, status) => toggleItemLock(type, id, !!status)}
               />
             </motion.div>
           ) : (
@@ -1094,6 +1112,15 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onViewModeChange={setViewMode}
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
+                onShareFolder={(folderId) => {
+                  const url = `${window.location.origin}/user/${data.user?.username}?tab=url&folder=${folderId}`;
+                  navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
+                }}
+                onQrCodeFolder={(folderId) => {
+                  const url = `${window.location.origin}/user/${data.user?.username}?tab=url&folder=${folderId}`;
+                  setQrUrl(url);
+                }}
+
               />
             </motion.div>
           )}

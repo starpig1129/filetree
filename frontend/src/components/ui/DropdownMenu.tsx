@@ -32,8 +32,8 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setCoords({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
+        top: rect.bottom,
+        left: rect.left,
         width: rect.width
       });
     }
@@ -80,7 +80,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: coords.top + 8,
             ...(align === 'right' 
               ? { right: window.innerWidth - (coords.left + coords.width) } 

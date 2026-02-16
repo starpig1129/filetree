@@ -87,6 +87,7 @@ interface FileViewProps {
   onShareFolder?: (folderId: string) => void;
   onQrCodeFolder?: (folderId: string) => void;
   onDownloadFolder?: (folderId: string) => void;
+  onToggleFolderLock?: (type: 'folder', id: string, currentStatus: boolean) => void;
 }
 
 export const FileView: React.FC<FileViewProps> = ({
@@ -118,7 +119,8 @@ export const FileView: React.FC<FileViewProps> = ({
   onSelectionModeChange,
   onShareFolder,
   onQrCodeFolder,
-  onDownloadFolder
+  onDownloadFolder,
+  onToggleFolderLock
 }) => {
   const [renamingFile, setRenamingFile] = React.useState<string | null>(null);
   const [newName, setNewName] = React.useState<string>('');
@@ -312,6 +314,7 @@ export const FileView: React.FC<FileViewProps> = ({
                     onShare={onShareFolder}
                     onQrCode={onQrCodeFolder}
                     onDownloadFolder={onDownloadFolder}
+                    onToggleLock={onToggleFolderLock}
                   />
                 );
               })}
