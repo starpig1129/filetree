@@ -7,6 +7,12 @@ export interface Box {
   y2: number;
 }
 
+/**
+ * Selection box hook that uses **viewport (client) coordinates** for both
+ * rendering and hit-testing. The returned `selectionBox` should be rendered
+ * with `position: fixed` so that it aligns with the pointer regardless of
+ * which nested element actually scrolls (e.g. Virtuoso's internal scroller).
+ */
 export const useSelectionBox = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   itemSelector: string,
@@ -20,42 +26,34 @@ export const useSelectionBox = (
   const scrollRequestRef = useRef<number | null>(null);
   const isPointerOnItem = useRef(false);
 
+  /**
+   * Compute the selection rectangle in viewport coords and test which items
+   * it intersects using `getBoundingClientRect()` (also viewport coords).
+   */
   const updateSelection = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const scrollLeft = containerRef.current.scrollLeft;
-    const scrollTop = containerRef.current.scrollTop;
-    
-    // Convert client coordinates to container content coordinates
-    const contentX = clientX - rect.left + scrollLeft;
-    const contentY = clientY - rect.top + scrollTop;
-
+    // Selection box in viewport (client) coordinates
     const newBox = {
-      x1: Math.min(startPos.current.x, contentX),
-      y1: Math.min(startPos.current.y, contentY),
-      x2: Math.max(startPos.current.x, contentX),
-      y2: Math.max(startPos.current.y, contentY)
+      x1: Math.min(startPos.current.x, clientX),
+      y1: Math.min(startPos.current.y, clientY),
+      x2: Math.max(startPos.current.x, clientX),
+      y2: Math.max(startPos.current.y, clientY)
     };
-    
+
     setSelectionBox(newBox);
 
+    // Hit-test items using their viewport rects
     const items = containerRef.current.querySelectorAll(itemSelector);
     const selected: number[] = [];
-    
-    items.forEach((item, index) => {
-      const itemRect = item as HTMLElement;
-      // offsetLeft/Top are relative to the 'relative' parent (the container)
-      const itX = itemRect.offsetLeft;
-      const itY = itemRect.offsetTop;
-      const itW = itemRect.offsetWidth;
-      const itH = itemRect.offsetHeight;
 
+    items.forEach((item, index) => {
+      const r = item.getBoundingClientRect();
       if (
-        newBox.x1 < itX + itW &&
-        newBox.x2 > itX &&
-        newBox.y1 < itY + itH &&
-        newBox.y2 > itY
+        newBox.x1 < r.right &&
+        newBox.x2 > r.left &&
+        newBox.y1 < r.bottom &&
+        newBox.y2 > r.top
       ) {
         selected.push(index);
       }
@@ -65,52 +63,44 @@ export const useSelectionBox = (
   }, [containerRef, itemSelector, onSelectionChange]);
 
 
-
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    
+
     const target = e.target as HTMLElement;
     if (target.closest('button, a, input, [role="button"]')) return;
-    
+
     // If clicking on an item (that is draggable), don't start selection box
     if (target.closest(itemSelector)) return;
 
     if (!containerRef.current) return;
-    
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left + containerRef.current.scrollLeft;
-    const y = e.clientY - rect.top + containerRef.current.scrollTop;
-    
-    startPos.current = { x, y };
+
+    // Store start position in viewport coordinates
+    startPos.current = { x: e.clientX, y: e.clientY };
     lastPointerPos.current = { x: e.clientX, y: e.clientY };
     hasMoved.current = false;
     isPointerOnItem.current = !!target.closest(itemSelector);
-    
+
     setIsDragging(true);
-    setSelectionBox({ x1: x, y1: y, x2: x, y2: y });
+    setSelectionBox({ x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY });
   }, [containerRef, itemSelector]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('button, a, input, [role="button"]')) return;
-    
+
     // If clicking on an item (that is draggable), don't start selection box
     if (target.closest(itemSelector)) return;
-    
+
     if (!containerRef.current) return;
-    
+
     const touch = e.touches[0];
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = touch.clientX - rect.left + containerRef.current.scrollLeft;
-    const y = touch.clientY - rect.top + containerRef.current.scrollTop;
-    
-    startPos.current = { x, y };
+    startPos.current = { x: touch.clientX, y: touch.clientY };
     lastPointerPos.current = { x: touch.clientX, y: touch.clientY };
     hasMoved.current = false;
     isPointerOnItem.current = !!target.closest(itemSelector);
-    
+
     setIsDragging(true);
-    setSelectionBox({ x1: x, y1: y, x2: x, y2: y });
+    setSelectionBox({ x1: touch.clientX, y1: touch.clientY, x2: touch.clientX, y2: touch.clientY });
   }, [containerRef, itemSelector]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -133,7 +123,7 @@ export const useSelectionBox = (
       // Empty click on container - deselect all
       onSelectionChange([]);
     }
-    
+
     setIsDragging(false);
     setSelectionBox(null);
     if (scrollRequestRef.current) {
@@ -151,7 +141,7 @@ export const useSelectionBox = (
         const { x, y } = lastPointerPos.current;
         const threshold = 50;
         const maxSpeed = 15;
-        
+
         let deltaY = 0;
         let deltaX = 0;
 
@@ -168,8 +158,15 @@ export const useSelectionBox = (
         }
 
         if (deltaY !== 0 || deltaX !== 0) {
-          containerRef.current.scrollTop += deltaY;
-          containerRef.current.scrollLeft += deltaX;
+          // Scroll the deepest scrollable element inside the container
+          const scroller = containerRef.current.querySelector('[data-testid="virtuoso-scroller"], .custom-scrollbar') as HTMLElement | null;
+          if (scroller) {
+            scroller.scrollTop += deltaY;
+            scroller.scrollLeft += deltaX;
+          } else {
+            containerRef.current.scrollTop += deltaY;
+            containerRef.current.scrollLeft += deltaX;
+          }
           updateSelection(x, y);
         }
 
@@ -177,11 +174,11 @@ export const useSelectionBox = (
       };
 
       scrollRequestRef.current = requestAnimationFrame(scrollLoop);
-      
+
       const upHandler = () => handlePointerUp();
       window.addEventListener('pointerup', upHandler);
       window.addEventListener('touchend', upHandler);
-      
+
       return () => {
         if (scrollRequestRef.current) cancelAnimationFrame(scrollRequestRef.current);
         window.removeEventListener('pointerup', upHandler);

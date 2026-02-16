@@ -475,7 +475,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
             onClick={(e) => { e.stopPropagation(); onToggleSelect('file', file.name); }}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
-            className="p-2 sm:p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-sm min-w-10 min-h-10 flex items-center justify-center"
+            className="p-1.5 bg-white/90 dark:bg-black/80 rounded-lg shadow-sm flex items-center justify-center"
           >
             {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
           </button>
@@ -528,7 +528,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
         </div>
         
         {/* Desktop Hover Overlay Actions */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 z-20 pointer-events-none">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-end content-end justify-center gap-0.5 p-1.5 z-20 pointer-events-none">
           <button
             onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
             onMouseDown={(e) => e.stopPropagation()}

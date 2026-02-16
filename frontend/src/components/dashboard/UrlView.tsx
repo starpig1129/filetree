@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Trash2, ExternalLink, QrCode, Lock, Unlock, CheckSquare, Square, Copy, MoreVertical,
@@ -303,16 +304,17 @@ export const UrlView: React.FC<UrlViewProps> = ({
         onTouchMove={handleTouchMove}
         className="flex-1 min-w-0 overflow-y-auto p-3 sm:p-6 custom-scrollbar touch-pan-y relative"
       >
-        {selectionBox && (
+        {selectionBox && createPortal(
           <div
-            className="absolute bg-violet-500/20 border border-violet-500/50 z-50 pointer-events-none rounded"
+            className="fixed bg-violet-500/20 border border-violet-500/50 z-9999 pointer-events-none rounded"
             style={{
               left: selectionBox.x1,
               top: selectionBox.y1,
               width: selectionBox.x2 - selectionBox.x1,
               height: selectionBox.y2 - selectionBox.y1,
             }}
-          />
+          />,
+          document.body
         )}
 
         {/* Render Folders */}
@@ -546,7 +548,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                             onClick={(e) => { e.stopPropagation(); onToggleSelect('url', url.url); }}
                             onMouseDown={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}
-                            className="p-2 sm:p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm min-w-10 min-h-10 flex items-center justify-center"
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm flex items-center justify-center"
                           >
                             {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
                           </button>
