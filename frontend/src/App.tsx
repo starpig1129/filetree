@@ -53,19 +53,20 @@ const MainContent: React.FC<{
     if (!username) return;
     
     let isMounted = true;
-    setUserLoading(true);
-    
-    apiRequest(`/user/${username}`, { token })
-      .then((data) => {
+    const fetchData = async () => {
+      setUserLoading(true);
+      try {
+        const data = await apiRequest(`/user/${username}`, { token });
         if (isMounted) setUserData(data);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('Fetch user data failed:', err);
         if (isMounted) setUserData({ error: '目錄不存在' });
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) setUserLoading(false);
-      });
+      }
+    };
+
+    fetchData();
       
     return () => {
       isMounted = false;

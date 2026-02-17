@@ -486,7 +486,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
           ? "bg-cyan-500/10 dark:bg-cyan-500/20 ring-1 ring-cyan-500/50 shadow-lg scale-[1.02]" 
           : "bg-white/40 dark:bg-white/2 hover:bg-white/60 dark:hover:bg-white/5 border border-white/20 shadow-sm hover:shadow-xl hover:-translate-y-1",
         dragOverFolderId === folder.id && "ring-2 ring-cyan-500 bg-cyan-500/10 scale-[1.05]",
-        "lg:min-h-[140px]"
+        "lg:min-h-35"
       )}
       draggable={!isSelectionMode}
       onDragStart={(event) => {

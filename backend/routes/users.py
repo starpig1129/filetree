@@ -62,7 +62,7 @@ async def get_user_dashboard(request: Request, username: str, authorization: str
             "first_login": user["first_login"],
             "is_locked": user["is_locked"],
         },
-        "usage": 0,  # TODO: Calculate total usage
+        "usage": round(sum(f.get("size_bytes", 0) for f in all_files) / (1024 * 1024), 2),
         "files": all_files,
         "urls": urls,
         "folders": visible_folders,
