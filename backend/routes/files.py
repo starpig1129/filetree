@@ -336,7 +336,14 @@ async def download_shared(token: str):
     path_names = await user_service.get_folder_path_names(info.username, folder_id)
     folder = file_service._get_folder_path(user["folder"], path_names)
 
-    return FileResponse(path=folder / info.filename, filename=info.filename)
+    return FileResponse(
+        path=folder / info.filename, 
+        filename=info.filename,
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        }
+    )
 
 
 @router.get("/download/{username}/{filename}")
@@ -386,9 +393,14 @@ async def download_direct(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="檔案不存在")
 
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    }
+
     if inline:
-        return FileResponse(path=file_path)
-    return FileResponse(path=file_path, filename=filename)
+        return FileResponse(path=file_path, headers=headers)
+    return FileResponse(path=file_path, filename=filename, headers=headers)
 
 
 @router.get("/thumbnail/{username}/{filename}")
@@ -434,7 +446,13 @@ async def get_thumbnail(
 
     thumb_path = await thumbnail_service.get_thumbnail(file_path)
     if thumb_path:
-        return FileResponse(path=thumb_path)
+        return FileResponse(
+            path=thumb_path,
+            headers={
+                "X-Content-Type-Options": "nosniff",
+                "Content-Security-Policy": "default-src 'none'; sandbox",
+            }
+        )
 
     raise HTTPException(status_code=404, detail="Thumbnail not available")
 
