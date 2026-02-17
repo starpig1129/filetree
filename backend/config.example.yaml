@@ -6,9 +6,8 @@ server:
   host: "0.0.0.0"
   port: 5168
   debug: false
-  # SSL Certificates (Optional)
-  # ssl_cert: "certificate/fullchain.pem"
-  # ssl_key: "certificate/privkey.pem"
+  # List of allowed origins for CORS (default: ["*"])
+  # cors_origins: ["http://localhost:5173", "https://yourdomain.com"]
 
 # Directory settings (Relative to project root or absolute)
 paths:
