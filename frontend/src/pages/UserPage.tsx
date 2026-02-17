@@ -1,74 +1,64 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
-import {
-  Lock, Unlock,
-  Cpu, Zap, Activity, X, Settings, ChevronRight, Folder as FolderIcon,
-  LayoutGrid, List, CheckSquare, Square
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
-import { useAuth } from '../contexts/AuthContext';
 import { apiRequest, apiPostForm } from '../services/api';
 import { FilePreviewModal } from '../components/FilePreviewModal';
 import { FileView } from '../components/dashboard/FileView';
-import type { FileItemData } from '../components/dashboard/FileItem';
 import { UrlView } from '../components/dashboard/UrlView';
-import type { UrlItem } from '../components/dashboard/UrlView';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { FolderSidebar } from '../components/dashboard/FolderSidebar';
-import type { Folder } from '../components/dashboard/FolderSidebar';
 import { BatchActionBar } from '../components/dashboard/BatchActionBar';
+import { useUserDashboard } from '../hooks/useUserDashboard';
+import { useSelection } from '../hooks/useSelection';
+import { UserPageHeader } from '../components/user-page/UserPageHeader';
+import { UserPageToolbar } from '../components/user-page/UserPageToolbar';
+import { BreadcrumbsBar } from '../components/user-page/BreadcrumbsBar';
+import type { Folder, UserDashboardData } from '../types/dashboard';
 
 interface UserPageProps {
-  data: {
-    user?: { username: string; is_locked?: boolean; first_login?: boolean; show_in_list?: boolean };
-    usage?: number;
-    files?: FileItemData[];
-    urls?: UrlItem[];
-    folders?: Folder[];
-    error?: string;
-  };
+  data: UserDashboardData;
 }
 
 export const UserPage: React.FC<UserPageProps> = ({ 
-  data 
+  data: initialData 
 }) => {
-  const { token, login, logout, isAuthenticated: authAuthenticated, user: loggedInUser } = useAuth();
-  const [dashboardData, setDashboardData] = useState(data);
+  const {
+    dashboardData,
+    setDashboardData,
+    isAuthenticated,
+    setIsAuthenticated,
+    refreshDashboard,
+    isBatchSyncing,
+    setIsBatchSyncing,
+    password,
+    setPassword,
+    token, // from auth context
+    login,
+    logout
+  } = useUserDashboard(initialData);
 
-  // Check if current logged in user is the owner of this page
-  // SECURE: Use prop data directly to avoid stale state during navigation
-  const isPageOwner = React.useMemo(() => {
-    return loggedInUser?.username === data.user?.username;
-  }, [loggedInUser?.username, data.user?.username]);
+  const {
+    selectedItems,
+    setSelectedItems,
+    isSelectionMode,
+    setIsSelectionMode,
+    toggleSelectItem,
+    handleSelectAll,
+    handleBatchSelect
+  } = useSelection();
 
-  const [selectedItems, setSelectedItems] = useState<{ type: 'file' | 'url' | 'folder'; id: string }[]>([]);
-  const [password, setPassword] = useState("");
-  // Local isAuthenticated for modal control, but synced with AuthContext AND ownership check
-  // NEW: Initialize based on sessionStorage to persist across refreshes for owner
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // Proactive internal auto-unlock
-    if (authAuthenticated && isPageOwner) return true;
-    
-    // Session fallback
-    const targetUser = data?.user?.username;
-    if (targetUser && sessionStorage.getItem(`unlocked_${targetUser}`) === 'true') {
-      return true;
-    }
-    return false;
-  });
+  // Local UI State
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<{ name: string, size: string, url: string } | null>(null);
   const [showForcedPasswordChange, setShowForcedPasswordChange] = useState(false);
-  const [isBatchSyncing, setIsBatchSyncing] = useState(false);
   const [isPacking, setIsPacking] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [activeTab, setActiveTab] = useState<'files' | 'urls'>('files');
   const [activeFileFolderId, setActiveFileFolderId] = useState<string | null>(null);
   const [activeUrlFolderId, setActiveUrlFolderId] = useState<string | null>(null);
@@ -77,11 +67,10 @@ export const UserPage: React.FC<UserPageProps> = ({
   const [isDesktop, setIsDesktop] = useState(true);
 
   // Responsive check
-  React.useEffect(() => {
+  useEffect(() => {
     const checkDesktop = () => {
       const isLg = window.matchMedia('(min-width: 1024px)').matches;
       setIsDesktop(isLg);
-      // Auto-collapse on mobile
       if (!isLg) setIsSidebarOpen(false);
     };
     checkDesktop();
@@ -89,12 +78,12 @@ export const UserPage: React.FC<UserPageProps> = ({
     return () => window.removeEventListener('resize', checkDesktop);
   }, []);
 
-  const filteredFiles = React.useMemo(() => {
+  const filteredFiles = useMemo(() => {
     if (activeFileFolderId === null) return dashboardData.files || [];
     return (dashboardData.files || []).filter(f => f.folder_id === activeFileFolderId);
   }, [dashboardData.files, activeFileFolderId]);
 
-  const filteredUrls = React.useMemo(() => {
+  const filteredUrls = useMemo(() => {
     if (activeUrlFolderId === null) return dashboardData.urls || [];
     return (dashboardData.urls || []).filter(u => u.folder_id === activeUrlFolderId);
   }, [dashboardData.urls, activeUrlFolderId]);
@@ -115,42 +104,6 @@ export const UserPage: React.FC<UserPageProps> = ({
     return crumbs;
   }, [dashboardData.folders]);
 
-  const refreshDashboard = useCallback(async (authToken?: string | null) => {
-    try {
-      // SECURE: Only send token if UI is unlocked or we are explicitly unlocking
-      const sendToken = authToken || (isAuthenticated ? token : null);
-      const newData = await apiRequest(`/user/${data.user?.username}`, { 
-        token: sendToken 
-      });
-      setDashboardData(newData);
-    } catch (err) {
-      console.error("Failed to refresh dashboard:", err);
-    }
-  }, [data.user?.username, token, isAuthenticated]);
-
-  // Sync props to local state if they change (e.g. navigation), 
-  // but be careful not to overwrite valid local updates with stale props
-  // We only update if the username or basic structure changed, or if it's the first load
-  // Sync local auth state with context and ownership check
-  useEffect(() => {
-    if (isPageOwner && authAuthenticated) {
-      // Direct auto-unlock if logged in as owner
-      setIsAuthenticated(true);
-      if (data?.user?.username) {
-        sessionStorage.setItem(`unlocked_${data.user.username}`, 'true');
-      }
-    } else if (!isPageOwner) {
-      // Forced lock if not owner
-      setIsAuthenticated(false);
-    } else {
-      // If owner but not logged in, check session unlock
-      const targetUser = data?.user?.username;
-      if (targetUser && sessionStorage.getItem(`unlocked_${targetUser}`) === 'true') {
-        setIsAuthenticated(true);
-      }
-    }
-  }, [isPageOwner, authAuthenticated, data?.user?.username]);
-
   // Sync state with URL query parameters
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -165,7 +118,6 @@ export const UserPage: React.FC<UserPageProps> = ({
     }
   }, [searchParams, activeTab]);
 
-  // Update URL when folder or tab changes
   const updateUrl = (tab: 'files' | 'urls', folderId: string | null) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', tab === 'files' ? 'file' : 'url');
@@ -193,48 +145,79 @@ export const UserPage: React.FC<UserPageProps> = ({
     }
   };
 
-  React.useEffect(() => {
-    if (data.user?.username !== dashboardData.user?.username) {
-      setDashboardData(data);
-    }
-  }, [data, dashboardData.user?.username]);
+  // --- Actions ---
 
-  // Real-time synchronization via WebSocket
-  const wsUrl = React.useMemo(() => {
-    if (!data.user?.username) return null;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    let url = `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
-    if (token) url += `?token=${token}`;
-    return url;
-  }, [data.user?.username, token]);
-
-  const handleWebSocketMessage = useCallback((event: MessageEvent) => {
-    if (event.data === "REFRESH") {
-      console.log("[UserPage] Received REFRESH signal via WebSocket");
-      refreshDashboard(token);
-    }
-  }, [refreshDashboard, token]);
-
-  const { isConnected } = useWebSocket(wsUrl, {
-    onMessage: handleWebSocketMessage,
-    reconnectInterval: 3000,
-    maxRetries: 20
-  });
-
-  // Debug connection status
-  React.useEffect(() => {
-    console.log(`[UserPage] WebSocket Status: ${isConnected ? 'Connected' : 'Disconnected'}`);
-  }, [isConnected]);
-
-  const toggleSelectItem = (type: 'file' | 'url' | 'folder', id: string) => {
-    setSelectedItems(prev => {
-      const exists = prev.find(i => i.type === type && i.id === id);
-      if (exists) {
-        return prev.filter(i => !(i.type === type && i.id === id));
+  const handleUnlock = async (pwd: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('password', pwd);
+      
+      const result = await apiPostForm(`/user/${dashboardData.user?.username}/unlock`, formData);
+      if (result.token) {
+        setIsAuthenticated(true);
+        if (dashboardData.user?.username) {
+          sessionStorage.setItem(`unlocked_${dashboardData.user.username}`, 'true');
+        }
+        setPassword(pwd);
+        login(result, result.token);
+        await refreshDashboard(result.token);
+        setShowAuthModal(false);
       } else {
-        return [...prev, { type, id }];
+        alert("密碼錯誤");
       }
-    });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
+      alert(error.message || "驗證失敗");
+    }
+  };
+
+  const handleAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleUnlock(password);
+  };
+
+  const handleMoveItem = async (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('item_type', type);
+      formData.append('item_id', id);
+      if (folderId) formData.append('folder_id', folderId);
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
+
+      await apiPostForm(`/user/${dashboardData.user?.username}/move-item`, formData, token);
+      
+      // Optimistic update
+      setDashboardData(prev => {
+        if (type === 'file') {
+          return {
+            ...prev,
+            files: prev.files?.map(f => f.name === id ? { ...f, folder_id: folderId } : f)
+          };
+        } else if (type === 'url') {
+          return {
+            ...prev,
+            urls: prev.urls?.map(u => u.url === id ? { ...u, folder_id: folderId } : u)
+          };
+        } else if (type === 'folder') {
+          return {
+            ...prev,
+            folders: prev.folders?.map(f => f.id === id ? { ...f, parent_id: folderId } : f)
+          };
+        }
+        return prev;
+      });
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error(error);
+        alert(error.message || "移動失敗");
+        await refreshDashboard();
+    }
   };
 
   const handleBatchAction = async (action: 'lock' | 'unlock' | 'delete' | 'download' | 'move', folderId?: string | null) => {
@@ -252,7 +235,6 @@ export const UserPage: React.FC<UserPageProps> = ({
       return;
     }
 
-    // Batch download doesn't strictly require pre-authentication for public files
     if (action !== 'download' && !isAuthenticated) {
       setShowAuthModal(true);
       return;
@@ -357,47 +339,14 @@ export const UserPage: React.FC<UserPageProps> = ({
         perform('url', urls),
         action === 'delete' ? performFolders(selectedItems.filter(i => i.type === 'folder').map(i => i.id)) : Promise.resolve()
       ]);
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      alert("批次操作失敗，正在重新載入資料。");
       await refreshDashboard();
+    } catch (err: unknown) {
+        const error = err as Error;
+        console.error(error);
+        alert("批次操作失敗，正在重新載入資料。");
     } finally {
       setIsBatchSyncing(false);
     }
-  };
-
-  const handleUnlock = async (pwd: string) => {
-    try {
-      const formData = new FormData();
-      formData.append('password', pwd);
-      
-      const result = await apiPostForm(`/user/${data.user?.username}/unlock`, formData);
-      if (result.token) {
-        setIsAuthenticated(true);
-        if (data.user?.username) {
-          sessionStorage.setItem(`unlocked_${data.user.username}`, 'true');
-        }
-        setPassword(pwd);
-        // SECURE: Store in AuthContext for persistence
-        login(result, result.token);
-        // Refresh data with token to see hidden files
-        await refreshDashboard(result.token);
-        setShowAuthModal(false);
-      } else {
-        alert("密碼錯誤");
-      }
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      alert(error.message || "驗證失敗");
-    }
-  };
-
-
-  const handleAuth = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleUnlock(password);
   };
 
   const toggleItemLock = async (type: 'file' | 'url' | 'folder', itemId: string, currentStatus: boolean) => {
@@ -406,7 +355,6 @@ export const UserPage: React.FC<UserPageProps> = ({
       return;
     }
 
-    // Optimistic UI update to avoid page reload
     const newLockStatus = !currentStatus;
     if (type === 'file') {
       setDashboardData(prev => ({
@@ -433,33 +381,29 @@ export const UserPage: React.FC<UserPageProps> = ({
       if (token) formData.append('token', token);
       else if (password) formData.append('password', password);
 
-      await apiPostForm(`/user/${data.user?.username}/toggle-lock`, formData, token);
+      await apiPostForm(`/user/${dashboardData.user?.username}/toggle-lock`, formData, token);
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      // Revert optimistic update on error
-      alert("更新鎖定狀態失敗。");
-      await refreshDashboard();
+        const error = err as Error;
+        console.error(error);
+        alert("更新鎖定狀態失敗。");
+        await refreshDashboard();
     }
   };
 
   const handleDelete = async (filename: string) => {
-    // Require authentication before deletion
     if (!isAuthenticated) {
       setShowAuthModal(true);
       return;
     }
-
     if (!confirm(`確定要移除「${filename}」嗎？`)) return;
 
-    // Optimistic UI Update
     setDashboardData(prev => ({
       ...prev,
       files: prev.files?.filter(f => f.name !== filename)
     }));
 
     try {
-      await apiRequest(`/user/${data.user?.username}/batch-action`, {
+      await apiRequest(`/user/${dashboardData.user?.username}/batch-action`, {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -482,7 +426,6 @@ export const UserPage: React.FC<UserPageProps> = ({
       setShowAuthModal(true);
       return;
     }
-
     if (!confirm(`確定要移除「${url}」嗎？`)) return;
 
     setDashboardData(prev => ({
@@ -491,7 +434,7 @@ export const UserPage: React.FC<UserPageProps> = ({
     }));
 
     try {
-      await apiRequest(`/user/${data.user?.username}/batch-action`, {
+      await apiRequest(`/user/${dashboardData.user?.username}/batch-action`, {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -522,19 +465,18 @@ export const UserPage: React.FC<UserPageProps> = ({
       formData.append('old_name', oldName);
       formData.append('new_name', newName);
 
-      await apiPostForm(`/user/${data.user?.username}/rename-file`, formData);
+      await apiPostForm(`/user/${dashboardData.user?.username}/rename-file`, formData);
       
-      // Optimistic update
       setDashboardData(prev => ({
         ...prev,
         files: prev.files?.map(f => f.name === oldName ? { ...f, name: newName } : f)
       }));
       return true;
     } catch (e: unknown) {
-      const error = e as Error;
-      console.error(error);
-      alert(error.message || "重新命名失敗");
-      return false;
+        const error = e as Error;
+        console.error(error);
+        alert(error.message || "重新命名失敗");
+        return false;
     }
   };
 
@@ -548,12 +490,12 @@ export const UserPage: React.FC<UserPageProps> = ({
       else formData.append('password', password);
       if (parentId) formData.append('parent_id', parentId);
 
-      await apiPostForm(`/user/${data.user?.username}/folders`, formData, token);
+      await apiPostForm(`/user/${dashboardData.user?.username}/folders`, formData, token);
       await refreshDashboard();
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      alert(error.message || "建立資料夾失敗");
+        const error = err as Error;
+        console.error(error);
+        alert(error.message || "建立資料夾失敗");
     }
   };
 
@@ -565,12 +507,12 @@ export const UserPage: React.FC<UserPageProps> = ({
       if (token) formData.append('token', token);
       else formData.append('password', password);
 
-      await apiPostForm(`/user/${data.user?.username}/folders/${id}/update`, formData, token);
+      await apiPostForm(`/user/${dashboardData.user?.username}/folders/${id}/update`, formData, token);
       await refreshDashboard();
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      alert(error.message || "更新資料夾失敗");
+        const error = err as Error;
+        console.error(error);
+        alert(error.message || "更新資料夾失敗");
     }
   };
 
@@ -581,55 +523,14 @@ export const UserPage: React.FC<UserPageProps> = ({
       if (token) formData.append('token', token);
       else formData.append('password', password);
 
-      await apiPostForm(`/user/${data.user?.username}/folders/${id}/delete`, formData, token);
+      await apiPostForm(`/user/${dashboardData.user?.username}/folders/${id}/delete`, formData, token);
       if (activeFileFolderId === id) setActiveFileFolderId(null);
       if (activeUrlFolderId === id) setActiveUrlFolderId(null);
       await refreshDashboard();
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      alert(error.message || "刪除資料夾失敗");
-    }
-  };
-
-  const handleMoveItem = async (type: 'file' | 'url' | 'folder', id: string, folderId: string | null) => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      return;
-    }
-    try {
-      const formData = new FormData();
-      formData.append('item_type', type);
-      formData.append('item_id', id);
-      if (folderId) formData.append('folder_id', folderId);
-      if (token) formData.append('token', token);
-      else formData.append('password', password);
-
-      await apiPostForm(`/user/${data.user?.username}/move-item`, formData, token);
-      setDashboardData(prev => {
-        if (type === 'file') {
-          return {
-            ...prev,
-            files: prev.files?.map(f => f.name === id ? { ...f, folder_id: folderId } : f)
-          };
-        } else if (type === 'url') {
-          return {
-            ...prev,
-            urls: prev.urls?.map(u => u.url === id ? { ...u, folder_id: folderId } : u)
-          };
-        } else if (type === 'folder') {
-          return {
-            ...prev,
-            folders: prev.folders?.map(f => f.id === id ? { ...f, parent_id: folderId } : f)
-          };
-        }
-        return prev;
-      });
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error(error);
-      alert(error.message || "移動失敗");
-      await refreshDashboard();
+        const error = err as Error;
+        console.error(error);
+        alert(error.message || "刪除資料夾失敗");
     }
   };
 
@@ -637,7 +538,7 @@ export const UserPage: React.FC<UserPageProps> = ({
     if (!isAuthenticated) return;
     try {
       const formData = new FormData();
-      formData.append('username', data.user?.username || '');
+      formData.append('username', dashboardData.user?.username || '');
       if (token) formData.append('token', token);
       else formData.append('password', password);
       formData.append('show_in_list', String(showInList));
@@ -649,8 +550,8 @@ export const UserPage: React.FC<UserPageProps> = ({
         user: { ...prev.user!, show_in_list: showInList }
       }));
     } catch (err: unknown) {
-      const error = err as Error;
-      alert(error.message || '更新失敗');
+        const error = err as Error;
+        alert(error.message || '更新失敗');
     }
   };
 
@@ -669,7 +570,7 @@ export const UserPage: React.FC<UserPageProps> = ({
 
       if (supportsClipboardItem) {
         const textPromise = (async () => {
-          const result = await apiPostForm(`/share/${data.user?.username}/${encodeURIComponent(filename)}`, formData);
+          const result = await apiPostForm(`/share/${dashboardData.user?.username}/${encodeURIComponent(filename)}`, formData);
           shareUrlResult = `${window.location.origin}/share/${result.token}`;
           return new Blob([shareUrlResult], { type: 'text/plain' });
         })();
@@ -680,16 +581,16 @@ export const UserPage: React.FC<UserPageProps> = ({
           ]);
           copySuccess = true;
         } catch (clipboardErr) {
-          console.log('ClipboardItem write failed:', clipboardErr);
-          if (shareUrlResult) {
-            copySuccess = false;
-          } else {
-            const result = await apiPostForm(`/share/${data.user?.username}/${encodeURIComponent(filename)}`, formData);
-            shareUrlResult = `${window.location.origin}/share/${result.token}`;
-          }
+            console.log('ClipboardItem write failed:', clipboardErr);
+            if (shareUrlResult) {
+                copySuccess = false;
+            } else {
+                const result = await apiPostForm(`/share/${dashboardData.user?.username}/${encodeURIComponent(filename)}`, formData);
+                shareUrlResult = `${window.location.origin}/share/${result.token}`;
+            }
         }
       } else {
-        const result = await apiPostForm(`/share/${data.user?.username}/${encodeURIComponent(filename)}`, formData);
+        const result = await apiPostForm(`/share/${dashboardData.user?.username}/${encodeURIComponent(filename)}`, formData);
         shareUrlResult = `${window.location.origin}/share/${result.token}`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -734,9 +635,12 @@ export const UserPage: React.FC<UserPageProps> = ({
     }
   };
 
-  const handleSelectAll = (type: 'file' | 'url', selectAll: boolean) => {
-    if (selectAll) {
-      if (type === 'file') {
+  const handleSelectAllAction = () => {
+    const isAll = activeTab === 'files' 
+        ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
+        : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
+    
+    if (activeTab === 'files') {
         const selectableFiles = dashboardData.files
           ?.filter(f => !f.is_locked || isAuthenticated)
           .map(f => ({ type: 'file' as const, id: f.name })) || [];
@@ -744,12 +648,9 @@ export const UserPage: React.FC<UserPageProps> = ({
         const currentFolders = dashboardData.folders
           ?.filter(f => f.parent_id === activeFileFolderId && f.type === 'file')
           .map(f => ({ type: 'folder' as const, id: f.id })) || [];
-
-        setSelectedItems(prev => {
-          const others = prev.filter(i => i.type !== 'file' && i.type !== 'folder');
-          return [...others, ...selectableFiles, ...currentFolders];
-        });
-      } else {
+        
+        handleSelectAll([...selectableFiles, ...currentFolders], !isAll);
+    } else {
         const selectableUrls = dashboardData.urls
           ?.filter(u => !u.is_locked || isAuthenticated)
           .map(u => ({ type: 'url' as const, id: u.url })) || [];
@@ -757,205 +658,57 @@ export const UserPage: React.FC<UserPageProps> = ({
         const currentFolders = dashboardData.folders
             ?.filter(f => f.parent_id === activeUrlFolderId && f.type === 'url')
             .map(f => ({ type: 'folder' as const, id: f.id })) || [];
-
-        setSelectedItems(prev => {
-          const others = prev.filter(i => i.type !== 'url' && i.type !== 'folder');
-          return [...others, ...selectableUrls, ...currentFolders];
-        });
-      }
-    } else {
-      setSelectedItems(prev => prev.filter(i => i.type !== type && i.type !== 'folder'));
+            
+        handleSelectAll([...selectableUrls, ...currentFolders], !isAll);
     }
   };
 
-  const handleBatchSelect = (items: { type: 'file' | 'url' | 'folder'; id: string }[], action: 'add' | 'remove' | 'set') => {
-    setSelectedItems(prev => {
-      if (action === 'set') return items;
-      if (action === 'add') {
-        const newItems = items.filter(item => !prev.some(p => p.type === item.type && p.id === item.id));
-        return [...prev, ...newItems];
-      }
-      if (action === 'remove') {
-        return prev.filter(p => !items.some(item => item.type === p.type && item.id === p.id));
-      }
-      return prev;
-    });
-  };
+  const isAllSelected = activeTab === 'files' 
+    ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
+    : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
 
   return (
     <div className="h-full flex flex-col relative text-gray-900 dark:text-gray-100 font-sans selection:bg-cyan-500/30">
-
-      {/* Background Ambient Elements - Contained to avoid overflow issues */}
+      
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute -top-[20%] -right-[10%] w-[70vw] h-[70vw] bg-radial-gradient from-quantum-cyan/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow" />
         <div className="absolute -bottom-[20%] -left-[10%] w-[60vw] h-[60vw] bg-radial-gradient from-neural-violet/10 to-transparent blur-[5rem] opacity-60 dark:opacity-40 animate-pulse-slow delay-1000" />
         <div className="absolute inset-0 bg-linear-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 pointer-events-none" />
       </div>
 
-      {/* Header - Optimized Horizontal Layout for Mobile */}
-      {/* Header - Integrated Layout */}
-      <header className="flex flex-col gap-1 sm:gap-3 px-2 pt-2 sm:px-4 sm:pt-4 lg:pt-0 lg:px-4 relative z-10 lg:pl-4 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
-        
-        {/* Row 1: Profile & Actions */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-1.5 sm:gap-3 group cursor-default">
-              <div className="p-1 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
-                <div className="text-cyan-600 dark:text-quantum-cyan font-black text-xs">FN</div>
-              </div>
-              <h1 className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-30 sm:max-w-none">
-                {dashboardData.user?.username}
-              </h1>
-            </div>
-          </div>
+      <UserPageHeader
+        user={dashboardData.user}
+        usage={dashboardData.usage}
+        isAuthenticated={isAuthenticated}
+        onLogout={() => {
+            logout();
+            setIsAuthenticated(false);
+            refreshDashboard(null);
+        }}
+        onShowAuth={() => setShowAuthModal(true)}
+        onShowSettings={() => setShowSettingsModal(true)}
+      />
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Usage Pill - Compact on mobile */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
-              <Activity className="w-3 h-3 text-cyan-500" />
-              <span className="text-[10px] font-black text-gray-600 dark:text-gray-300 tracking-tighter">
-                {dashboardData.usage}MB
-              </span>
-            </div>
+      <UserPageToolbar
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        selectedItems={selectedItems}
+        isAuthenticated={isAuthenticated}
+        isBatchSyncing={isBatchSyncing}
+        onBatchAction={handleBatchAction}
+        folders={dashboardData.folders}
+        itemCount={activeTab === 'files' ? filteredFiles.length : filteredUrls.length}
+        allItemsSelected={isAllSelected}
+        onSelectAll={handleSelectAllAction}
+      />
 
-            {/* Auth/Lock Button */}
-            <button
-              onClick={() => {
-                if (isAuthenticated) {
-                  logout();
-                  setIsAuthenticated(false);
-                  refreshDashboard(null);
-                } else {
-                  setShowAuthModal(true);
-                }
-              }}
-              className={cn(
-                "p-1.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-8 min-h-8 sm:min-w-10 sm:min-h-10",
-                isAuthenticated
-                  ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20"
-                  : "bg-white/80 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
-              )}
-            >
-              {isAuthenticated ? <Unlock className="w-4 h-4 text-cyan-500" /> : <Lock className="w-4 h-4" />}
-              <span className="hidden sm:inline">{isAuthenticated ? "UNLOCKED" : "LOCKED"}</span>
-            </button>
-
-            {/* Settings */}
-            <button
-              onClick={() => setShowSettingsModal(true)}
-              className="p-1.5 sm:p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20 min-w-8 min-h-8 sm:min-w-10 sm:min-h-10 flex items-center justify-center"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: Navigation Tabs & Tools (Integrated) */}
-        <div className="flex items-center justify-between gap-1 sm:gap-2 pb-1 lg:pb-0">
-          <div className="flex items-center gap-1 sm:gap-2 flex-1">
-            <button
-              onClick={() => handleTabChange('files')}
-              className={cn(
-                "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
-                activeTab === 'files'
-                  ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
-              )}
-            >
-              <Cpu className="h-4 w-4" />
-              檔案列表
-            </button>
-            <button
-              onClick={() => handleTabChange('urls')}
-              className={cn(
-                "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
-                activeTab === 'urls'
-                  ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
-              )}
-            >
-              <Zap className="h-4 w-4" />
-              筆記 / 連結
-            </button>
-          </div>
-
-          {/* Desktop Toolbar - Connected with Tabs */}
-          <div className="hidden lg:flex items-center gap-3 bg-white/40 dark:bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 ml-4">
-             
-             {/* Batch Actions */}
-             {selectedItems.length > 0 && isAuthenticated && (
-               <div className="border-r border-gray-200 dark:border-white/10 pr-3 mr-1">
-                 <BatchActionBar
-                   selectedCount={selectedItems.length}
-                   isBatchSyncing={isBatchSyncing}
-                   onAction={handleBatchAction}
-                   folders={(dashboardData.folders || []).filter(f => f.type === (activeTab === 'files' ? 'file' : 'url'))}
-                   allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
-                   mode="desktop"
-                 />
-               </div>
-             )}
-
-             {/* Select All */}
-             <div className="flex items-center gap-2 border-r border-gray-200 dark:border-white/10 pr-3">
-                <button
-                  onClick={() => {
-                    const isAll = activeTab === 'files' 
-                      ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
-                      : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
-                    handleSelectAll(activeTab === 'files' ? 'file' : 'url', !isAll);
-                  }}
-                  className="p-1.5 rounded-lg hover:bg-white/20 transition-colors group"
-                  title="全選"
-                >
-                  {(() => {
-                    const isAll = activeTab === 'files' 
-                      ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
-                      : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
-                    return isAll 
-                      ? <CheckSquare className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> 
-                      : <Square className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300" />;
-                  })()}
-                </button>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none">
-                    {activeTab === 'files' ? filteredFiles.length : filteredUrls.length} ITEMS
-                  </span>
-                </div>
-             </div>
-
-             {/* View Mode */}
-             <div className="flex items-center bg-gray-100 dark:bg-black/20 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all",
-                    viewMode === 'grid' ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-cyan-400 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  )}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "p-1.5 rounded-md transition-all",
-                    viewMode === 'list' ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-cyan-400 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  )}
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-             </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content Area - Reduced gap on mobile */}
       <main className="flex-1 min-h-0 px-1 pb-1 lg:px-6 lg:pb-6 relative z-10 overflow-hidden flex gap-1 lg:gap-4">
         <div className="relative flex">
           <AnimatePresence mode="wait">
             {isSidebarOpen && (
               <>
-                {/* Mobile Backdrop */}
                 {!isDesktop && (
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -971,9 +724,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                   exit={{ width: 0, opacity: 0, x: -20 }}
                   className={cn(
                     "overflow-hidden bg-white/80 dark:bg-space-deep/90 backdrop-blur-xl border-r border-white/10 h-full",
-                    // Desktop: Relative flow
                     "lg:relative",
-                    // Mobile: Absolute drawer
                     "absolute top-0 left-0 z-40 h-full shadow-2xl"
                   )}
                 >
@@ -985,7 +736,6 @@ export const UserPage: React.FC<UserPageProps> = ({
                     isDesktop={isDesktop}
                     onSelectFolder={(id) => {
                        handleFolderNavigation(activeTab === 'files' ? 'file' : 'url', id);
-                       // Close on selection if mobile
                        if (!isDesktop) setIsSidebarOpen(false);
                     }}
                     onCreateFolder={handleCreateFolder}
@@ -998,8 +748,8 @@ export const UserPage: React.FC<UserPageProps> = ({
               </>
             )}
           </AnimatePresence>
-          
         </div>
+
         <AnimatePresence mode="wait">
           {activeTab === 'files' ? (
             <motion.div
@@ -1009,90 +759,37 @@ export const UserPage: React.FC<UserPageProps> = ({
               exit={{ opacity: 0, x: 20 }}
               className="flex-1 min-w-0 h-full flex flex-col gap-2 sm:gap-4"
             >
-              {/* Breadcrumbs for Files */}
-              <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
-                <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
-                  <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-1.5 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10 transition-colors border border-white/20 shrink-0"
-                    aria-label="資料夾"
-                  >
-                    <FolderIcon className="w-4 h-4" />
-                  </button>
-                  <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden shrink-0" />
-                  <button
-                    onClick={() => handleFolderNavigation('file', null)}
-                    className={cn(
-                      "px-2 py-1 rounded-lg text-xs font-bold transition-all shrink-0",
-                      activeFileFolderId === null
-                        ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                        : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                    )}
-                  >
-                    所有檔案
-                  </button>
-                  {getBreadcrumbs(activeFileFolderId).map((crumb, idx, arr) => (
-                    <React.Fragment key={crumb.id}>
-                      <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
-                      <button
-                        onClick={() => handleFolderNavigation('file', crumb.id)}
-                        className={cn(
-                          "px-2 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
-                          idx === arr.length - 1
-                            ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                            : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                        )}
-                      >
-                        <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
-                        {crumb.name}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-                
-                <AnimatePresence>
-                  {isSelectionMode && (
-                    <motion.div 
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      className="flex items-center gap-1.5 flex-nowrap shrink-0 bg-white/60 dark:bg-white/10 backdrop-blur-md px-2 py-1 rounded-xl border border-white/20 shadow-sm ml-2"
-                    >
-                      <button
-                        onClick={() => handleSelectAll('file', selectedItems.filter(i => i.type === 'file').length < filteredFiles.length)}
-                        className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/10 flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-sm"
-                      >
-                        {selectedItems.filter(i => i.type === 'file').length === filteredFiles.length && filteredFiles.length > 0 ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                        <span className="text-[10px] font-bold">全選</span>
-                      </button>
-                      <button
-                        onClick={() => { setIsSelectionMode(false); setSelectedItems([]); }}
-                        className="p-1.5 rounded-lg bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/10 shrink-0 shadow-sm"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <BreadcrumbsBar
+                breadcrumbs={getBreadcrumbs(activeFileFolderId)}
+                activeFolderId={activeFileFolderId}
+                onNavigate={(id) => handleFolderNavigation('file', id)}
+                onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+                isSelectionMode={isSelectionMode}
+                onSelectionModeChange={setIsSelectionMode}
+                selectedItems={selectedItems}
+                itemCount={filteredFiles.length}
+                filteredCount={filteredFiles.length}
+                onSelectAll={handleSelectAllAction}
+                onClearSelection={() => { setIsSelectionMode(false); setSelectedItems([]); }}
+                activeTab="files"
+              />
 
               <FileView
                 files={filteredFiles}
                 isAuthenticated={isAuthenticated}
                 selectedItems={selectedItems.filter(i => i.type === 'file' || i.type === 'folder')}
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
-
-                onBatchSelect={(items, action) => handleBatchSelect(items, action)}
+                onBatchSelect={handleBatchSelect}
                 onToggleLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 onRename={handleRename}
                 onDelete={handleDelete}
                 onShare={handleShare}
                 onQrCode={(filename) => {
-                  const url = `${window.location.origin}/${data.user?.username}/file/${encodeURIComponent(filename)}`;
+                  const url = `${window.location.origin}/${dashboardData.user?.username}/file/${encodeURIComponent(filename)}`;
                   setQrUrl(url);
                 }}
                 onPreview={(file) => setPreviewFile(file)}
-                username={data.user?.username || ""}
+                username={dashboardData.user?.username || ""}
                 token={token}
                 folders={dashboardData.folders?.filter(f => f.type === 'file') || []}
                 activeFolderId={activeFileFolderId}
@@ -1100,18 +797,15 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onFolderClick={(id) => handleFolderNavigation('file', id)}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
-
                 viewMode={viewMode}
-                key={viewMode} // Force re-mount on view mode change to ensure Virtuoso updates correctly
-
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 onShareFolder={(folderId) => {
-                  const url = `${window.location.origin}/${data.user?.username}?tab=file&folder=${folderId}`;
+                  const url = `${window.location.origin}/${dashboardData.user?.username}?tab=file&folder=${folderId}`;
                   navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
                 }}
                 onQrCodeFolder={(folderId) => {
-                  const url = `${window.location.origin}/${data.user?.username}?tab=file&folder=${folderId}`;
+                  const url = `${window.location.origin}/${dashboardData.user?.username}?tab=file&folder=${folderId}`;
                   setQrUrl(url);
                 }}
                 onDownloadFolder={(folderId) => {
@@ -1121,13 +815,11 @@ export const UserPage: React.FC<UserPageProps> = ({
                      const subfolders = dashboardData.folders?.filter(f => f.parent_id === fId) || [];
                      return subfolders.some(sub => hasFiles(sub.id));
                   };
-
                   if (!hasFiles(folderId)) {
                     alert('資料夾內無檔案可下載');
                     return;
                   }
-                  
-                  const downloadUrl = `/api/user/${data.user?.username}/folders/${folderId}/download?token=${token || ''}`;
+                  const downloadUrl = `/api/user/${dashboardData.user?.username}/folders/${folderId}/download?token=${token || ''}`;
                   window.open(downloadUrl, '_blank');
                 }}
                 onToggleFolderLock={(type, id, status) => toggleItemLock(type, id, !!status)}
@@ -1142,79 +834,26 @@ export const UserPage: React.FC<UserPageProps> = ({
               exit={{ opacity: 0, x: -20 }}
               className="flex-1 min-w-0 h-full flex flex-col gap-4"
             >
-               {/* Breadcrumbs for Urls */}
-               <div className="grid grid-cols-[1fr_auto] items-center w-full h-9 overflow-hidden pr-1">
-                <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar py-1 min-w-0 transition-all duration-300">
-                  <button
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    className="p-1.5 rounded-lg bg-white/40 dark:bg-white/5 text-gray-600 dark:text-violet-500 hover:bg-violet-500/10 transition-colors border border-white/20 shrink-0"
-                    aria-label="資料夾"
-                  >
-                    <FolderIcon className="w-4 h-4" />
-                  </button>
-                  <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1 lg:hidden shrink-0" />
-                  <button
-                    onClick={() => handleFolderNavigation('url', null)}
-                    className={cn(
-                      "px-2 py-1 rounded-lg text-xs font-bold transition-all shrink-0",
-                      activeUrlFolderId === null
-                        ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
-                        : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                    )}
-                  >
-                    所有連結
-                  </button>
-                  {getBreadcrumbs(activeUrlFolderId).map((crumb, idx, arr) => (
-                    <React.Fragment key={crumb.id}>
-                      <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
-                      <button
-                        onClick={() => handleFolderNavigation('url', crumb.id)}
-                        className={cn(
-                          "px-2 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0",
-                          idx === arr.length - 1
-                            ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
-                            : "bg-white/40 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-white/10"
-                        )}
-                      >
-                        <FolderIcon className="w-3.5 h-3.5 inline mr-1" />
-                        {crumb.name}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-                
-                <AnimatePresence>
-                  {isSelectionMode && (
-                    <motion.div 
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      className="flex items-center gap-1.5 flex-nowrap shrink-0 bg-white/60 dark:bg-white/10 backdrop-blur-md px-2 py-1 rounded-xl border border-white/20 shadow-sm ml-2"
-                    >
-                      <button
-                        onClick={() => handleSelectAll('url', selectedItems.filter(i => i.type === 'url').length < filteredUrls.length)}
-                        className="p-1.5 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/10 flex items-center gap-1.5 shrink-0 whitespace-nowrap shadow-sm"
-                      >
-                        {selectedItems.filter(i => i.type === 'url').length === filteredUrls.length && filteredUrls.length > 0 ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                        <span className="text-[10px] font-bold">全選</span>
-                      </button>
-                      <button
-                        onClick={() => { setIsSelectionMode(false); setSelectedItems([]); }}
-                        className="p-1.5 rounded-lg bg-gray-500/10 text-gray-600 dark:text-gray-400 border border-gray-500/10 shrink-0 shadow-sm"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <BreadcrumbsBar
+                breadcrumbs={getBreadcrumbs(activeUrlFolderId)}
+                activeFolderId={activeUrlFolderId}
+                onNavigate={(id) => handleFolderNavigation('url', id)}
+                onSidebarToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+                isSelectionMode={isSelectionMode}
+                onSelectionModeChange={setIsSelectionMode}
+                selectedItems={selectedItems}
+                itemCount={filteredUrls.length}
+                filteredCount={filteredUrls.length}
+                onSelectAll={handleSelectAllAction}
+                onClearSelection={() => { setIsSelectionMode(false); setSelectedItems([]); }}
+                activeTab="urls"
+              />
 
               <UrlView
                 urls={filteredUrls}
                 isAuthenticated={isAuthenticated}
                 selectedItems={selectedItems.filter(i => i.type === 'url' || i.type === 'folder')}
-                onToggleSelect={(type, id) => toggleSelectItem(type, id)}
-
+                onToggleSelect={(type, id) => toggleSelectItem(type, id as string)}
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}
                 onToggleLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 onQrCode={setQrUrl}
@@ -1226,18 +865,15 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onFolderClick={(id) => handleFolderNavigation('url', id)}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
-
                 viewMode={viewMode}
-                key={viewMode} // Force re-mount on view mode change
-
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 onShareFolder={(folderId) => {
-                  const url = `${window.location.origin}/${data.user?.username}?tab=url&folder=${folderId}`;
+                  const url = `${window.location.origin}/${dashboardData.user?.username}?tab=url&folder=${folderId}`;
                   navigator.clipboard?.writeText(url).then(() => alert('資料夾連結已複製！'));
                 }}
                 onQrCodeFolder={(folderId: string) => {
-                  const url = `${window.location.origin}/${data.user?.username}?tab=url&folder=${folderId}`;
+                  const url = `${window.location.origin}/${dashboardData.user?.username}?tab=url&folder=${folderId}`;
                   setQrUrl(url);
                 }}
                 onPreview={(note) => setPreviewFile(note)}
@@ -1248,8 +884,6 @@ export const UserPage: React.FC<UserPageProps> = ({
         </AnimatePresence>
       </main>
 
-
-      {/* Packing Overlay */}
       <AnimatePresence>
         {isPacking && (
           <motion.div
@@ -1265,12 +899,6 @@ export const UserPage: React.FC<UserPageProps> = ({
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                   className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full"
                 />
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0.5 }}
-                  animate={{ scale: 1.2, opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="absolute inset-0 bg-violet-500 rounded-full"
-                />
               </div>
               <div className="text-center">
                 <h3 className="text-xl font-bold dark:text-white mb-2">壓縮檔案中...</h3>
@@ -1281,65 +909,55 @@ export const UserPage: React.FC<UserPageProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Auth Modal */}
       <AnimatePresence>
         {showAuthModal && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-cyan-500 to-violet-500" />
-
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-8 h-8 text-cyan-600 dark:text-quantum-cyan" />
+             <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+             >
+                <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-cyan-500 to-violet-500" />
+                <div className="text-center mb-8">
+                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">身分驗證</h2>
+                   <p className="text-gray-500 dark:text-gray-400">請輸入密碼以解鎖隱私內容</p>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">身分驗證</h2>
-                <p className="text-gray-500 dark:text-gray-400">
-                  {authAuthenticated && isPageOwner ? "已建立授權連線，可直接解鎖" : "請輸入密碼以解鎖隱私內容"}
-                </p>
-              </div>
-
-
-              <form onSubmit={handleAuth} className="space-y-4">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="輸入密碼..."
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-hidden transition-all text-center text-lg tracking-widest"
-                  autoFocus
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAuthModal(false)}
-                    className="px-4 py-3 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-                  >
-                    取消
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    解鎖
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+                <form onSubmit={handleAuth} className="space-y-4">
+                   <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="輸入密碼..."
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500 outline-hidden transition-all text-center text-lg tracking-widest"
+                      autoFocus
+                   />
+                   <div className="grid grid-cols-2 gap-3">
+                      <button
+                         type="button"
+                         onClick={() => setShowAuthModal(false)}
+                         className="px-4 py-3 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                      >
+                         取消
+                      </button>
+                      <button
+                         type="submit"
+                         className="px-4 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-cyan-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                         解鎖
+                      </button>
+                   </div>
+                </form>
+             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* QR Code Modal target */}
       <AnimatePresence>
         {qrUrl && (
           <motion.div
@@ -1360,11 +978,9 @@ export const UserPage: React.FC<UserPageProps> = ({
                 <h3 className="text-xl font-bold text-gray-900 mb-1">掃描 QR Code</h3>
                 <p className="text-sm text-gray-500 break-all line-clamp-2">{qrUrl}</p>
               </div>
-
               <div className="bg-white p-2 rounded-xl border-2 border-dashed border-gray-200 inline-block mb-6">
                 <QRCodeSVG value={qrUrl} size={200} />
               </div>
-
               <div className="flex gap-3">
                 <button
                   onClick={() => setQrUrl(null)}
@@ -1384,183 +1000,102 @@ export const UserPage: React.FC<UserPageProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Share URL Dialog for Mobile */}
       <AnimatePresence>
         {shareUrl && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShareUrl(null)}
-              className="absolute inset-0 bg-white/80 dark:bg-space-black/80 backdrop-blur-md"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="glass-card p-6 w-full max-w-md relative z-10 text-center space-y-4 border-cyan-200 dark:border-quantum-cyan/20 shadow-2xl"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600 dark:text-quantum-cyan">分享連結</span>
-                <button onClick={() => setShareUrl(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <p className="text-gray-500 dark:text-white/40 text-xs">自動複製失敗，請長按下方連結手動複製</p>
-
-              <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                <p
-                  className="text-gray-900 dark:text-white font-mono text-xs break-all select-all leading-relaxed"
-                  style={{ userSelect: 'all', WebkitUserSelect: 'all' }}
-                >
-                  {shareUrl}
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    // Try one more time with user gesture
-                    navigator.clipboard?.writeText(shareUrl).then(() => {
-                      alert('已複製！');
-                      setShareUrl(null);
-                    }).catch(() => {
-                      alert('請長按上方連結手動複製');
-                    });
-                  }}
-                  className="btn-stellar flex-1 py-3 bg-cyan-50 dark:bg-quantum-cyan/10 border-cyan-200 dark:border-quantum-cyan/30 text-cyan-600 dark:text-quantum-cyan uppercase text-xs font-black tracking-widest hover:bg-cyan-100 dark:hover:bg-quantum-cyan/20 transition-colors"
-                >
-                  再試一次
-                </button>
-                <button
-                  onClick={() => setShareUrl(null)}
-                  className="btn-stellar flex-1 py-3 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/60 uppercase text-xs font-black tracking-widest hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                >
-                  關閉
-                </button>
-              </div>
-            </motion.div>
-          </div>
+             <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+               <motion.div
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   exit={{ opacity: 0 }}
+                   onClick={() => setShareUrl(null)}
+                   className="absolute inset-0 bg-white/80 dark:bg-space-black/80 backdrop-blur-md"
+               />
+               <motion.div
+                   initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                   animate={{ opacity: 1, scale: 1, y: 0 }}
+                   exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                   className="glass-card p-6 w-full max-w-md relative z-10 text-center space-y-4 border-cyan-200 dark:border-quantum-cyan/20 shadow-2xl"
+               >
+                   <div className="flex items-center justify-between mb-2">
+                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600 dark:text-quantum-cyan">分享連結</span>
+                       <button onClick={() => setShareUrl(null)} className="text-gray-400 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors">
+                           <X className="w-5 h-5" />
+                       </button>
+                   </div>
+                   <p className="text-gray-500 dark:text-white/40 text-xs">自動複製失敗，請長按下方連結手動複製</p>
+                   <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                       <p className="text-gray-900 dark:text-white font-mono text-xs break-all select-all leading-relaxed">
+                           {shareUrl}
+                       </p>
+                   </div>
+                   <div className="flex gap-2">
+                       <button
+                           onClick={() => {
+                               navigator.clipboard?.writeText(shareUrl).then(() => {
+                                   alert('已複製！');
+                                   setShareUrl(null);
+                               }).catch(() => {
+                                   alert('請長按上方連結手動複製');
+                               });
+                           }}
+                           className="btn-stellar flex-1 py-3 bg-cyan-50 dark:bg-quantum-cyan/10 border-cyan-200 dark:border-quantum-cyan/30 text-cyan-600 dark:text-quantum-cyan uppercase text-xs font-black tracking-widest hover:bg-cyan-100 dark:hover:bg-quantum-cyan/20 transition-colors"
+                       >
+                           再試一次
+                       </button>
+                       <button
+                           onClick={() => setShareUrl(null)}
+                           className="btn-stellar flex-1 py-3 bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/60 uppercase text-xs font-black tracking-widest hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                       >
+                           關閉
+                       </button>
+                   </div>
+               </motion.div>
+             </div>
         )}
       </AnimatePresence>
 
-      {/* Settings Modal */}
       <AnimatePresence>
         {showSettingsModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowSettingsModal(false)}
-          >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                onClick={() => setShowSettingsModal(false)}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  使用者設定
-                </h2>
-                <button onClick={() => setShowSettingsModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">公開目錄索引</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      允許您的個人頁面顯示在首頁的公開列表中。
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleUpdateProfile(true)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                        dashboardData.user?.show_in_list !== false
-                          ? "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 ring-2 ring-green-500/50"
-                          : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
-                      )}
-                    >
-                      顯示
-                    </button>
-                    <button
-                      onClick={() => handleUpdateProfile(false)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                        dashboardData.user?.show_in_list === false
-                          ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 ring-2 ring-red-500/50"
-                          : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10"
-                      )}
-                    >
-                      隱藏
-                    </button>
-                  </div>
+                <div className="w-full max-w-md bg-white dark:bg-space-black border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">使用者設定</h2>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                            <div>
+                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">公開目錄索引</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">允許您的個人頁面顯示在首頁的公開列表中。</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleUpdateProfile(true)}
+                                    className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", dashboardData.user?.show_in_list !== false ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}
+                                >顯示</button>
+                                <button
+                                    onClick={() => handleUpdateProfile(false)}
+                                    className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-all", dashboardData.user?.show_in_list === false ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500")}
+                                >隱藏</button>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                            <div>
+                                <h3 className="font-bold text-gray-900 dark:text-white text-sm">操作</h3>
+                            </div>
+                            <button
+                                onClick={() => { setIsSelectionMode(true); setShowSettingsModal(false); }}
+                                className="px-4 py-2 bg-cyan-600 text-white font-bold rounded-xl text-xs"
+                            >
+                                選擇檔案
+                            </button>
+                        </div>
+                    </div>
                 </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">顯示模式</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      切換列表的呈現方式。
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { console.log('[Settings] Switching to grid, current:', viewMode); setViewMode('grid'); }}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        viewMode === 'grid'
-                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                          : "bg-gray-100 dark:bg-white/5 text-gray-500"
-                      )}
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => { console.log('[Settings] Switching to list, current:', viewMode); setViewMode('list'); }}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        viewMode === 'list'
-                          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                          : "bg-gray-100 dark:bg-white/5 text-gray-500"
-                      )}
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">操作</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      批量處理當前頁面內容。
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                        setIsSelectionMode(true);
-                        setShowSettingsModal(false);
-                    }}
-                    className="px-4 py-2 bg-cyan-600 text-white font-bold rounded-xl hover:bg-cyan-500 transition-colors text-xs"
-                  >
-                    選擇檔案
-                  </button>
-                </div>
-              </div>
             </motion.div>
-          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1576,13 +1111,12 @@ export const UserPage: React.FC<UserPageProps> = ({
         }}
       />
 
-      {/* File Preview Modal */}
       <FilePreviewModal
         isOpen={!!previewFile}
         onClose={() => setPreviewFile(null)}
         file={previewFile}
       />
-      {/* Selection Action Bar - Unified at root to ensure fixed positioning on mobile */}
+
       {selectedItems.length > 0 && isAuthenticated && (
         <BatchActionBar
           selectedCount={selectedItems.length}
