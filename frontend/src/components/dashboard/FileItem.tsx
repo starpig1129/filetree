@@ -595,7 +595,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
         </div>
         
         {/* Desktop Hover Overlay Actions */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-end content-end justify-center gap-0.5 p-1.5 z-20 pointer-events-none">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex flex-wrap items-end content-end justify-center gap-1.5 pt-10 p-3 z-20 pointer-events-none">
           <button
             onClick={(e) => { e.stopPropagation(); onShare(file.name); }}
             onMouseDown={(e) => e.stopPropagation()}

@@ -39,13 +39,8 @@ const GridListContainer = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   <div
     ref={ref}
     {...props}
-    className="pt-2 sm:pt-6 pb-24 sm:pb-32"
-    style={{
-      ...style,
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-      gap: '0.5rem',
-    }}
+    className="pt-2 sm:pt-6 pb-24 sm:pb-32 grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2 sm:gap-4"
+    style={style}
   >
     {children}
   </div>
@@ -342,7 +337,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
             <div className={cn(
               "grid gap-2 sm:gap-4",
               viewMode === 'grid' 
-                ? "grid-cols-[repeat(auto-fill,minmax(120px,1fr))]" 
+                ? "grid-cols-[repeat(auto-fill,minmax(120px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]" 
                 : "grid-cols-1"
             )}>
               {currentSubfolders.map(folder => {
@@ -484,7 +479,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                         )}
 
                         {!isLocked && (
-                          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-end content-end justify-center gap-1 p-2 pointer-events-none">
+                          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 lg:group-hover:opacity-100 transition-opacity z-20 hidden lg:flex flex-wrap items-end content-end justify-center gap-1.5 pt-10 p-3 pointer-events-none">
                             <button
                               onClick={(e) => { e.stopPropagation(); onQrCode(url.url); }}
                               onMouseDown={(e) => e.stopPropagation()}
