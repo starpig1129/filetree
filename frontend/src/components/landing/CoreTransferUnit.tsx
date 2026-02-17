@@ -55,7 +55,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
         className="text-center mb-6 lg:mb-[2.5vh] space-y-1"
       >
         <div className="flex items-center justify-center gap-3">
-          <h1 className="text-4xl lg:text-[clamp(2.5rem,3.5vw,4rem)] font-bold tracking-tighter leading-none animate-stellar-text bg-clip-text text-transparent bg-linear-to-br from-gray-900 via-gray-700 to-gray-500 dark:from-white dark:via-gray-200 dark:to-gray-500">
+          <h1 className="filenexus-brand text-4xl! lg:text-[clamp(2.5rem,3.5vw,4rem)]! tracking-tighter leading-none animate-stellar-text">
             FileNexus
           </h1>
           <Orbit className="w-8 h-8 lg:w-[clamp(1.5rem,3vw,2.5rem)] lg:h-[clamp(1.5rem,3vw,2.5rem)] text-cyan-500 animate-spin-slow opacity-80" />

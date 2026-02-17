@@ -19,7 +19,7 @@ export const HelpPage: React.FC = () => {
           <HelpCircle className="w-10 h-10 text-cyan-600 dark:text-quantum-cyan" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white/90">使用說明</h1>
         </div>
-        <p className="text-gray-500 dark:text-white/40 text-sm uppercase tracking-widest">FileNexus User Guide</p>
+        <p className="filenexus-brand text-sm! uppercase tracking-widest">FileNexus User Guide</p>
       </motion.div>
 
       {/* Content Grid */}
@@ -209,7 +209,7 @@ export const HelpPage: React.FC = () => {
         className="text-center mt-12 text-gray-400 dark:text-white/20 text-xs uppercase tracking-widest"
       >
         <Cpu className="w-4 h-4 inline-block mr-2 opacity-50" />
-        FileNexus - Modern File Management Hub
+        <span className="filenexus-brand text-xs! tracking-widest uppercase inline-block">FileNexus</span> - Modern File Management Hub
       </motion.div>
     </div>
   );

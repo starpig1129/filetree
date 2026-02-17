@@ -154,13 +154,7 @@ const MainLayout: React.FC<{
               <Menu className="w-6 h-6" />
             </button>
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 bg-linear-to-br from-quantum-cyan to-digital-violet rounded-xl flex items-center justify-center p-2 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-quantum-cyan/20">
-                <svg className="w-full h-full text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2H10a2 2 0 00-2 2z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v10a2 2 0 002 2h3m8-11h.01" />
-                </svg>
-              </div>
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-linear-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400">
+              <span className="filenexus-brand">
                 FileNexus
               </span>
             </Link>
@@ -296,8 +290,9 @@ const AppContent: React.FC = () => {
           </Routes>
         </React.Suspense>
 
-        <footer className="text-center py-0 lg:py-2 text-gray-400 dark:text-white/20 text-[0.625rem] font-bold tracking-[0.3em] uppercase fixed bottom-2 w-full z-10">
-          FileNexus - Secure File Bridge Hub
+        <footer className="text-center py-0 lg:py-2 flex items-center justify-center gap-2 fixed bottom-2 w-full z-10">
+          <span className="filenexus-brand text-[0.625rem]! tracking-[0.3em] uppercase">FileNexus</span>
+          <span className="text-gray-400 dark:text-white/20 text-[0.625rem] font-bold tracking-[0.3em] uppercase">- Secure File Bridge Hub</span>
         </footer>
       </div>
     </BrowserRouter>

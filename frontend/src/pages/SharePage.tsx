@@ -97,7 +97,7 @@ export const SharePage: React.FC = () => {
           </div>
           <div>
             <h1 className="font-bold tracking-tight text-white/90">檔案分享</h1>
-            <p className="text-[0.6rem] uppercase tracking-widest text-white/40 font-black">FileNexus Secure Share</p>
+            <p className="filenexus-brand text-[0.6rem]! uppercase tracking-widest font-black">FileNexus Secure Share</p>
           </div>
         </div>
       </header>
@@ -189,7 +189,7 @@ export const SharePage: React.FC = () => {
       </main>
 
       <footer className="relative z-10 p-6 text-center text-[0.6rem] tracking-[0.3em] uppercase text-white/20">
-        © 2026 Space-Time FileNexus. All Rights Reserved.
+        © 2026 Space-Time <span className="filenexus-brand text-[0.6rem]! tracking-[0.3em] uppercase inline-block">FileNexus</span>. All Rights Reserved.
       </footer>
     </div>
   );

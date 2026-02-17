@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Cpu, FileUp, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
+import { FileUp, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -87,11 +87,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         )}
       >
         {/* Logo / Header */}
-        <div className="flex items-center gap-3 px-3 mb-8 lg:mb-6">
-          <div className="w-8 h-8 bg-quantum-cyan/10 rounded-xl flex items-center justify-center border border-quantum-cyan/20">
-            <Cpu className="w-4 h-4 text-quantum-cyan" />
-          </div>
-          <span className="text-sm font-bold text-gray-800 dark:text-white/80 tracking-tight hidden sm:block">FileNexus</span>
+        <div className="px-3 mb-8 lg:mb-6 cursor-pointer" onClick={() => handleNavClick('/')}>
+          <span className="filenexus-brand text-sm! tracking-tight hidden sm:block">FileNexus</span>
         </div>
 
         {/* Navigation Items */}
