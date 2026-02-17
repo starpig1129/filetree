@@ -37,7 +37,8 @@ const MainContent: React.FC<{
   users: Array<{ username: string; folder: string }>;
   config: { allowed_extensions?: string[] };
   loading: boolean;
-}> = ({ users, config, loading }) => {
+  onOpenDirectory?: () => void;
+}> = ({ users, config, loading, onOpenDirectory }) => {
   const { username } = useParams<{ username: string }>();
   const location = useLocation();
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -93,7 +94,7 @@ const MainContent: React.FC<{
 
   // Help page
   if (location.pathname === '/help') {
-    return <HelpPage />;
+    return <HelpPage onOpenDirectory={onOpenDirectory} />;
   }
 
   // User page - check if user exists
@@ -180,12 +181,15 @@ const MainLayout: React.FC<{
         <main className={cn(
           "flex-1 min-w-0 flex flex-col transition-all duration-300 relative",
           location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
-          (isDashboard || location.pathname === '/') ? "overflow-hidden" : "overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          (isDashboard || location.pathname === '/') 
+            ? "overflow-hidden" 
+            : "custom-scrollbar overflow-y-auto"
         )}>
           <MainContent 
             users={users} 
             config={config} 
             loading={loading} 
+            onOpenDirectory={() => setDirectoryOpen(true)}
           />
         </main>
 
