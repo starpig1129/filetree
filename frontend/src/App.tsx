@@ -12,6 +12,8 @@ import { AuraField } from './components/AuraField';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { apiRequest } from './services/api';
 import { cn } from './lib/utils';
 
 interface UserData {
@@ -44,28 +46,21 @@ const MainContent: React.FC<{
   const [userData, setUserData] = useState<UserData | null>(null);
   const [userLoading, setUserLoading] = useState(false);
 
+  const { token } = useAuth();
+
   // Fetch user data when username changes
   useEffect(() => {
     if (!username) return;
     
     let isMounted = true;
-    
-    // Set loading state only if needed, and wrap in a timeout if necessary to avoid immediate update during render
-    // But better: just set it. The warning might be because we are in an effect triggered by username change,
-    // which might be during a render. But usually this is fine.
-    // Let's try to just fetch.
-    
     setUserLoading(true);
     
-    fetch(`/api/user/${username}`)
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error('User not found');
-      })
+    apiRequest(`/user/${username}`, { token })
       .then((data) => {
         if (isMounted) setUserData(data);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Fetch user data failed:', err);
         if (isMounted) setUserData({ error: '目錄不存在' });
       })
       .finally(() => {
@@ -75,7 +70,7 @@ const MainContent: React.FC<{
     return () => {
       isMounted = false;
     };
-  }, [username]);
+  }, [username, token]);
 
   if (loading || userLoading) {
     return (
@@ -213,11 +208,11 @@ const AppContent: React.FC = () => {
   const [config, setConfig] = useState<{ allowed_extensions?: string[] }>({});
   const [loading, setLoading] = useState(true);
 
+
   // Fetch initial user list and config
   useEffect(() => {
     const fetchInit = () => {
-      fetch('/api/init')
-        .then((res) => res.json())
+      apiRequest('/init')
         .then((data) => {
           // data.users is array, data.config is object
           setUsers(data.users || []);
@@ -306,7 +301,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 };

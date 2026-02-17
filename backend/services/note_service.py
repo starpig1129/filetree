@@ -39,7 +39,8 @@ class NoteService:
         return cursor.lastrowid
 
     async def get_urls(
-        self, username: str, excluded_folder_ids: Optional[Set[str]] = None
+        self, username: str, excluded_folder_ids: Optional[Set[str]] = None,
+        include_locked: bool = True
     ) -> List[dict]:
         """Fetch all URL records for a user.
 
@@ -61,6 +62,11 @@ class NoteService:
             d = dict(row)
             if excluded_folder_ids and d["folder_id"] in excluded_folder_ids:
                 continue
+            
+            # Skip if locked and we don't include locked
+            if not include_locked and d["is_locked"]:
+                continue
+                
             d["is_locked"] = bool(d["is_locked"])
             result.append(d)
         return result

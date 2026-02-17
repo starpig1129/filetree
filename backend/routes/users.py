@@ -1,5 +1,5 @@
 from typing import List, Optional, Set
-from fastapi import APIRouter, HTTPException, Request, Form, Depends
+from fastapi import APIRouter, HTTPException, Request, Form, Depends, Header
 from backend.services.user_service import user_service
 from backend.services.file_service import file_service
 from backend.services.note_service import note_service
@@ -17,16 +17,21 @@ audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, 
 
 
 @router.get("/user/{username}")
-async def get_user_dashboard(request: Request, username: str, token: Optional[str] = None):
+async def get_user_dashboard(request: Request, username: str, authorization: str = Header(None), token: Optional[str] = None):
     """Get dashboard data for a user."""
+    # Support both Header and Query for flexibility
+    session_token = token
+    if authorization and authorization.startswith("Bearer "):
+        session_token = authorization.split(" ")[1]
+
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
     # Check authentication state via token
     is_authenticated = False
-    if token:
-        info = token_service.validate_token(token)
+    if session_token:
+        info = token_service.validate_token(session_token)
         if info and info.username == username:
             is_authenticated = True
 
@@ -40,12 +45,14 @@ async def get_user_dashboard(request: Request, username: str, token: Optional[st
         user["folder"],
         user.get("data_retention_days"),
         excluded_folder_ids=hidden_folder_ids,
+        include_locked=is_authenticated
     )
 
     # URLs from notes.db (exclude those in hidden folders)
     urls = await note_service.get_urls(
         username,
         excluded_folder_ids=hidden_folder_ids,
+        include_locked=is_authenticated
     )
 
     return {
@@ -95,16 +102,33 @@ async def change_password(
 async def update_own_profile(
     request: Request,
     username: str = Form(...),
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None),
+    authorization: str = Header(None),
     show_in_list: bool = Form(...)
 ):
     """User endpoint to update their own profile settings."""
+    # Support both Header and Form for flexibility
+    session_token = token
+    if authorization and authorization.startswith("Bearer "):
+        session_token = authorization.split(" ")[1]
+
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
-    if not verify_password(password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+    # Authenticate
+    auth_success = False
+    if session_token:
+        info = token_service.validate_token(session_token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        if verify_password(password, user["salt"], user["hashed_password"]):
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     await user_service.update_user(username, {"show_in_list": show_in_list})
 
@@ -119,26 +143,49 @@ async def update_own_profile(
 
 
 @router.post("/user/{username}/toggle-lock")
-async def toggle_item_lock(username: str, data: ToggleLockRequest):
+async def toggle_item_lock(
+    username: str, 
+    item_id: str = Form(...),
+    item_type: str = Form(...),
+    is_locked: bool = Form(...),
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None),
+    authorization: str = Header(None)
+):
     """Toggle lock status for a file or URL."""
+    # Support both Header and Form for flexibility
+    session_token = token
+    if authorization and authorization.startswith("Bearer "):
+        session_token = authorization.split(" ")[1]
+
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
-    if not verify_password(data.password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼驗證失敗")
+    # Authenticate
+    auth_success = False
+    if session_token:
+        info = token_service.validate_token(session_token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        if verify_password(password, user["salt"], user["hashed_password"]):
+            auth_success = True
 
-    if data.item_type == "file":
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
+
+    if item_type == "file":
         success = await file_service.toggle_file_lock(
-            user["folder"], data.item_id, data.is_locked
+            user["folder"], item_id, is_locked
         )
-    elif data.item_type == "url":
+    elif item_type == "url":
         success = await note_service.toggle_url_lock(
-            username, data.item_id, data.is_locked
+            username, item_id, is_locked
         )
-    elif data.item_type == "folder":
+    elif item_type == "folder":
         success = await user_service.toggle_folder_lock(
-            username, data.item_id, data.is_locked
+            username, item_id, is_locked
         )
     else:
         raise HTTPException(status_code=400, detail="不支援的類型")

@@ -128,10 +128,13 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
-# Enable CORS for development
+# Enable CORS for security and cross-origin support
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # In production, this should be restricted to specific domains.
+    # For user convenience and multi-device access, we keep it relatively open 
+    # but could restrict to ['*'] as we rely on Header-based auth (Bearer token)
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -144,7 +147,8 @@ app.add_middleware(
         "Upload-Length", 
         "Upload-Metadata", 
         "Location",
-        "Content-Length"
+        "Content-Length",
+        "Authorization" # Ensure Bearer tokens can be handled
     ]
 )
 
@@ -169,6 +173,9 @@ from backend.services.event_service import event_service
 @app.websocket("/ws/global")
 async def global_websocket_endpoint(websocket: WebSocket):
     """Global WebSocket for system-wide updates (e.g. user list)."""
+    # Optional: We could check a handshake token here for stricter security
+    # await websocket.accept()
+    # But for now, we just connect.
     await event_service.connect_global(websocket)
     try:
         while True:

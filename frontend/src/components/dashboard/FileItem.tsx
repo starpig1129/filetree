@@ -431,21 +431,23 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
                 >
                   <Download className="w-4 h-4" />
                 </a>
-                <CascadingMenu
-                  folders={folders}
-                  onSelect={(folderId) => onMoveItem('file', file.name, folderId)}
-                  trigger={
-                    <button 
-                      className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onMouseUp={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                      onTouchEnd={(e) => e.stopPropagation()}
-                    >
-                      <FolderIcon className="w-4 h-4" />
-                    </button>
-                  }
-                />
+                {isAuthenticated && (
+                  <CascadingMenu
+                    folders={folders}
+                    onSelect={(folderId) => onMoveItem('file', file.name, folderId)}
+                    trigger={
+                      <button 
+                        className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                      >
+                        <FolderIcon className="w-4 h-4" />
+                      </button>
+                    }
+                  />
+                )}
                 {isAuthenticated && onRename && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenamingFile(file.name); setNewName(file.name); }}
@@ -633,22 +635,24 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
           >
             <Download className="w-4 h-4" />
           </a>
-          <CascadingMenu
-            folders={folders}
-            onSelect={(folderId) => onMoveItem('file', file.name, folderId)}
-            trigger={
-              <button 
-                className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
-                title="移動到..."
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
-              >
-                <FolderIcon className="w-4 h-4" />
-              </button>
-            }
-          />
+          {isAuthenticated && (
+            <CascadingMenu
+              folders={folders}
+              onSelect={(folderId) => onMoveItem('file', file.name, folderId)}
+              trigger={
+                <button 
+                  className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
+                  title="移動到..."
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseUp={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                >
+                  <FolderIcon className="w-4 h-4" />
+                </button>
+              }
+            />
+          )}
           {isAuthenticated && (
             <>
               <button

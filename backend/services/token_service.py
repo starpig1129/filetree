@@ -13,7 +13,7 @@ class TokenInfo(BaseModel):
     username: str
     filename: Optional[str] = None  # None for full access tokens
     expiry: datetime
-    token_type: str = "share" # 'share' or 'access'
+    token_type: str = "share" # 'share', 'access', or 'session'
 
 
 class TokenService:
@@ -50,7 +50,7 @@ class TokenService:
         return token
 
     def create_access_token(self, username: str) -> str:
-        """Create a general access token for a user session.
+        """Create a general access token for a user session (legacy compatibility).
 
         Args:
             username: The user to authorize.
@@ -59,11 +59,31 @@ class TokenService:
             A unique token string.
         """
         token = secrets.token_urlsafe(32)
-        expiry = datetime.now() + timedelta(hours=self.expiry_hours)
+        # Use longer expiry for sessions to improve convenience
+        expiry = datetime.now() + timedelta(hours=72)
         self.tokens[token] = TokenInfo(
             username=username,
             expiry=expiry,
             token_type="access"
+        )
+        self._cleanup()
+        return token
+
+    def create_session_token(self, username: str) -> str:
+        """Create a persistent session token for a user.
+
+        Args:
+            username: The username authorized by the password.
+
+        Returns:
+            A unique session token string.
+        """
+        token = secrets.token_urlsafe(64)
+        expiry = datetime.now() + timedelta(hours=72) # 3 days of convenience
+        self.tokens[token] = TokenInfo(
+            username=username,
+            expiry=expiry,
+            token_type="session"
         )
         self._cleanup()
         return token
@@ -77,6 +97,9 @@ class TokenService:
         Returns:
             TokenInfo if valid, None otherwise.
         """
+        if not token:
+            return None
+            
         info = self.tokens.get(token)
         if not info:
             return None
@@ -90,6 +113,7 @@ class TokenService:
     def _cleanup(self) -> None:
         """Remove expired tokens from memory."""
         now = datetime.now()
+        # Create a list of keys to delete to avoid dictionary size change during iteration
         expired = [t for t, info in self.tokens.items() if now > info.expiry]
         for t in expired:
             del self.tokens[t]

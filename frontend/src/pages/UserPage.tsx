@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { apiRequest, apiPostForm } from '../services/api';
 import { FilePreviewModal } from '../components/FilePreviewModal';
 import { FileView } from '../components/dashboard/FileView';
 import type { FileItemData } from '../components/dashboard/FileItem';
@@ -33,11 +35,30 @@ interface UserPageProps {
 export const UserPage: React.FC<UserPageProps> = ({ 
   data 
 }) => {
+  const { token, login, logout, isAuthenticated: authAuthenticated, user: loggedInUser } = useAuth();
   const [dashboardData, setDashboardData] = useState(data);
+
+  // Check if current logged in user is the owner of this page
+  // SECURE: Use prop data directly to avoid stale state during navigation
+  const isPageOwner = React.useMemo(() => {
+    return loggedInUser?.username === data.user?.username;
+  }, [loggedInUser?.username, data.user?.username]);
+
   const [selectedItems, setSelectedItems] = useState<{ type: 'file' | 'url' | 'folder'; id: string }[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
-  const [token, setToken] = useState<string | null>(null);
+  // Local isAuthenticated for modal control, but synced with AuthContext AND ownership check
+  // NEW: Initialize based on sessionStorage to persist across refreshes for owner
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Proactive internal auto-unlock
+    if (authAuthenticated && isPageOwner) return true;
+    
+    // Session fallback
+    const targetUser = data?.user?.username;
+    if (targetUser && sessionStorage.getItem(`unlocked_${targetUser}`) === 'true') {
+      return true;
+    }
+    return false;
+  });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -94,21 +115,42 @@ export const UserPage: React.FC<UserPageProps> = ({
     return crumbs;
   }, [dashboardData.folders]);
 
-  const refreshDashboard = React.useCallback(async (authToken: string) => {
+  const refreshDashboard = useCallback(async (authToken?: string | null) => {
     try {
-      const res = await fetch(`/api/user/${data.user?.username}?token=${authToken}&t=${Date.now()}`);
-      if (res.ok) {
-        const newData = await res.json();
-        setDashboardData(newData);
-      }
+      // SECURE: Only send token if UI is unlocked or we are explicitly unlocking
+      const sendToken = authToken || (isAuthenticated ? token : null);
+      const newData = await apiRequest(`/user/${data.user?.username}`, { 
+        token: sendToken 
+      });
+      setDashboardData(newData);
     } catch (err) {
       console.error("Failed to refresh dashboard:", err);
     }
-  }, [data.user?.username]);
+  }, [data.user?.username, token, isAuthenticated]);
 
   // Sync props to local state if they change (e.g. navigation), 
   // but be careful not to overwrite valid local updates with stale props
   // We only update if the username or basic structure changed, or if it's the first load
+  // Sync local auth state with context and ownership check
+  useEffect(() => {
+    if (isPageOwner && authAuthenticated) {
+      // Direct auto-unlock if logged in as owner
+      setIsAuthenticated(true);
+      if (data?.user?.username) {
+        sessionStorage.setItem(`unlocked_${data.user.username}`, 'true');
+      }
+    } else if (!isPageOwner) {
+      // Forced lock if not owner
+      setIsAuthenticated(false);
+    } else {
+      // If owner but not logged in, check session unlock
+      const targetUser = data?.user?.username;
+      if (targetUser && sessionStorage.getItem(`unlocked_${targetUser}`) === 'true') {
+        setIsAuthenticated(true);
+      }
+    }
+  }, [isPageOwner, authAuthenticated, data?.user?.username]);
+
   // Sync state with URL query parameters
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -161,13 +203,15 @@ export const UserPage: React.FC<UserPageProps> = ({
   const wsUrl = React.useMemo(() => {
     if (!data.user?.username) return null;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
-  }, [data.user?.username]);
+    let url = `${protocol}//${window.location.host}/api/ws/${data.user.username}`;
+    if (token) url += `?token=${token}`;
+    return url;
+  }, [data.user?.username, token]);
 
-  const handleWebSocketMessage = React.useCallback((event: MessageEvent) => {
+  const handleWebSocketMessage = useCallback((event: MessageEvent) => {
     if (event.data === "REFRESH") {
       console.log("[UserPage] Received REFRESH signal via WebSocket");
-      refreshDashboard(token || "");
+      refreshDashboard(token);
     }
   }, [refreshDashboard, token]);
 
@@ -231,35 +275,38 @@ export const UserPage: React.FC<UserPageProps> = ({
         }
 
         const formData = new FormData();
-        // Send password only if authenticated to allow downloading locked files, 
-        // otherwise skip it as per user requirement.
-        if (isAuthenticated && password) {
-          formData.append('password', password);
+        if (isAuthenticated) {
+            if (token) formData.append('token', token);
+            else if (password) formData.append('password', password);
         }
-        // Ensure filenames is sent correctly as a list
         files.forEach(f => formData.append('filenames', f));
 
         setIsPacking(true);
-        const res = await fetch(`/api/user/${dashboardData.user?.username}/batch-download`, {
-          method: 'POST',
-          body: formData
-        });
+        try {
+          const res = await fetch(`/api/user/${dashboardData.user?.username}/batch-download`, {
+            method: 'POST',
+            body: formData
+          });
 
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-          a.download = `${dashboardData.user?.username}_files_${timestamp}.zip`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-          setSelectedItems([]);
-        } else {
-          const err = await res.json();
-          alert(err.detail || "打包下載失敗");
+          if (res.ok) {
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            a.download = `${dashboardData.user?.username}_files_${timestamp}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            setSelectedItems([]);
+          } else {
+            const err = await res.json();
+            alert(err.detail || "打包下載失敗");
+          }
+        } catch (downloadErr) {
+            console.error("Batch download failed:", downloadErr);
+            alert("網路錯誤或下載失敗");
         }
         setIsPacking(false);
         setIsBatchSyncing(false);
@@ -268,11 +315,12 @@ export const UserPage: React.FC<UserPageProps> = ({
 
       const perform = async (type: 'file' | 'url', ids: string[]) => {
         if (ids.length === 0) return;
-        return fetch(`/api/user/${dashboardData.user?.username}/batch-action`, {
+        return apiRequest(`/user/${dashboardData.user?.username}/batch-action`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          token,
           body: JSON.stringify({
-            password,
+            password: !token ? password : undefined,
+            token,
             item_type: type,
             item_ids: ids,
             action
@@ -282,14 +330,12 @@ export const UserPage: React.FC<UserPageProps> = ({
 
       const performFolders = async (ids: string[]) => {
         if (ids.length === 0) return;
-        // Folders must be deleted one by one for now as batch-action doesn't support folder type
-        // Or we could update backend. For now, concurrent requests.
-        await Promise.all(ids.map(id => 
-          fetch(`/api/user/${dashboardData.user?.username}/folders/${id}/delete`, {
-            method: 'POST',
-            body: new URLSearchParams({ password })
-          })
-        ));
+        await Promise.all(ids.map(id => {
+          const formData = new FormData();
+          if (token) formData.append('token', token);
+          else formData.append('password', password);
+          return apiPostForm(`/user/${dashboardData.user?.username}/folders/${id}/delete`, formData);
+        }));
       };
 
       // Optimistic UI Update for delete
@@ -311,10 +357,11 @@ export const UserPage: React.FC<UserPageProps> = ({
         perform('url', urls),
         action === 'delete' ? performFolders(selectedItems.filter(i => i.type === 'folder').map(i => i.id)) : Promise.resolve()
       ]);
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
       alert("批次操作失敗，正在重新載入資料。");
-      await refreshDashboard(token || "");
+      await refreshDashboard();
     } finally {
       setIsBatchSyncing(false);
     }
@@ -322,28 +369,31 @@ export const UserPage: React.FC<UserPageProps> = ({
 
   const handleUnlock = async (pwd: string) => {
     try {
-      const res = await fetch(`/api/user/${data.user?.username}/unlock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pwd })
-      });
-      if (res.ok) {
-        const result = await res.json();
+      const formData = new FormData();
+      formData.append('password', pwd);
+      
+      const result = await apiPostForm(`/user/${data.user?.username}/unlock`, formData);
+      if (result.token) {
         setIsAuthenticated(true);
-        setPassword(pwd);
-        if (result.token) {
-          setToken(result.token);
-          // Refresh data with token to see hidden files
-          await refreshDashboard(result.token);
+        if (data.user?.username) {
+          sessionStorage.setItem(`unlocked_${data.user.username}`, 'true');
         }
+        setPassword(pwd);
+        // SECURE: Store in AuthContext for persistence
+        login(result, result.token);
+        // Refresh data with token to see hidden files
+        await refreshDashboard(result.token);
         setShowAuthModal(false);
       } else {
-        alert("密鑰驗證失敗，權限遭到拒絕。");
+        alert("密碼錯誤");
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
+      alert(error.message || "驗證失敗");
     }
   };
+
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
@@ -376,25 +426,20 @@ export const UserPage: React.FC<UserPageProps> = ({
     }
 
     try {
-      const res = await fetch(`/api/user/${data.user?.username}/toggle-lock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password,
-          item_type: type,
-          item_id: itemId,
-          is_locked: newLockStatus
-        })
-      });
-      if (!res.ok) {
-        // Revert optimistic update on failure
-        alert("更新鎖定狀態失敗。");
-        await refreshDashboard(token || "");
-      }
-    } catch (err) {
-      console.error(err);
+      const formData = new FormData();
+      formData.append('item_type', type);
+      formData.append('item_id', itemId);
+      formData.append('is_locked', String(newLockStatus));
+      if (token) formData.append('token', token);
+      else if (password) formData.append('password', password);
+
+      await apiPostForm(`/user/${data.user?.username}/toggle-lock`, formData, token);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
       // Revert optimistic update on error
-      await refreshDashboard(token || "");
+      alert("更新鎖定狀態失敗。");
+      await refreshDashboard();
     }
   };
 
@@ -414,21 +459,21 @@ export const UserPage: React.FC<UserPageProps> = ({
     }));
 
     try {
-      const res = await fetch(`/api/user/${data.user?.username}/batch-action`, {
+      await apiRequest(`/user/${data.user?.username}/batch-action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        token,
         body: JSON.stringify({
-          password,
+          password: !token ? password : undefined,
+          token,
           item_type: 'file',
           item_ids: [filename],
           action: 'delete'
         })
       });
-      if (!res.ok) throw new Error("Delete failed");
     } catch (err) {
       console.error(err);
       alert('移除失敗，正在重新載入資料');
-      await refreshDashboard(token || "");
+      await refreshDashboard();
     }
   };
 
@@ -446,21 +491,21 @@ export const UserPage: React.FC<UserPageProps> = ({
     }));
 
     try {
-      const res = await fetch(`/api/user/${data.user?.username}/batch-action`, {
+      await apiRequest(`/user/${data.user?.username}/batch-action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        token,
         body: JSON.stringify({
-          password,
+          password: !token ? password : undefined,
+          token,
           item_type: 'url',
           item_ids: [url],
           action: 'delete'
         })
       });
-      if (!res.ok) throw new Error("Delete failed");
     } catch (err) {
       console.error(err);
       alert('移除失敗，正在重新載入資料');
-      await refreshDashboard(token || "");
+      await refreshDashboard();
     }
   };
 
@@ -471,31 +516,24 @@ export const UserPage: React.FC<UserPageProps> = ({
     }
 
     try {
-      const body = new FormData();
-      body.append('password', password);
-      body.append('old_name', oldName);
-      body.append('new_name', newName);
+      const formData = new FormData();
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
+      formData.append('old_name', oldName);
+      formData.append('new_name', newName);
 
-      const res = await fetch(`/api/user/${data.user?.username}/rename-file`, {
-        method: 'POST',
-        body
-      });
-
-      if (res.ok) {
-        // Optimistic update
-        setDashboardData(prev => ({
-          ...prev,
-          files: prev.files?.map(f => f.name === oldName ? { ...f, name: newName } : f)
-        }));
-        return true;
-      } else {
-        const err = await res.json();
-        alert(err.detail || "重新命名失敗");
-        return false;
-      }
-    } catch (e) {
-      console.error(e);
-      alert("系統錯誤");
+      await apiPostForm(`/user/${data.user?.username}/rename-file`, formData);
+      
+      // Optimistic update
+      setDashboardData(prev => ({
+        ...prev,
+        files: prev.files?.map(f => f.name === oldName ? { ...f, name: newName } : f)
+      }));
+      return true;
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.error(error);
+      alert(error.message || "重新命名失敗");
       return false;
     }
   };
@@ -503,66 +541,54 @@ export const UserPage: React.FC<UserPageProps> = ({
   const handleCreateFolder = async (name: string, type: 'file' | 'url', parentId?: string | null) => {
     if (!isAuthenticated) return;
     try {
-      const body = new FormData();
-      body.append('name', name);
-      body.append('folder_type', type);
-      body.append('password', password);
-      if (parentId) body.append('parent_id', parentId);
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('folder_type', type);
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
+      if (parentId) formData.append('parent_id', parentId);
 
-      const res = await fetch(`/api/user/${data.user?.username}/folders`, {
-        method: 'POST',
-        body
-      });
-      if (res.ok) {
-        await refreshDashboard(token || "");
-      } else {
-        alert("建立資料夾失敗");
-      }
-    } catch (err) {
-      console.error(err);
+      await apiPostForm(`/user/${data.user?.username}/folders`, formData, token);
+      await refreshDashboard();
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
+      alert(error.message || "建立資料夾失敗");
     }
   };
 
   const handleUpdateFolder = async (id: string, name: string) => {
     if (!isAuthenticated) return;
     try {
-      const body = new FormData();
-      body.append('name', name);
-      body.append('password', password);
+      const formData = new FormData();
+      formData.append('name', name);
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
 
-      const res = await fetch(`/api/user/${data.user?.username}/folders/${id}/update`, {
-        method: 'POST',
-        body
-      });
-      if (res.ok) {
-        await refreshDashboard(token || "");
-      } else {
-        alert("更新資料夾失敗");
-      }
-    } catch (err) {
-      console.error(err);
+      await apiPostForm(`/user/${data.user?.username}/folders/${id}/update`, formData, token);
+      await refreshDashboard();
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
+      alert(error.message || "更新資料夾失敗");
     }
   };
 
   const handleDeleteFolder = async (id: string) => {
     if (!isAuthenticated) return;
     try {
-      const body = new FormData();
-      body.append('password', password);
+      const formData = new FormData();
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
 
-      const res = await fetch(`/api/user/${data.user?.username}/folders/${id}/delete`, {
-        method: 'POST',
-        body
-      });
-      if (res.ok) {
-        if (activeFileFolderId === id) setActiveFileFolderId(null);
-        if (activeUrlFolderId === id) setActiveUrlFolderId(null);
-        await refreshDashboard(token || "");
-      } else {
-        alert("刪除資料夾失敗");
-      }
-    } catch (err) {
-      console.error(err);
+      await apiPostForm(`/user/${data.user?.username}/folders/${id}/delete`, formData, token);
+      if (activeFileFolderId === id) setActiveFileFolderId(null);
+      if (activeUrlFolderId === id) setActiveUrlFolderId(null);
+      await refreshDashboard();
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
+      alert(error.message || "刪除資料夾失敗");
     }
   };
 
@@ -572,73 +598,67 @@ export const UserPage: React.FC<UserPageProps> = ({
       return;
     }
     try {
-      const body = new FormData();
-      body.append('item_type', type);
-      body.append('item_id', id);
-      if (folderId) body.append('folder_id', folderId);
-      body.append('password', password);
+      const formData = new FormData();
+      formData.append('item_type', type);
+      formData.append('item_id', id);
+      if (folderId) formData.append('folder_id', folderId);
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
 
-      const res = await fetch(`/api/user/${data.user?.username}/move-item`, {
-        method: 'POST',
-        body
-      });
-      if (res.ok) {
-        // Optimistic update
+      await apiPostForm(`/user/${data.user?.username}/move-item`, formData, token);
+      setDashboardData(prev => {
         if (type === 'file') {
-          setDashboardData(prev => ({
+          return {
             ...prev,
             files: prev.files?.map(f => f.name === id ? { ...f, folder_id: folderId } : f)
-          }));
+          };
         } else if (type === 'url') {
-          setDashboardData(prev => ({
+          return {
             ...prev,
             urls: prev.urls?.map(u => u.url === id ? { ...u, folder_id: folderId } : u)
-          }));
+          };
         } else if (type === 'folder') {
-          setDashboardData(prev => ({
+          return {
             ...prev,
             folders: prev.folders?.map(f => f.id === id ? { ...f, parent_id: folderId } : f)
-          }));
+          };
         }
-      } else {
-        alert("移動失敗");
-        await refreshDashboard(token || "");
-      }
-    } catch (err) {
-      console.error(err);
+        return prev;
+      });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error(error);
+      alert(error.message || "移動失敗");
+      await refreshDashboard();
     }
   };
 
   const handleUpdateProfile = async (showInList: boolean) => {
     if (!isAuthenticated) return;
     try {
-      const body = new FormData();
-      body.append('username', data.user?.username || '');
-      body.append('password', password);
-      body.append('show_in_list', String(showInList));
+      const formData = new FormData();
+      formData.append('username', data.user?.username || '');
+      if (token) formData.append('token', token);
+      else formData.append('password', password);
+      formData.append('show_in_list', String(showInList));
 
-      const res = await fetch('/api/user/update-profile', {
-        method: 'POST',
-        body
-      });
+      await apiPostForm(`/user/update-profile`, formData, token);
 
-      if (res.ok) {
-        setDashboardData(prev => ({
-          ...prev,
-          user: { ...prev.user!, show_in_list: showInList }
-        }));
-      } else {
-        alert('更新失敗');
-      }
-    } catch {
-      alert('連線錯誤');
+      setDashboardData(prev => ({
+        ...prev,
+        user: { ...prev.user!, show_in_list: showInList }
+      }));
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert(error.message || '更新失敗');
     }
   };
 
   const handleShare = async (filename: string) => {
     try {
-      const body = new FormData();
-      if (token) body.append('token', token);
+      const formData = new FormData();
+      if (token) formData.append('token', token);
+      else if (password) formData.append('password', password);
 
       const supportsClipboardItem = typeof ClipboardItem !== 'undefined' &&
         navigator.clipboard &&
@@ -649,17 +669,7 @@ export const UserPage: React.FC<UserPageProps> = ({
 
       if (supportsClipboardItem) {
         const textPromise = (async () => {
-          const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
-            method: 'POST',
-            body
-          });
-
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(errorData.detail || '未知錯誤');
-          }
-
-          const result = await res.json();
+          const result = await apiPostForm(`/share/${data.user?.username}/${encodeURIComponent(filename)}`, formData);
           shareUrlResult = `${window.location.origin}/share/${result.token}`;
           return new Blob([shareUrlResult], { type: 'text/plain' });
         })();
@@ -674,32 +684,12 @@ export const UserPage: React.FC<UserPageProps> = ({
           if (shareUrlResult) {
             copySuccess = false;
           } else {
-            const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
-              method: 'POST',
-              body
-            });
-            if (!res.ok) {
-              const errorData = await res.json().catch(() => ({}));
-              alert(`分享失敗：${errorData.detail || '未知錯誤'}`);
-              return;
-            }
-            const result = await res.json();
+            const result = await apiPostForm(`/share/${data.user?.username}/${encodeURIComponent(filename)}`, formData);
             shareUrlResult = `${window.location.origin}/share/${result.token}`;
           }
         }
       } else {
-        const res = await fetch(`/api/share/${data.user?.username}/${encodeURIComponent(filename)}`, {
-          method: 'POST',
-          body
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          alert(`分享失敗：${errorData.detail || '未知錯誤'}`);
-          return;
-        }
-
-        const result = await res.json();
+        const result = await apiPostForm(`/share/${data.user?.username}/${encodeURIComponent(filename)}`, formData);
         shareUrlResult = `${window.location.origin}/share/${result.token}`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -831,7 +821,15 @@ export const UserPage: React.FC<UserPageProps> = ({
 
             {/* Auth/Lock Button - Touch-friendly on mobile */}
             <button
-              onClick={() => isAuthenticated ? setIsAuthenticated(false) : setShowAuthModal(true)}
+              onClick={() => {
+                if (isAuthenticated) {
+                  logout();
+                  setIsAuthenticated(false);
+                  refreshDashboard(null); // Clear view immediately
+                } else {
+                  setShowAuthModal(true);
+                }
+              }}
               className={cn(
                 "p-1.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-8 min-h-8 sm:min-w-10 sm:min-h-10",
                 isAuthenticated
@@ -1239,8 +1237,11 @@ export const UserPage: React.FC<UserPageProps> = ({
                   <Lock className="w-8 h-8 text-cyan-600 dark:text-quantum-cyan" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">身分驗證</h2>
-                <p className="text-gray-500 dark:text-gray-400">請輸入密碼以解鎖隱私內容</p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  {authAuthenticated && isPageOwner ? "已建立授權連線，可直接解鎖" : "請輸入密碼以解鎖隱私內容"}
+                </p>
               </div>
+
 
               <form onSubmit={handleAuth} className="space-y-4">
                 <input
@@ -1516,7 +1517,7 @@ export const UserPage: React.FC<UserPageProps> = ({
         file={previewFile}
       />
       {/* Selection Action Bar - Unified at root to ensure fixed positioning on mobile */}
-      {selectedItems.length > 0 && (
+      {selectedItems.length > 0 && isAuthenticated && (
         <BatchActionBar
           selectedCount={selectedItems.length}
           isBatchSyncing={isBatchSyncing}

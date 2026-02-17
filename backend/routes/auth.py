@@ -19,7 +19,7 @@ audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, 
 @router.post("/login")
 @limiter.limit(LOGIN_LIMIT)
 async def login(request: Request, password: str = Form(...)):
-    """Verify password and return the associated user."""
+    """Verify password and return the associated user with a session token."""
     user = await user_service.get_user_by_password(password)
     if not user:
         await audit_service.log_event(
@@ -35,7 +35,10 @@ async def login(request: Request, password: str = Form(...)):
         ip=get_client_ip(request),
     )
 
-    # Return safe user data (no hashed_password/salt to frontend)
+    # SECURE: Create a session token instead of sending hashes to frontend
+    session_token = token_service.create_session_token(user["username"])
+
+    # Return safe user data
     return {
         "username": user["username"],
         "folder": user["folder"],
@@ -43,27 +46,34 @@ async def login(request: Request, password: str = Form(...)):
         "first_login": user["first_login"],
         "data_retention_days": user.get("data_retention_days"),
         "show_in_list": user["show_in_list"],
-        "salt": user["salt"],
-        "hashed_password": user["hashed_password"],
+        "token": session_token, # New persistent token
         "folders": user.get("folders", []),
     }
 
 
 @router.post("/user/{username}/unlock")
-async def unlock_user(username: str, data: UnlockRequest):
-    """Verify password for unlocking the dashboard."""
+async def unlock_user(username: str, password: str = Form(None)):
+    """Verify password for unlocking the dashboard and return a session token."""
+    if not password:
+        raise HTTPException(status_code=422, detail="Password is required")
+
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
-    if not verify_password(data.password, user["salt"], user["hashed_password"]):
+    if not verify_password(password, user["salt"], user["hashed_password"]):
         raise HTTPException(status_code=401, detail="密碼驗證失敗")
 
-    # Generate access token
-    token = token_service.create_access_token(username)
+    # SECURE: Transition to session token
+    token = token_service.create_session_token(username)
 
     return {
-        "status": "success",
-        "authenticated": True,
+        "username": user["username"],
+        "folder": user["folder"],
+        "is_locked": user["is_locked"],
+        "first_login": user["first_login"],
+        "data_retention_days": user.get("data_retention_days"),
+        "show_in_list": user["show_in_list"],
         "token": token,
+        "folders": user.get("folders", []),
     }

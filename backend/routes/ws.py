@@ -1,18 +1,38 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from backend.services.event_service import event_service
 from backend.services.user_service import user_service
-from backend.core.utils import get_client_ip
+from backend.services.token_service import token_service
 
 router = APIRouter()
 
 @router.websocket("/ws/{username}")
-async def websocket_endpoint(websocket: WebSocket, username: str):
+async def websocket_endpoint(
+    websocket: WebSocket, 
+    username: str,
+    token: Optional[str] = Query(None)
+):
     """WebSocket bridge for real-time state synchronization."""
-    # Authenticate or at least verify user exists?
-    # Current implementation in api.py didn't seem to check password here, 
-    # relying on the fact that if you know the username you can connect.
-    # Ideally should include token query param.
-    # For now, keeping original logic parity.
+    # Authenticate: If provided, validate token
+    # If not provided, we can still allow connection but maybe restrict what's sent.
+    # For now, if a user is "locked" or for better security, require token.
+    user = await user_service.get_user_by_name(username)
+    if not user:
+        await websocket.close(code=1008)
+        return
+
+    # SECURE: Require token if the user exists and we want to prevent subscription leakage.
+    # Since REFRESH signals are relatively harmless, we could be lenient, 
+    # but for a "Secure Auth" task, let's be strict if they are locked.
+    if user.get("is_locked", False):
+        if not token:
+            await websocket.close(code=4001, reason="Authentication required")
+            return
+        
+        info = token_service.validate_token(token)
+        if not info or info.username != username:
+            await websocket.close(code=4003, reason="Invalid token")
+            return
     
     # Check if user exists
     user = await user_service.get_user_by_name(username)

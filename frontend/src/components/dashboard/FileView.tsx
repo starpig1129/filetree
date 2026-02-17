@@ -269,7 +269,7 @@ export const FileView: React.FC<FileViewProps> = ({
           </div>
 
 
-          {selectedItems.length > 0 && onBatchAction && (
+          {selectedItems.length > 0 && onBatchAction && isAuthenticated && (
              <BatchActionBar
                 selectedCount={selectedItems.length}
                 isBatchSyncing={isBatchSyncing}

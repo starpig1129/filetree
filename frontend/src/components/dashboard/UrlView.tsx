@@ -299,7 +299,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
             </button>
           </div>
 
-          {selectedItems.length > 0 && onBatchAction && (
+          {selectedItems.length > 0 && onBatchAction && isAuthenticated && (
              <BatchActionBar
                 selectedCount={selectedItems.length}
                 isBatchSyncing={isBatchSyncing}
@@ -523,22 +523,24 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                 >
                                   {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                                 </button>
-                                <CascadingMenu
-                                  folders={folders}
-                                  onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
-                                  trigger={
-                                    <button 
-                                      className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
-                                      title="移動到..."
-                                      onMouseDown={(e) => e.stopPropagation()}
-                               onMouseUp={(e) => e.stopPropagation()}
-                               onTouchStart={(e) => e.stopPropagation()}
-                               onTouchEnd={(e) => e.stopPropagation()}
-                                    >
-                                      <FolderIcon className="w-4 h-4" />
-                                    </button>
-                                  }
-                                />
+                                {isAuthenticated && (
+                                  <CascadingMenu
+                                    folders={folders}
+                                    onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
+                                    trigger={
+                                      <button 
+                                        className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
+                                        title="移動到..."
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                 onMouseUp={(e) => e.stopPropagation()}
+                                 onTouchStart={(e) => e.stopPropagation()}
+                                 onTouchEnd={(e) => e.stopPropagation()}
+                                      >
+                                        <FolderIcon className="w-4 h-4" />
+                                      </button>
+                                    }
+                                  />
+                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
                                   onMouseDown={(e) => e.stopPropagation()}
@@ -778,22 +780,24 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                  >
                                    {url.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                                 </button>
-                                 <CascadingMenu
-                                   folders={folders}
-                                   onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
-                                   trigger={
-                                     <button
-                                       className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
-                                       title="移動到..."
-                                       onMouseDown={(e) => e.stopPropagation()}
-                                       onMouseUp={(e) => e.stopPropagation()}
-                                       onTouchStart={(e) => e.stopPropagation()}
-                                       onTouchEnd={(e) => e.stopPropagation()}
-                                     >
-                                       <FolderIcon className="w-4 h-4" />
-                                     </button>
-                                   }
-                                 />
+                                 {isAuthenticated && (
+                                   <CascadingMenu
+                                     folders={folders}
+                                     onSelect={(folderId: string | null) => onMoveItem('url', url.url, folderId)}
+                                     trigger={
+                                       <button
+                                         className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                                         title="移動到..."
+                                         onMouseDown={(e) => e.stopPropagation()}
+                                         onMouseUp={(e) => e.stopPropagation()}
+                                         onTouchStart={(e) => e.stopPropagation()}
+                                         onTouchEnd={(e) => e.stopPropagation()}
+                                       >
+                                         <FolderIcon className="w-4 h-4" />
+                                       </button>
+                                     }
+                                   />
+                                 )}
                                  <button
                                    onClick={(e) => { e.stopPropagation(); onDelete(url.url); }}
                                    onMouseDown={(e) => e.stopPropagation()}

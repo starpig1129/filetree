@@ -78,6 +78,7 @@ class FileService:
         username: str,
         retention_days: Optional[int] = None,
         excluded_folder_ids: Optional[Set[str]] = None,
+        include_locked: bool = True,
     ) -> List[dict]:
         """Fetch all files for a user from the DB index.
 
@@ -103,6 +104,10 @@ class FileService:
             r = dict(row)
             # Skip if file is in an excluded folder
             if excluded_folder_ids and r["folder_id"] in excluded_folder_ids:
+                continue
+                
+            # Skip if file is locked and we don't include locked
+            if not include_locked and r["is_locked"]:
                 continue
                 
             created_time = datetime.fromisoformat(r["created_at"])

@@ -10,7 +10,7 @@ from backend.services.audit_service import AuditService
 from backend.services.event_service import event_service
 from backend.services.thumbnail_service import thumbnail_service
 from backend.schemas import FileInfo, URLRecord, BatchActionRequest, ShareInfo
-from backend.core.auth import verify_password
+from backend.core.auth import verify_password, get_current_user_token, verify_ownership
 from backend.core.rate_limit import limiter, UPLOAD_LIMIT, TUS_LIMIT
 from backend.core.utils import get_client_ip
 from backend.config import settings
@@ -22,11 +22,20 @@ audit_service = AuditService(os.path.join(settings.paths.user_info_file.parent, 
 
 
 @router.get("/files/{username}", response_model=List[FileInfo])
-async def get_files(username: str):
+async def get_files(username: str, token: Optional[str] = None):
     """List files for a specific user."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
+
+    # Access control: If user is locked, require a valid token
+    if user["is_locked"]:
+        if not token:
+            raise HTTPException(status_code=401, detail="此目錄已鎖定，請先解鎖")
+        info = token_service.validate_token(token)
+        if not info or info.username != username:
+            raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
+
     return await file_service.get_user_files(
         user["folder"],
         retention_days=user.get("data_retention_days"),
@@ -37,14 +46,22 @@ async def get_files(username: str):
 @limiter.limit(UPLOAD_LIMIT)
 async def upload_files(
     request: Request,
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
     folder_id: Optional[str] = Form(None)
 ):
     """Handle multiple file uploads into a specific folder."""
-    user = await user_service.get_user_by_password(password)
+    user = None
+    if password:
+        user = await user_service.get_user_by_password(password)
+    elif token:
+        info = token_service.validate_token(token)
+        if info:
+            user = await user_service.get_user_by_name(info.username)
+            
     if not user:
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+        raise HTTPException(status_code=401, detail="驗證失敗，請重新登入或驗證密碼")
 
     # Resolve physical path from folder_id
     path = await user_service.get_folder_path_names(user["username"], folder_id)
@@ -77,13 +94,21 @@ async def upload_files(
 @router.post("/upload_url")
 async def upload_url(
     request: Request,
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None),
     url: str = Form(...)
 ):
     """Handle URL submission."""
-    user = await user_service.get_user_by_password(password)
+    user = None
+    if password:
+        user = await user_service.get_user_by_password(password)
+    elif token:
+        info = token_service.validate_token(token)
+        if info:
+            user = await user_service.get_user_by_name(info.username)
+
     if not user:
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     await note_service.add_url(user["username"], url)
 
@@ -106,20 +131,35 @@ async def delete_file(
     request: Request,
     username: str,
     filename: str = Form(...),
-    token: Optional[str] = Form(None)
+    token: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
 ):
     """Delete a file from user's folder."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
-    # Check file lock via files.db
-    if await file_service.is_file_locked(user["folder"], filename):
-        if not token:
-            raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+    # Authenticate
+    auth_success = False
+    if token:
         info = token_service.validate_token(token)
-        if not info or info.username != username:
-            raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
+        if info and info.username == username:
+            auth_success = True
+    
+    if not auth_success and password:
+         p_user = await user_service.get_user_by_password(password)
+         if p_user and p_user["username"] == username:
+             auth_success = True
+
+    # Check file lock: locked files MUST have auth
+    is_file_locked = await file_service.is_file_locked(user["folder"], filename)
+    if is_file_locked or user["is_locked"]:
+        if not auth_success:
+            raise HTTPException(status_code=403, detail="權限不足或需要驗證")
+
+    # Mutation always requires auth in a secure system (even if not strictly locked)
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="操作需要驗證")
 
     # Resolve physical path via files.db folder_id
     from backend.services.database import get_files_db
@@ -148,7 +188,8 @@ async def delete_file(
 async def rename_file(
     request: Request,
     username: str,
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None),
     old_name: str = Form(...),
     new_name: str = Form(...)
 ):
@@ -157,11 +198,23 @@ async def rename_file(
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
 
-    if not verify_password(password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+    # Authenticate
+    auth_success = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        p_user = await user_service.get_user_by_password(password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     if await file_service.is_file_locked(user["folder"], old_name):
-        raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+        # We already checked auth above, so we can proceed if auth_success is True
+        pass
 
     # Resolve path from files.db
     from backend.services.database import get_files_db
@@ -305,11 +358,16 @@ async def download_direct(
     if is_locked:
         if not token:
             raise HTTPException(status_code=403, detail="此資源已被鎖定，請先解鎖")
+        
         info = token_service.validate_token(token)
         if not info or info.username != username:
-            if not (info and info.token_type == 'share'
-                    and info.filename == filename
-                    and info.username == username):
+            # Check share token (must match filename) OR session token (must match username)
+            is_valid_share = (info and info.token_type == 'share' 
+                            and info.filename == filename and info.username == username)
+            is_valid_session = (info and info.token_type == 'session' and info.username == username)
+            is_valid_access = (info and info.token_type == 'access' and info.username == username)
+
+            if not (is_valid_share or is_valid_session or is_valid_access):
                 raise HTTPException(status_code=403, detail="無效或過期的存取權杖")
 
     # Resolve physical path
@@ -352,11 +410,14 @@ async def get_thumbnail(
     if is_locked:
         if not token:
             raise HTTPException(status_code=403, detail="Locked resource")
+        
         info = token_service.validate_token(token)
         if not info or info.username != username:
-            if not (info and info.token_type == 'share'
-                    and info.filename == filename
-                    and info.username == username):
+            is_valid_share = (info and info.token_type == 'share' 
+                            and info.filename == filename and info.username == username)
+            is_valid_session = (info and info.token_type == 'session' and info.username == username)
+
+            if not (is_valid_share or is_valid_session):
                 raise HTTPException(status_code=403, detail="Invalid token")
 
     from backend.services.database import get_files_db
@@ -383,15 +444,28 @@ async def create_folder(
     username: str,
     name: str = Form(...),
     folder_type: str = Form(...),
-    password: str = Form(...),
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None),
     parent_id: Optional[str] = Form(None)
 ):
     """Create a new folder for files or URLs."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    if not verify_password(password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    # Authenticate
+    auth_success = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        p_user = await user_service.get_user_by_password(password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     if parent_id:
         parent = await user_service.get_folder_by_id(parent_id)
@@ -422,14 +496,27 @@ async def update_folder(
     username: str,
     folder_id: str,
     name: str = Form(...),
-    password: str = Form(...)
+    token: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
 ):
     """Update a folder name."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    if not verify_password(password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    # Authenticate
+    auth_success = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        p_user = await user_service.get_user_by_password(password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     target_folder = await user_service.get_folder_by_id(folder_id)
     if not target_folder:
@@ -455,14 +542,27 @@ async def update_folder(
 async def delete_folder(
     username: str,
     folder_id: str,
-    password: str = Form(...)
+    token: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
 ):
     """Delete a folder and its physical content."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    if not verify_password(password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    # Authenticate
+    auth_success = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        p_user = await user_service.get_user_by_password(password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     target_folder = await user_service.get_folder_by_id(folder_id)
     if not target_folder:
@@ -486,14 +586,27 @@ async def move_item(
     item_type: str = Form(...),
     item_id: str = Form(...),
     folder_id: Optional[str] = Form(None),
-    password: str = Form(...)
+    token: Optional[str] = Form(None),
+    password: Optional[str] = Form(None)
 ):
     """Move an item (file, url, or folder) to a folder."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="使用者不存在")
-    if not verify_password(password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼錯誤")
+
+    # Authenticate
+    auth_success = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        p_user = await user_service.get_user_by_password(password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     if item_type == "file":
         # Get old folder_id from files.db
@@ -567,8 +680,19 @@ async def batch_action(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not verify_password(data.password, user["salt"], user["hashed_password"]):
-        raise HTTPException(status_code=401, detail="密碼驗證失敗")
+    # Authenticate
+    auth_success = False
+    if data.token:
+        info = token_service.validate_token(data.token)
+        if info and info.username == username:
+            auth_success = True
+    elif data.password:
+        p_user = await user_service.get_user_by_password(data.password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
+
+    if not auth_success:
+        raise HTTPException(status_code=401, detail="驗證失敗")
 
     success_count = 0
     errors = []
@@ -623,25 +747,35 @@ async def batch_action(
 async def batch_download(
     username: str,
     filenames: List[str] = Form(...),
-    password: Optional[str] = Form(None)
+    password: Optional[str] = Form(None),
+    token: Optional[str] = Form(None)
 ):
     """Download multiple files as a zip archive."""
     user = await user_service.get_user_by_name(username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Authenticate
+    auth_success = False
+    if token:
+        info = token_service.validate_token(token)
+        if info and info.username == username:
+            auth_success = True
+    elif password:
+        p_user = await user_service.get_user_by_password(password)
+        if p_user and p_user["username"] == username:
+            auth_success = True
 
-    # Check if any file is locked — require password if so
+    # Check if any file is locked — require authentication if so
     has_locked = False
     for f in filenames:
         if await file_service.is_file_locked(user["folder"], f):
             has_locked = True
             break
 
-    if has_locked:
-        if not password or not verify_password(
-            password, user["salt"], user["hashed_password"]
-        ):
-            raise HTTPException(status_code=403, detail="部分檔案已鎖定，需要密碼")
+    if has_locked or user["is_locked"]:
+        if not auth_success:
+            raise HTTPException(status_code=403, detail="部分檔案已鎖定或目錄已加密，需要驗證")
 
     import tempfile
     import zipfile
