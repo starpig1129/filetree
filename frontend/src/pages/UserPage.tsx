@@ -793,13 +793,12 @@ export const UserPage: React.FC<UserPageProps> = ({
       </div>
 
       {/* Header - Optimized Horizontal Layout for Mobile */}
-      <header className="flex flex-col gap-1 sm:gap-3 px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6 relative z-10 lg:pl-6 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
+      {/* Header - Integrated Layout */}
+      <header className="flex flex-col gap-1 sm:gap-3 px-2 pt-2 sm:px-4 sm:pt-4 lg:pt-0 lg:px-4 relative z-10 lg:pl-4 bg-white/40 dark:bg-black/20 backdrop-blur-xl border-b border-white/10 lg:bg-transparent lg:backdrop-blur-none lg:border-none">
         
-        {/* Row 1: Logo & Global Actions */}
+        {/* Row 1: Profile & Actions */}
         <div className="flex items-center justify-between gap-2 sm:gap-4">
-          
           <div className="flex items-center gap-2 sm:gap-4">
-
             <div className="flex items-center gap-1.5 sm:gap-3 group cursor-default">
               <div className="p-1 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
                 <div className="text-cyan-600 dark:text-quantum-cyan font-black text-xs">FN</div>
@@ -819,13 +818,13 @@ export const UserPage: React.FC<UserPageProps> = ({
               </span>
             </div>
 
-            {/* Auth/Lock Button - Touch-friendly on mobile */}
+            {/* Auth/Lock Button */}
             <button
               onClick={() => {
                 if (isAuthenticated) {
                   logout();
                   setIsAuthenticated(false);
-                  refreshDashboard(null); // Clear view immediately
+                  refreshDashboard(null);
                 } else {
                   setShowAuthModal(true);
                 }
@@ -841,43 +840,112 @@ export const UserPage: React.FC<UserPageProps> = ({
               <span className="hidden sm:inline">{isAuthenticated ? "UNLOCKED" : "LOCKED"}</span>
             </button>
 
-            {/* Settings - Touch-friendly */}
+            {/* Settings */}
             <button
               onClick={() => setShowSettingsModal(true)}
               className="p-1.5 sm:p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20 min-w-8 min-h-8 sm:min-w-10 sm:min-h-10 flex items-center justify-center"
             >
               <Settings className="w-4 h-4" />
             </button>
-
           </div>
         </div>
 
-        {/* Row 2: Navigation Tabs - More compact on mobile */}
-        <div className="flex items-center gap-1 sm:gap-2 pb-1 lg:pb-0">
-          <button
-            onClick={() => handleTabChange('files')}
-            className={cn(
-              "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
-              activeTab === 'files'
-                ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
-            )}
-          >
-            <Cpu className="h-4 w-4" />
-            檔案列表
-          </button>
-          <button
-            onClick={() => handleTabChange('urls')}
-            className={cn(
-              "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
-              activeTab === 'urls'
-                ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
-                : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
-            )}
-          >
-            <Zap className="h-4 w-4" />
-            筆記 / 連結
-          </button>
+        {/* Row 2: Navigation Tabs & Tools (Integrated) */}
+        <div className="flex items-center justify-between gap-1 sm:gap-2 pb-1 lg:pb-0">
+          <div className="flex items-center gap-1 sm:gap-2 flex-1">
+            <button
+              onClick={() => handleTabChange('files')}
+              className={cn(
+                "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
+                activeTab === 'files'
+                  ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
+                  : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
+              )}
+            >
+              <Cpu className="h-4 w-4" />
+              檔案列表
+            </button>
+            <button
+              onClick={() => handleTabChange('urls')}
+              className={cn(
+                "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
+                activeTab === 'urls'
+                  ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
+                  : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
+              )}
+            >
+              <Zap className="h-4 w-4" />
+              筆記 / 連結
+            </button>
+          </div>
+
+          {/* Desktop Toolbar - Connected with Tabs */}
+          <div className="hidden lg:flex items-center gap-3 bg-white/40 dark:bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 ml-4">
+             
+             {/* Batch Actions */}
+             {selectedItems.length > 0 && isAuthenticated && (
+               <div className="border-r border-gray-200 dark:border-white/10 pr-3 mr-1">
+                 <BatchActionBar
+                   selectedCount={selectedItems.length}
+                   isBatchSyncing={isBatchSyncing}
+                   onAction={handleBatchAction}
+                   folders={(dashboardData.folders || []).filter(f => f.type === (activeTab === 'files' ? 'file' : 'url'))}
+                   allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
+                   mode="desktop"
+                 />
+               </div>
+             )}
+
+             {/* Select All */}
+             <div className="flex items-center gap-2 border-r border-gray-200 dark:border-white/10 pr-3">
+                <button
+                  onClick={() => {
+                    const isAll = activeTab === 'files' 
+                      ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
+                      : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
+                    handleSelectAll(activeTab === 'files' ? 'file' : 'url', !isAll);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-white/20 transition-colors group"
+                  title="全選"
+                >
+                  {(() => {
+                    const isAll = activeTab === 'files' 
+                      ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
+                      : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
+                    return isAll 
+                      ? <CheckSquare className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> 
+                      : <Square className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300" />;
+                  })()}
+                </button>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none">
+                    {activeTab === 'files' ? filteredFiles.length : filteredUrls.length} ITEMS
+                  </span>
+                </div>
+             </div>
+
+             {/* View Mode */}
+             <div className="flex items-center bg-gray-100 dark:bg-black/20 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "p-1.5 rounded-md transition-all",
+                    viewMode === 'grid' ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-cyan-400 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  )}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "p-1.5 rounded-md transition-all",
+                    viewMode === 'list' ? "bg-white dark:bg-white/10 text-cyan-600 dark:text-cyan-400 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  )}
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+             </div>
+          </div>
         </div>
       </header>
 
@@ -1013,7 +1081,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 isAuthenticated={isAuthenticated}
                 selectedItems={selectedItems.filter(i => i.type === 'file' || i.type === 'folder')}
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
-                onSelectAll={(selected) => handleSelectAll('file', selected)}
+
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}
                 onToggleLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 onRename={handleRename}
@@ -1032,11 +1100,10 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onFolderClick={(id) => handleFolderNavigation('file', id)}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
-                onBatchAction={handleBatchAction}
-                isBatchSyncing={isBatchSyncing}
+
                 viewMode={viewMode}
                 key={viewMode} // Force re-mount on view mode change to ensure Virtuoso updates correctly
-                onViewModeChange={setViewMode}
+
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 onShareFolder={(folderId) => {
@@ -1147,7 +1214,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 isAuthenticated={isAuthenticated}
                 selectedItems={selectedItems.filter(i => i.type === 'url' || i.type === 'folder')}
                 onToggleSelect={(type, id) => toggleSelectItem(type, id)}
-                onSelectAll={(selected) => handleSelectAll('url', selected)}
+
                 onBatchSelect={(items, action) => handleBatchSelect(items, action)}
                 onToggleLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 onQrCode={setQrUrl}
@@ -1159,11 +1226,10 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onFolderClick={(id) => handleFolderNavigation('url', id)}
                 onUpdateFolder={handleUpdateFolder}
                 onDeleteFolder={handleDeleteFolder}
-                onBatchAction={handleBatchAction}
-                isBatchSyncing={isBatchSyncing}
+
                 viewMode={viewMode}
                 key={viewMode} // Force re-mount on view mode change
-                onViewModeChange={setViewMode}
+
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 onShareFolder={(folderId) => {

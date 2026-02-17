@@ -8,9 +8,8 @@ import {
   Square,
   MoreVertical,
   QrCode,
-  Copy,
-  LayoutGrid,
-  List,
+  Copy, 
+
   FolderIcon,
   Link as LinkIcon,
   FileText
@@ -18,7 +17,7 @@ import {
 import { useLongPress } from '../../hooks/useLongPress';
 import { cn } from '../../lib/utils';
 import { CascadingMenu } from '../ui/CascadingMenu';
-import { BatchActionBar } from './BatchActionBar';
+
 import { DropdownMenu } from '../ui/DropdownMenu';
 import { createPortal } from 'react-dom';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
@@ -86,8 +85,8 @@ interface UrlViewProps {
   selectedItems: { type: 'file' | 'url' | 'folder'; id: string }[];
   isAuthenticated: boolean;
   onToggleSelect: (type: 'url' | 'folder' | 'file', id: string) => void;
-  onSelectAll: (isSelected: boolean) => void;
   onBatchSelect: (items: { type: 'file' | 'url' | 'folder'; id: string }[], mode: 'set' | 'add') => void;
+
   onToggleLock: (type: 'url' | 'folder' | 'file', id: string, isLocked: boolean) => void;
   onQrCode: (url: string) => void;
   onDelete: (id: string) => void;
@@ -98,10 +97,9 @@ interface UrlViewProps {
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
-  onBatchAction?: (action: 'lock' | 'unlock' | 'download' | 'delete' | 'move', folderId?: string | null) => void;
-  isBatchSyncing?: boolean;
+
   viewMode: 'grid' | 'list';
-  onViewModeChange: (mode: 'grid' | 'list') => void;
+
   isSelectionMode: boolean;
   onSelectionModeChange: (active: boolean) => void;
   onShareFolder?: (folderId: string) => void;
@@ -165,8 +163,8 @@ export const UrlView: React.FC<UrlViewProps> = ({
   selectedItems,
   isAuthenticated,
   onToggleSelect,
-  onSelectAll,
   onBatchSelect,
+
   onToggleLock,
   onQrCode,
   onDelete,
@@ -177,10 +175,9 @@ export const UrlView: React.FC<UrlViewProps> = ({
   onFolderClick,
   onUpdateFolder,
   onDeleteFolder,
-  onBatchAction,
-  isBatchSyncing = false,
+
   viewMode,
-  onViewModeChange,
+
   isSelectionMode,
   onSelectionModeChange,
   onShareFolder,
@@ -245,66 +242,12 @@ export const UrlView: React.FC<UrlViewProps> = ({
     }, [onBatchSelect])
   , isDesktop);
 
-  const selectableUrls = filteredUrls.filter(u => !u.is_locked || isAuthenticated);
-  const isAllSelected = selectableUrls.length > 0 && selectableUrls.every(u => selectedItems.some(i => i.type === 'url' && i.id === u.url));
+
+
 
   return (
     <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
-
-      {/* Header - Hidden on mobile */}
-      <div className="hidden lg:flex shrink-0 px-4 py-3 lg:px-6 lg:py-4 border-b border-gray-100/50 dark:border-white/5 items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onSelectAll(!isAllSelected)}
-            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-          >
-            {isAllSelected ? <CheckSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" /> : <Square className="w-5 h-5 text-gray-400" />}
-          </button>
-          <h2 className="text-base lg:text-lg font-bold text-gray-800 dark:text-white/90 tracking-tight">筆記 / 連結</h2>
-          <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-xs font-bold text-gray-500 dark:text-white/40">
-            {urls?.length || 0}
-          </span>
-          {activeFolderId && (
-            <span className="text-sm text-violet-600 dark:text-violet-400 font-medium ml-2">
-              / {folders.find(f => f.id === activeFolderId)?.name}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
-            <button
-              onClick={() => onViewModeChange('grid')}
-              className={cn(
-                "p-2 rounded-lg transition-all",
-                viewMode === 'grid' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              )}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onViewModeChange('list')}
-              className={cn(
-                "p-2 rounded-lg transition-all",
-                viewMode === 'list' ? "bg-white dark:bg-white/10 text-violet-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              )}
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-
-          {selectedItems.length > 0 && onBatchAction && isAuthenticated && (
-             <BatchActionBar
-                selectedCount={selectedItems.length}
-                isBatchSyncing={isBatchSyncing}
-                onAction={onBatchAction}
-                folders={folders}
-                mode="desktop"
-             />
-          )}
-        </div>
-      </div>
 
       <div 
         ref={containerRef}
@@ -313,7 +256,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 min-w-0 overflow-hidden p-2 sm:p-6 custom-scrollbar touch-pan-y relative flex flex-col"
+        className="flex-1 min-w-0 overflow-hidden p-2 sm:p-4 custom-scrollbar touch-pan-y relative flex flex-col"
       >
         {selectionBox && createPortal(
           <div

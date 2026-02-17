@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  FileText, CheckSquare, Square,
-  LayoutGrid, List, Cpu
+  FileText,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useSelectionBox } from '../../hooks/useSelectionBox';
-import { BatchActionBar } from './BatchActionBar';
+
 import type { Folder } from './FolderSidebar';
 import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
 import { FileItem, type FileItemData } from './FileItem';
@@ -64,8 +63,8 @@ interface FileViewProps {
   selectedItems: { type: 'file' | 'url' | 'folder'; id: string }[];
   isAuthenticated: boolean;
   onToggleSelect: (type: 'file' | 'url' | 'folder', id: string) => void;
-  onSelectAll: (selected: boolean) => void;
   onBatchSelect: (items: { type: 'file' | 'url' | 'folder'; id: string }[], action: 'add' | 'remove' | 'set') => void;
+
   onToggleLock: (type: 'file' | 'url', id: string, currentStatus: boolean) => void;
   onPreview: (file: { name: string; size: string; url: string }) => void;
   onShare: (filename: string) => void;
@@ -78,10 +77,9 @@ interface FileViewProps {
   onFolderClick: (folderId: string) => void;
   onUpdateFolder?: (id: string, name: string) => Promise<void>;
   onDeleteFolder?: (id: string) => Promise<void>;
-  onBatchAction?: (action: 'lock' | 'unlock' | 'download' | 'delete' | 'move', folderId?: string | null) => void;
-  isBatchSyncing?: boolean;
+
   viewMode: 'grid' | 'list';
-  onViewModeChange: (mode: 'grid' | 'list') => void;
+
   isSelectionMode: boolean;
   onSelectionModeChange: (active: boolean) => void;
   onShareFolder?: (folderId: string) => void;
@@ -98,8 +96,8 @@ export const FileView: React.FC<FileViewProps> = ({
   selectedItems,
   isAuthenticated,
   onToggleSelect,
-  onSelectAll,
   onBatchSelect,
+
   onToggleLock,
   onPreview,
   onShare,
@@ -112,10 +110,9 @@ export const FileView: React.FC<FileViewProps> = ({
   onFolderClick,
   onUpdateFolder,
   onDeleteFolder,
-  onBatchAction,
-  isBatchSyncing = false,
+
   viewMode,
-  onViewModeChange,
+
   isSelectionMode,
   onSelectionModeChange,
   onShareFolder,
@@ -211,76 +208,12 @@ export const FileView: React.FC<FileViewProps> = ({
     }, [onBatchSelect])
   , isDesktop);
 
-  const selectableFiles = files?.filter(f => !f.is_locked || isAuthenticated) || [];
-  const isAllSelected = selectableFiles.length > 0 && selectableFiles.every(f => selectedItems.some(i => i.type === 'file' && i.id === f.name));
+
+
 
   return (
     <section className="flex-1 min-h-0 flex flex-col bg-white/60 dark:bg-space-black/40 backdrop-blur-xl rounded-4xl border border-white/40 dark:border-white/5 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-linear-to-b from-white/20 to-transparent dark:from-white/5 dark:to-transparent pointer-events-none" />
-
-      {/* Panel Header - Hidden on mobile */}
-      <div className="hidden lg:flex shrink-0 px-4 py-3 lg:px-6 lg:py-4 border-b border-gray-100/50 dark:border-white/5 items-center justify-between bg-white/20 dark:bg-white/2 backdrop-blur-sm sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onSelectAll(!isAllSelected)}
-            className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-          >
-            {isAllSelected ? (
-              <CheckSquare className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-            ) : (
-              <Square className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-            )}
-          </button>
-          <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-600 dark:text-cyan-400">
-            <Cpu className="w-5 h-5" />
-          </div>
-          <h2 className="text-base lg:text-lg font-bold text-gray-800 dark:text-white/90 tracking-tight">檔案列表</h2>
-          <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-xs font-bold text-gray-500 dark:text-white/40">
-            {files?.length || 0}
-          </span>
-          {activeFolderId && (
-            <span className="text-sm text-cyan-600 dark:text-cyan-400 font-medium ml-2">
-              / {folders.find(f => f.id === activeFolderId)?.name}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
-            <button
-              onClick={() => onViewModeChange('grid')}
-              className={cn(
-                "p-2 rounded-lg transition-all",
-                viewMode === 'grid' ? "bg-white dark:bg-white/10 text-cyan-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              )}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => onViewModeChange('list')}
-              className={cn(
-                "p-2 rounded-lg transition-all",
-                viewMode === 'list' ? "bg-white dark:bg-white/10 text-cyan-500 shadow-sm" : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-              )}
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-
-
-          {selectedItems.length > 0 && onBatchAction && isAuthenticated && (
-             <BatchActionBar
-                selectedCount={selectedItems.length}
-                isBatchSyncing={isBatchSyncing}
-                onAction={onBatchAction}
-                folders={folders}
-                mode="desktop"
-             />
-          )}
-
-        </div>
-      </div>
 
       {/* Scrollable File Area */}
       <div 
@@ -290,7 +223,7 @@ export const FileView: React.FC<FileViewProps> = ({
         onPointerUp={handlePointerUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        className="flex-1 min-h-0 min-w-0 flex flex-col p-2 sm:p-6 custom-scrollbar touch-pan-y relative overflow-hidden"
+        className="flex-1 min-h-0 min-w-0 flex flex-col p-2 sm:p-4 custom-scrollbar touch-pan-y relative overflow-hidden"
       >
         {selectionBox && createPortal(
           <div
