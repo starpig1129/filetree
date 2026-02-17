@@ -131,10 +131,7 @@ app.add_middleware(SlowAPIMiddleware)
 # Enable CORS for security and cross-origin support
 app.add_middleware(
     CORSMiddleware,
-    # In production, this should be restricted to specific domains.
-    # For user convenience and multi-device access, we keep it relatively open 
-    # but could restrict to ['*'] as we rely on Header-based auth (Bearer token)
-    allow_origins=["*"], 
+    allow_origins=settings.server.cors_origins, 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -24,6 +24,7 @@ class ServerConfig(BaseModel):
     debug: bool = True
     ssl_cert: Optional[str] = None
     ssl_key: Optional[str] = None
+    cors_origins: list[str] = ["*"]
 
 
 
