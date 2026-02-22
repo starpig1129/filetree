@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useLocation, Link } from 'react-router-dom';
 import { Menu, Users } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
 const UserPage = React.lazy(() => import('./pages/UserPage').then(module => ({ default: module.UserPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -13,6 +14,8 @@ import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PageTransition } from './components/ui/PageTransition';
+import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { apiRequest } from './services/api';
 import { cn } from './lib/utils';
 
@@ -76,9 +79,7 @@ const MainContent: React.FC<{
   if (loading || userLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-quantum-cyan animate-pulse tracking-[0.4em] font-bold text-xs uppercase">
-          正在載入系統...
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }
@@ -200,15 +201,82 @@ const MainLayout: React.FC<{
   );
 };
 
+const AppRoutes: React.FC<{
+  users: Array<{ username: string; folder: string }>;
+  config: { allowed_extensions?: string[] };
+  loading: boolean;
+}> = ({ users, config, loading }) => {
+  const { theme } = useTheme();
+  const location = useLocation();
+
+  return (
+    <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30">
+        {/* Background Layer - Dynamic based on theme */}
+        {theme === 'dark' ? <Starfield /> : <AuraField />}
+
+        <React.Suspense fallback={
+           <div className="flex items-center justify-center min-h-screen">
+             <LoadingSpinner />
+           </div>
+        }>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              {/* Admin page has its own layout */}
+              <Route path="/admin" element={
+                <PageTransition className="container mx-auto px-4 py-8 relative z-10">
+                  <AdminRoute />
+                </PageTransition>
+              } />
+
+              {/* All other routes use the main SPA layout */}
+              <Route path="/:username" element={
+                <PageTransition className="h-full">
+                  <MainLayout users={users} config={config} loading={loading} />
+                </PageTransition>
+              } />
+              <Route path="/" element={
+                <PageTransition className="h-full">
+                  <MainLayout users={users} config={config} loading={loading} />
+                </PageTransition>
+              } />
+
+              <Route path="/help" element={
+                <PageTransition className="h-full">
+                  <MainLayout users={users} config={config} loading={loading} />
+                </PageTransition>
+              } />
+
+              <Route path="/share/:token" element={
+                <PageTransition className="h-full">
+                  <SharePage />
+                </PageTransition>
+              } />
+
+              {/* Catch-all 404 route */}
+              <Route path="*" element={
+                <PageTransition className="h-full">
+                  <NotFoundPage />
+                </PageTransition>
+              } />
+            </Routes>
+          </AnimatePresence>
+        </React.Suspense>
+
+        <footer className="text-center py-0 lg:py-2 flex items-center justify-center gap-2 fixed bottom-2 w-full z-10">
+          <span className="filenexus-brand text-[0.625rem]! tracking-[0.3em] uppercase">FileNexus</span>
+          <span className="text-gray-400 dark:text-white/20 text-[0.625rem] font-bold tracking-[0.3em] uppercase">- Secure File Bridge Hub</span>
+        </footer>
+      </div>
+  );
+};
+
 /**
- * Inner app component that uses theme context.
+ * Inner app component that handles data fetching.
  */
 const AppContent: React.FC = () => {
-  const { theme } = useTheme();
   const [users, setUsers] = useState<Array<{ username: string; folder: string }>>([]);
   const [config, setConfig] = useState<{ allowed_extensions?: string[] }>({});
   const [loading, setLoading] = useState(true);
-
 
   // Fetch initial user list and config
   useEffect(() => {
@@ -252,49 +320,7 @@ const AppContent: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen relative text-gray-900 dark:text-white/90 selection:bg-quantum-cyan/30">
-        {/* Background Layer - Dynamic based on theme */}
-        {theme === 'dark' ? <Starfield /> : <AuraField />}
-
-        <React.Suspense fallback={
-           <div className="flex items-center justify-center min-h-screen">
-             <div className="text-quantum-cyan animate-pulse tracking-[0.4em] font-bold text-xs uppercase">
-               LOADING...
-             </div>
-           </div>
-        }>
-          <Routes>
-            {/* Admin page has its own layout */}
-            <Route path="/admin" element={
-              <main className="container mx-auto px-4 py-8 relative z-10">
-                <AdminRoute />
-              </main>
-            } />
-
-            {/* All other routes use the main SPA layout */}
-            <Route path="/:username" element={
-              <MainLayout users={users} config={config} loading={loading} />
-            } />
-            <Route path="/" element={
-              <MainLayout users={users} config={config} loading={loading} />
-            } />
-            
-            <Route path="/help" element={
-              <MainLayout users={users} config={config} loading={loading} />
-            } />
-
-            <Route path="/share/:token" element={<SharePage />} />
-
-            {/* Catch-all 404 route */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </React.Suspense>
-
-        <footer className="text-center py-0 lg:py-2 flex items-center justify-center gap-2 fixed bottom-2 w-full z-10">
-          <span className="filenexus-brand text-[0.625rem]! tracking-[0.3em] uppercase">FileNexus</span>
-          <span className="text-gray-400 dark:text-white/20 text-[0.625rem] font-bold tracking-[0.3em] uppercase">- Secure File Bridge Hub</span>
-        </footer>
-      </div>
+      <AppRoutes users={users} config={config} loading={loading} />
     </BrowserRouter>
   );
 };
@@ -310,4 +336,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

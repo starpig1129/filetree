@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lock, Unlock, Activity, Settings } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import type { UserDashboardData } from '../../types/dashboard';
 
@@ -27,29 +28,46 @@ export const UserPageHeader: React.FC<UserPageHeaderProps> = ({
       <div className="flex items-center justify-between gap-2 sm:gap-4">
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-1.5 sm:gap-3 group cursor-default">
-            <div className="p-1 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, ease: "backOut" }}
+              className="p-1 bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-lg border border-white/20 shadow-sm"
+            >
               <div className="text-cyan-600 dark:text-quantum-cyan font-black text-xs">FN</div>
-            </div>
-            <h1 className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-30 sm:max-w-none">
+            </motion.div>
+            <motion.h1
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
+              className="text-base sm:text-xl font-black tracking-tighter text-gray-900 dark:text-white truncate max-w-30 sm:max-w-none"
+            >
               {user?.username}
-            </h1>
+            </motion.h1>
           </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Usage Pill - Compact on mobile */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-sm">
+          <motion.div
+            initial={{ y: -10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded-lg border border-gray-200 dark:border-white/10 shadow-sm"
+          >
             <Activity className="w-3 h-3 text-cyan-500" />
             <span className="text-[10px] font-black text-gray-600 dark:text-gray-300 tracking-tighter">
               {usage}MB
             </span>
-          </div>
+          </motion.div>
 
           {/* Auth/Lock Button */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => isAuthenticated ? onLogout() : onShowAuth()}
             className={cn(
-              "p-1.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-all duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-8 min-h-8 sm:min-w-10 sm:min-h-10",
+              "p-1.5 sm:p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 transition-colors duration-300 font-bold text-xs shadow-lg backdrop-blur-md border min-w-8 min-h-8 sm:min-w-10 sm:min-h-10",
               isAuthenticated
                 ? "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/20"
                 : "bg-white/80 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
@@ -57,15 +75,18 @@ export const UserPageHeader: React.FC<UserPageHeaderProps> = ({
           >
             {isAuthenticated ? <Unlock className="w-4 h-4 text-cyan-500" /> : <Lock className="w-4 h-4" />}
             <span className="hidden sm:inline">{isAuthenticated ? "UNLOCKED" : "LOCKED"}</span>
-          </button>
+          </motion.button>
 
           {/* Settings */}
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05, rotate: 90 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.2 }}
             onClick={onShowSettings}
             className="p-1.5 sm:p-2 rounded-xl bg-white/60 dark:bg-white/5 hover:bg-gray-50 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors border border-white/20 min-w-8 min-h-8 sm:min-w-10 sm:min-h-10 flex items-center justify-center"
           >
             <Settings className="w-4 h-4" />
-          </button>
+          </motion.button>
         </div>
       </div>
     </header>

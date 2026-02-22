@@ -22,6 +22,7 @@ import {
   Loader2,
   X
 } from 'lucide-react';
+import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview, type DragItem } from '../../utils/dragUtils';
@@ -73,12 +74,16 @@ const getLifecycleColor = (file: FileItemData) => {
 };
 
 // ItemWrapper with long-press and drag support
-interface ItemWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
+// We override drag events to support native HTML5 drag and drop
+interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, "onDragStart" | "onDragEnd" | "onDrag" | "onAnimationStart"> {
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
   onDoubleClick?: (e: React.MouseEvent | React.TouchEvent) => void;
   draggable?: boolean;
   isDesktop?: boolean;
+  onDragStart?: React.DragEventHandler<HTMLDivElement>;
+  onDrag?: React.DragEventHandler<HTMLDivElement>;
+  onDragEnd?: React.DragEventHandler<HTMLDivElement>;
 }
 
 const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
@@ -87,29 +92,42 @@ const ItemWrapper: React.FC<ItemWrapperProps> = ({
   const isDesktop = propIsDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 1024);
   const handlers = useLongPress(onLongPress, onClick, { delay: 600 });
   
+  const commonProps = {
+    ...props,
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    whileHover: { scale: 1.02, transition: { duration: 0.2 } },
+    whileTap: { scale: 0.98 },
+    transition: { duration: 0.3 }
+  };
+
+  // We need to cast commonProps to allow passing native drag handlers to motion.div
+  // Framer Motion supports native handlers if they are passed, but types conflict
+  const motionProps = commonProps as HTMLMotionProps<"div">;
+
   if (isDesktop) {
     return (
-      <div 
-        {...props} 
+      <motion.div
+        {...motionProps}
         draggable={draggable}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
       >
         {children}
-      </div>
+      </motion.div>
     );
   }
 
   // Mobile behavior
   return (
-    <div 
-      {...props} 
+    <motion.div
+      {...motionProps}
       {...handlers}
       draggable={false}
       onDoubleClick={onDoubleClick}
     >
       {children}
-    </div>
+    </motion.div>
   );
 };
 
@@ -274,7 +292,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
         }}
         onLongPress={() => onSelectionModeChange(true)}
         className={cn(
-          "relative group flex items-center gap-2 sm:gap-4 p-1.5 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl transition-all duration-300 cursor-pointer shadow-sm file-item",
+          "relative group flex items-center gap-2 sm:gap-4 p-1.5 sm:p-3 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-transparent hover:border-cyan-500/30 rounded-xl cursor-pointer shadow-sm file-item",
           isSelected && "ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/10",
           file.is_locked && "opacity-60 grayscale-[0.8] contrast-75 brightness-95"
         )}

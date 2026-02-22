@@ -3,6 +3,7 @@ import {
   Folder as FolderIcon, CheckSquare, Square, Edit3, Trash2, Check, X,
   MoreVertical, Share2, QrCode, Download, Lock, Unlock
 } from 'lucide-react';
+import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { useLongPress } from '../../hooks/useLongPress';
 import { setDragPreview, type DragItem } from '../../utils/dragUtils';
@@ -11,12 +12,15 @@ import { DropdownMenu } from '../ui/DropdownMenu';
 import { CascadingMenu } from '../ui/CascadingMenu';
 
 // ItemWrapper with long-press and drag support 
-interface ItemWrapperProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ItemWrapperProps extends Omit<HTMLMotionProps<"div">, "onDragStart" | "onDragEnd" | "onDrag" | "onAnimationStart"> {
   onLongPress: (e: React.MouseEvent | React.TouchEvent) => void;
   onClick: (e: React.MouseEvent | React.TouchEvent) => void;
   onDoubleClick?: (e: React.MouseEvent | React.TouchEvent) => void;
   draggable?: boolean;
   isDesktop?: boolean;
+  onDragStart?: React.DragEventHandler<HTMLDivElement>;
+  onDrag?: React.DragEventHandler<HTMLDivElement>;
+  onDragEnd?: React.DragEventHandler<HTMLDivElement>;
 }
 
 const ItemWrapper: React.FC<ItemWrapperProps> = ({ 
@@ -26,29 +30,40 @@ const ItemWrapper: React.FC<ItemWrapperProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlers = useLongPress(onLongPress as any, onClick as any, { delay: 600 });
   
+  const commonProps = {
+    ...props,
+    initial: { opacity: 0, scale: 0.95 },
+    animate: { opacity: 1, scale: 1 },
+    whileHover: { scale: 1.02, transition: { duration: 0.2 } },
+    whileTap: { scale: 0.98 },
+    transition: { duration: 0.3 }
+  };
+
+  const motionProps = commonProps as HTMLMotionProps<"div">;
+
   if (isDesktop) {
     return (
-      <div 
-        {...props} 
+      <motion.div
+        {...motionProps}
         draggable={draggable}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
       >
         {children}
-      </div>
+      </motion.div>
     );
   }
 
   // Mobile behavior: Use long-press synthesis for better touch control
   return (
-    <div 
-      {...props} 
+    <motion.div
+      {...motionProps}
       {...handlers}
       draggable={false}
       onDoubleClick={onDoubleClick}
     >
       {children}
-    </div>
+    </motion.div>
   );
 };
 
