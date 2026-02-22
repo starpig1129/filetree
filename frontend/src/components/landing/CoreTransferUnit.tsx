@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, memo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Cpu,
@@ -25,7 +25,7 @@ interface CoreTransferUnitProps {
   isSyncing: boolean;
 }
 
-export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
+export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = memo(({
   inputText,
   setInputText,
   onAddNote,
@@ -204,4 +204,4 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
       </div>
     </div>
   );
-};
+});

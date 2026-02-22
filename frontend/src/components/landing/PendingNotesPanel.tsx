@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Zap, X } from 'lucide-react';
 
@@ -7,7 +7,7 @@ interface PendingNotesPanelProps {
   onRemoveNote: (index: number) => void;
 }
 
-export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
+export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = memo(({
   pendingNotes,
   onRemoveNote,
 }) => {
@@ -71,4 +71,4 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
       <div className="absolute -bottom-10 -left-10 w-24 h-24 lg:w-32 lg:h-32 bg-orange-500/10 blur-3xl rounded-full pointer-events-none" />
     </div>
   );
-};
+});

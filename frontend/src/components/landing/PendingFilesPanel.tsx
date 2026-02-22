@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Database, FileText, X, Clock, TrendingUp } from 'lucide-react';
 import type { UppyFile } from '@uppy/core';
@@ -34,7 +34,7 @@ const formatDuration = (seconds: number) => {
   return `${s}s`;
 };
 
-export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
+export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = memo(({
   pendingFiles,
   onRemoveFile,
 }) => {
@@ -150,4 +150,4 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
       <div className="absolute -top-10 -right-10 w-24 h-24 lg:w-32 lg:h-32 bg-purple-500/10 blur-3xl rounded-full pointer-events-none" />
     </div>
   );
-};
+});
