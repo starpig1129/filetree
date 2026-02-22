@@ -55,7 +55,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
         className="text-center mb-6 lg:mb-[2.5vh] space-y-1"
       >
         <div className="flex items-center justify-center gap-3">
-          <h1 className="text-4xl lg:text-[clamp(2.5rem,3.5vw,4rem)] font-bold tracking-tighter leading-none animate-stellar-text bg-clip-text text-transparent bg-gradient-to-br from-gray-900 via-gray-700 to-gray-500 dark:from-white dark:via-gray-200 dark:to-gray-500">
+          <h1 className="filenexus-brand text-4xl! lg:text-[clamp(2.5rem,3.5vw,4rem)]! tracking-tighter leading-none animate-stellar-text">
             FileNexus
           </h1>
           <Orbit className="w-8 h-8 lg:w-[clamp(1.5rem,3vw,2.5rem)] lg:h-[clamp(1.5rem,3vw,2.5rem)] text-cyan-500 animate-spin-slow opacity-80" />
@@ -65,10 +65,10 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
         </p>
       </motion.div>
 
-      <div className="glass-card p-0.5 relative group mx-auto w-full shadow-2xl hover:shadow-cyan-500/20 transition-all duration-500 hover:scale-[1.005]">
-        <div className="neural-border rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:px-[3vw] lg:py-[3vh] space-y-5 lg:space-y-[2.5vh] bg-white/90 dark:bg-[#0a0a0a]/95 backdrop-blur-[40px] relative overflow-hidden">
+      <div className="glass-card-premium p-0.5 relative group mx-auto w-full shadow-2xl hover:shadow-cyan-500/20 transition-all duration-500 hover:scale-[1.005] rounded-4xl lg:rounded-[2.5rem]">
+        <div className="neural-border rounded-4xl lg:rounded-[2.5rem] p-5 lg:px-[3vw] lg:py-[3vh] space-y-5 lg:space-y-[2.5vh] relative overflow-hidden">
           {/* Internal Glow */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
+          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
 
           <div className="relative z-10 flex flex-col gap-5 lg:gap-[2vh]">
             {/* Core Header */}
@@ -94,7 +94,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="輸入內容..."
-                  className="w-full h-32 lg:h-[12vh] min-h-[100px] bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-cyan-500/50 focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white/90 text-base lg:text-[clamp(1rem,1.5vw,1.25rem)] font-medium shadow-inner resize-none placeholder:text-gray-400 dark:placeholder:text-white/20 custom-scrollbar"
+                  className="w-full h-32 lg:h-[12vh] min-h-25 bg-gray-50 dark:bg-white/3 border border-gray-200 dark:border-white/10 rounded-2xl px-5 py-4 outline-none focus:border-cyan-500/50 focus:bg-white dark:focus:bg-white/8 transition-all text-gray-900 dark:text-white/90 text-base lg:text-[clamp(1rem,1.5vw,1.25rem)] font-medium shadow-inner resize-none placeholder:text-gray-400 dark:placeholder:text-white/20 custom-scrollbar"
                 />
                 <div className="absolute bottom-4 right-4 flex items-center gap-2 text-[0.6rem] text-gray-400 uppercase tracking-widest font-bold bg-white dark:bg-white/10 border border-gray-100 dark:border-white/5 px-3 py-1.5 rounded-full pointer-events-none opacity-40 group-focus-within/input:opacity-100 transition-all transform group-focus-within/input:scale-105 shadow-sm">
                   <span className="hidden sm:inline">按 Enter</span>
@@ -132,7 +132,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
             </div>
 
             {/* File Buttons Grid: Taller on mobile for easier tapping */}
-            <div className="grid grid-cols-2 gap-3 lg:gap-4 h-28 lg:h-[15vh] min-h-[100px]">
+            <div className="grid grid-cols-2 gap-3 lg:gap-4 h-28 lg:h-[15vh] min-h-25">
               {/* Select File Button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -174,7 +174,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && onSubmit(e)}
                     placeholder="輸入解鎖密碼"
-                    className="w-full bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-xl px-6 py-4 outline-none focus:border-quantum-cyan focus:bg-white dark:focus:bg-white/[0.08] transition-all text-gray-900 dark:text-white text-lg lg:text-xl font-bold text-center tracking-[0.3em] placeholder:text-gray-400 placeholder:tracking-widest placeholder:text-xs placeholder:font-bold group-hover/auth:border-white/20"
+                    className="w-full bg-white/50 dark:bg-white/3 border border-white/30 dark:border-white/10 rounded-2xl px-5 sm:px-6 py-4 outline-none focus:border-cyan-500/50 dark:focus:border-quantum-cyan/50 focus:bg-white/80 dark:focus:bg-white/8 transition-all text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 min-h-25 resize-none shadow-inner"
                   />
                   <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 dark:text-white/10 group-focus-within/auth:text-cyan-500 transition-colors" />
                 </div>
@@ -196,7 +196,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
                 />
 
                 {/* Scanline / Glimmer Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer pointer-events-none" />
+                <div className="absolute inset-0 bg-linear-to-r from-transparent via-cyan-400/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer pointer-events-none" />
               </button>
             </div>
           </div>

@@ -24,6 +24,7 @@ class ServerConfig(BaseModel):
     debug: bool = True
     ssl_cert: Optional[str] = None
     ssl_key: Optional[str] = None
+    cors_origins: list[str] = ["*"]
 
 
 
@@ -36,6 +37,9 @@ class PathConfig(BaseModel):
     user_info_file: Path = Path("data/user_info.json")
     tus_temp_folder: Path = Path("data/tus_temp")
     static_dir: Path = PROJECT_ROOT / "static/dist"
+    users_db: Path = Path("data/users.db")
+    notes_db: Path = Path("data/notes.db")
+    files_db: Path = Path("data/files.db")
 
     @model_validator(mode='after')
     def resolve_relative_paths(self):

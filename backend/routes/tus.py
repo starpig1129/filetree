@@ -20,6 +20,7 @@ from backend.services.audit_service import AuditService
 from backend.services.event_service import event_service
 from backend.services.tus_metadata_store import TusMetadataStore
 from backend.config import settings
+from backend.services.token_service import token_service
 from backend.core.rate_limit import limiter 
 
 from fastapi import BackgroundTasks
@@ -126,21 +127,27 @@ async def create_tus_upload(
         filename = metadata.get('filename', 'unnamed')
         content_type = metadata.get('filetype', 'application/octet-stream')
         password = metadata.get('password')
+        token = metadata.get('token')
         
         # Authenticate
-        if not password:
-            raise HTTPException(status_code=401, detail="Missing password in metadata")
+        user = None
+        if token:
+            info = token_service.validate_token(token)
+            if info:
+                user = await user_service.get_user_by_name(info.username)
         
-        user = await user_service.get_user_by_password(password)
+        if not user and password:
+            user = await user_service.get_user_by_password(password)
+            
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid password")
+            raise HTTPException(status_code=401, detail="驗證失敗")
         
         # Calculate fingerprint
         fingerprint = calculate_fingerprint(filename, upload_length, metadata.get('lastModified'))
-        logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user.username}")
+        logger.info(f"TUS Create: fingerprint={fingerprint}, size={upload_length}, user={user['username']}")
         
         # Check for existing upload (resume)
-        existing = metadata_store.get_upload_by_fingerprint(fingerprint, user.username)
+        existing = metadata_store.get_upload_by_fingerprint(fingerprint, user['username'])
         
         if existing and existing['status'] == 'active':
             logger.info(f"TUS Resume: Found existing upload {existing['id']}, offset={existing['offset']}")
@@ -170,7 +177,7 @@ async def create_tus_upload(
         created = metadata_store.create_upload(
             upload_id=upload_id,
             fingerprint=fingerprint,
-            username=user.username,
+            username=user['username'],
             size=upload_length,
             filename=filename,
             content_type=content_type,

@@ -18,6 +18,40 @@ class ThumbnailService:
         if not self._ffmpeg_available:
             print("WARNING: ffmpeg not found. Video thumbnails will be unavailable.")
 
+    def _is_valid_media(self, file_path: Path) -> bool:
+        """Perform basic magic byte validation to ensure file is a legitimate media type."""
+        try:
+            with open(file_path, "rb") as f:
+                header = f.read(16)
+                
+            ext = file_path.suffix.lower()
+            
+            # Image signatures
+            if ext in ['.jpg', '.jpeg']:
+                return header.startswith(b'\xff\xd8\xff')
+            if ext == '.png':
+                return header.startswith(b'\x89PNG\r\n\x1a\n')
+            if ext == '.gif':
+                return header.startswith(b'GIF87a') or header.startswith(b'GIF89a')
+            if ext == '.bmp':
+                return header.startswith(b'BM')
+            if ext == '.webp':
+                return header.startswith(b'RIFF') and b'WEBP' in header
+            if ext in ['.heic', '.heif']:
+                return b'ftyp' in header and (b'heic' in header or b'heix' in header or b'hevc' in header or b'mif1' in header)
+            if ext in ['.arw', '.cr2', '.nef', '.dng', '.orf', '.sr2', '.raf']:
+                # Most RAW formats use TIFF structure: II* (Little Endian) or MM (Big Endian)
+                return header.startswith(b'II\x2a\x00') or header.startswith(b'MM\x00\x2a')
+                
+            # Video signatures (simple ftyp check)
+            if ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
+                # ftyp usually starts at offset 4
+                return b'ftyp' in header or b'matroska' in header or b'RIFF' in header or header.startswith(b'\x1a\x45\xdf\xa3') # EBML (mkv/webm)
+            
+            return False
+        except Exception:
+            return False
+
     def _get_cache_path(self, file_path: Path) -> Path:
         """Generate a unique cache path based on file content hash (or path+mtime)"""
         # Using path + mtime is faster than reading whole file for hash
@@ -37,6 +71,10 @@ class ThumbnailService:
         cache_path = self._get_cache_path(file_path)
         if cache_path.exists():
             return str(cache_path)
+
+        # SECURITY: Validate file content before processing
+        if not self._is_valid_media(file_path):
+            return None
 
         # Generate generic thumbnail
         ext = file_path.suffix.lower()

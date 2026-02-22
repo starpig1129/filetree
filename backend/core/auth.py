@@ -1,8 +1,35 @@
-"""
-Core authentication and password hashing logic.
-"""
-
 import bcrypt
+from fastapi import Header, HTTPException, status, Request
+from backend.services.token_service import token_service
+
+
+def get_current_user_token(authorization: str = Header(None)) -> str:
+    """Extract and validate session token from header."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authentication token",
+        )
+    
+    token = authorization.split(" ")[1]
+    info = token_service.validate_token(token)
+    if not info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or invalid",
+        )
+    return token
+
+
+def verify_ownership(token: str, target_username: str) -> bool:
+    """Verify that the token allows access to the target username."""
+    info = token_service.validate_token(token)
+    if not info or info.username != target_username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You do not own this resource",
+        )
+    return True
 
 
 def generate_salt() -> str:

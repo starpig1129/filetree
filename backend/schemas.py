@@ -7,11 +7,20 @@ from typing import List, Optional
 from pydantic import BaseModel, HttpUrl
 
 
+class Folder(BaseModel):
+    """Schema for a folder."""
+    id: str
+    name: str
+    type: str  # 'file' or 'url'
+    parent_id: Optional[str] = None
+
+
 class URLRecord(BaseModel):
     """Schema for a URL record."""
     url: str
     created: datetime
     is_locked: bool = False
+    folder_id: Optional[str] = None
 
 
 class UserBase(BaseModel):
@@ -30,6 +39,8 @@ class UserCreate(UserBase):
     hashed_password: str
     urls: List[URLRecord] = []
     locked_files: List[str] = []
+    folders: List[Folder] = []
+    file_metadata: dict = {}  # filename -> { folder_id, ... }
 
 
 class UserUpdate(BaseModel):
@@ -56,6 +67,7 @@ class FileInfo(BaseModel):
     remaining_minutes: int
     expired: bool
     is_locked: bool = False
+    folder_id: Optional[str] = None
 
 
 class UnlockRequest(BaseModel):
@@ -65,14 +77,16 @@ class UnlockRequest(BaseModel):
 
 class ToggleLockRequest(BaseModel):
     """Schema for toggling lock on an item."""
-    password: str
+    password: Optional[str] = None
+    token: Optional[str] = None
     item_type: str  # 'file' or 'url'
     item_id: str    # filename or url
     is_locked: bool
 
 class BatchActionRequest(BaseModel):
     """Schema for batch operations on files/urls."""
-    password: str
+    password: Optional[str] = None
+    token: Optional[str] = None
     item_type: str  # 'file' or 'url'
     item_ids: List[str]
     action: str  # 'lock', 'unlock', 'delete'
@@ -91,6 +105,19 @@ class InitResponse(BaseModel):
     """Response for initial data load."""
     users: List[UserPublic]
     config: SystemConfig
+
+
+class ShareInfo(BaseModel):
+    """Schema for sharing info preview."""
+    username: str
+    filename: str
+    size: str
+    size_bytes: int
+    expiry: datetime
+    is_locked: bool
+    preview_url: str
+    download_url: str
+    thumbnail_url: Optional[str] = None
 
 
     

@@ -427,7 +427,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
     // Outer container:
     // Mobile/Tablet: min-h-dvh (grows with content), standard scrolling allowed.
     // Large Desktop (lg+): h-screen, global overflow hidden (internal scaling).
-    <div className="relative min-h-dvh 2xl:min-h-0 2xl:h-screen w-full overflow-x-hidden 2xl:overflow-y-hidden bg-gray-50 dark:bg-transparent custom-scrollbar">
+    <div className="relative h-full w-full overflow-x-hidden bg-transparent custom-scrollbar">
       
       {/* Background glow - only in dark mode */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] h-[90vh] bg-quantum-cyan/5 blur-[clamp(3rem,8vw,6rem)] rounded-full -z-10 animate-pulse hidden dark:block pointer-events-none" />
@@ -438,7 +438,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           <motion.div
             key="drag-overlay"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
+            className="fixed inset-0 pointer-events-none z-100 bg-cyan-500/20 backdrop-blur-md flex flex-col items-center justify-center border-4 border-dashed border-cyan-400 p-8"
           >
             <div className="bg-white/90 dark:bg-black/80 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4 pointer-events-none">
               <UploadCloud className="w-16 h-16 text-cyan-600 animate-bounce" />
@@ -453,13 +453,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           Desktop (lg+): flex-row, h-full, centered, no scrollbars on body.
           Breakpoint changed from 'xl' to 'lg' to support 13" laptops/iPad Pros.
       */}
-      <div className="w-full h-full min-h-dvh 2xl:min-h-0 flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 py-8 2xl:p-0 relative z-10 box-border 2xl:h-full 2xl:overflow-hidden max-w-[1920px] mx-auto">
+      <div className="w-full h-full flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 py-8 2xl:p-0 relative z-10 box-border overflow-y-auto 2xl:overflow-hidden max-w-480 mx-auto custom-scrollbar">
         
         {/* --- [LEFT WING] Pending Notes --- */}
         {/* Mobile: Order 2. Full Width. Auto height.
             Desktop: Order 1. Width ~19vw (Refined). Full Height.
         */}
-        <div className="order-2 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-[220px] 2xl:max-w-[450px] flex flex-col h-auto min-h-[200px] max-h-[40vh] 2xl:h-[80vh] 2xl:max-h-[850px] transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
+        <div className="order-2 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
            <PendingNotesPanel 
               pendingNotes={pendingNotes} 
               onRemoveNote={handleRemoveNote}
@@ -470,7 +470,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         {/* Mobile: Order 1 (Top). Full Width. 
             Desktop: Order 2. Flex-1.
         */}
-        <div className="order-1 2xl:order-2 w-full max-w-lg 2xl:flex-1 2xl:min-w-[460px] 2xl:max-w-3xl xl:max-w-4xl relative z-20 min-w-0 shrink-0">
+        <div className="order-1 2xl:order-2 w-full max-w-lg 2xl:flex-1 2xl:min-w-115 2xl:max-w-3xl xl:max-w-4xl relative z-20 min-w-0 shrink-0">
            <CoreTransferUnit
               inputText={inputText}
               setInputText={setInputText}
@@ -489,7 +489,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         {/* Mobile: Order 3. Full Width. Auto Height. 
             Desktop: Order 3. Width ~19vw (Refined). Full Height.
         */}
-        <div className="order-3 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-[220px] 2xl:max-w-[450px] flex flex-col h-auto min-h-[200px] max-h-[40vh] 2xl:h-[80vh] 2xl:max-h-[850px] transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
+        <div className="order-3 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink pb-10 2xl:pb-0">
            <PendingFilesPanel 
               pendingFiles={pendingFiles} 
               onRemoveFile={handleRemoveFile} 

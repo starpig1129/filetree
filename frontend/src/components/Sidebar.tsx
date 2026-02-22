@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Cpu, FileUp, Menu, X, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
+import { FileUp, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -27,7 +27,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isLocalhost, setIsLocalhost] = useState(false);
+  const [isLocalhost] = useState(() => {
+    const hostname = window.location.hostname;
+    return hostname === 'localhost' || 
+           hostname === '127.0.0.1' || 
+           hostname.startsWith('192.168.') ||
+           hostname.startsWith('10.') ||
+           hostname.endsWith('.local');
+  });
 
   // Track viewport size for responsive behavior
   useEffect(() => {
@@ -35,17 +42,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
     return () => window.removeEventListener('resize', checkDesktop);
-  }, []);
-
-  // Check if running on localhost (internal network)
-  useEffect(() => {
-    const hostname = window.location.hostname;
-    const isLocal = hostname === 'localhost' || 
-                    hostname === '127.0.0.1' || 
-                    hostname.startsWith('192.168.') ||
-                    hostname.startsWith('10.') ||
-                    hostname.endsWith('.local');
-    setIsLocalhost(isLocal);
   }, []);
 
   const isActive = (path: string) => {
@@ -65,14 +61,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
   return (
     <>
-      {/* Mobile Toggle Button */}
-      <button
-        onClick={onToggle}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 glass-card text-gray-600 dark:text-white/60 hover:text-quantum-cyan transition-colors"
-        aria-label={isOpen ? '關閉選單' : '開啟選單'}
-      >
-        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
 
       {/* Mobile Overlay */}
       {isOpen && !isDesktop && (
@@ -89,8 +77,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       <aside
         className={cn(
           "fixed left-0 top-0 h-full w-64 z-45 bg-white/95 dark:bg-space-deep/95 backdrop-blur-xl border-r border-gray-200 dark:border-white/5",
-          "lg:relative lg:w-56 xl:w-64 lg:bg-transparent lg:border-0 lg:block lg:backdrop-blur-none",
-          "flex flex-col py-6 px-4 lg:py-4 lg:px-2",
+          "lg:relative lg:w-48 xl:w-56 lg:bg-transparent lg:border-0 lg:block lg:backdrop-blur-none",
+          "flex flex-col py-6 px-4 lg:py-4 lg:px-2 h-full",
           "transition-transform duration-300 ease-in-out",
           // Mobile: slide in/out based on isOpen
           !isDesktop && (isOpen ? "translate-x-0" : "-translate-x-full"),
@@ -99,11 +87,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         )}
       >
         {/* Logo / Header */}
-        <div className="flex items-center gap-3 px-3 mb-8 lg:mb-6">
-          <div className="w-8 h-8 bg-quantum-cyan/10 rounded-xl flex items-center justify-center border border-quantum-cyan/20">
-            <Cpu className="w-4 h-4 text-quantum-cyan" />
-          </div>
-          <span className="text-sm font-bold text-gray-800 dark:text-white/80 tracking-tight hidden sm:block">FileNexus</span>
+        <div className="px-3 mb-8 lg:mb-6 cursor-pointer" onClick={() => handleNavClick('/')}>
+          <span className="filenexus-brand text-sm! tracking-tight hidden sm:block">FileNexus</span>
         </div>
 
         {/* Navigation Items */}
