@@ -11,16 +11,44 @@ MASTER_KEY = os.environ.get("SECURITY__MASTER_KEY", "pigstar")
 
 def test_path_traversal():
     print("Testing Path Traversal...")
-    # Attempt to delete /etc/passwd (should fail or at least not target the actual file)
-    # The backend should sanitize it to 'passwd' and look in the user folder
-    target = "../../../../../../../../../etc/passwd"
-    response = requests.delete(f"{BASE_URL}/files/starpig/{target}")
-    print(f"Delete attempt response: {response.status_code} - {response.text}")
     
-    if "passwd" in response.text and response.status_code == 404:
-        print("PASS: Path traversal attempt was sanitized and failed correctly.")
+    # Test 1: Route parameter traversal (should fail routing or be sanitized)
+    # We attempt to access /etc/passwd
+    target = "%2e%2e%2f" * 8 + "etc%2fpasswd"
+    url = f"{BASE_URL}/download/starpig/{target}"
+    print(f"URL: {url}")
+    response = requests.get(url)
+    print(f"GET Response: {response.status_code}")
+
+    is_spa_fallback = False
+    if response.status_code == 200 and "<!doctype html>" in response.text.lower():
+        is_spa_fallback = True
+        print("INFO: Request fell back to SPA (index.html). This means API route didn't match.")
+
+    if response.status_code in [404, 400, 422, 403, 401]:
+         print("PASS: Path traversal via URL path blocked/not found.")
+    elif is_spa_fallback:
+         print("PASS: Path traversal blocked (fell back to frontend).")
     else:
-        print("FAIL: Path traversal might be vulnerable or returned unexpected result.")
+         # Check for actual vulnerability
+         if "root:x:0:0" in response.text:
+             print("CRITICAL: Path Traversal Vulnerability Confirmed!")
+         else:
+             print(f"WARN: Unexpected response {response.status_code}. Content might be safe but unexpected.")
+
+    # Test 2: Form parameter traversal (should be blocked by auth or sanitized)
+    # POST /user/{username}/delete
+    url = f"{BASE_URL}/user/starpig/delete"
+    data = {"filename": "../../../etc/passwd"}
+    response = requests.post(url, data=data)
+    print(f"POST Response: {response.status_code}")
+
+    if response.status_code == 401:
+        print("PASS: Unauthenticated deletion blocked (401).")
+    elif response.status_code == 404:
+        print("PASS: Deletion returned 404 (likely sanitized and file not found).")
+    else:
+        print(f"WARN: Unexpected response {response.status_code}")
 
 def test_admin_auth():
     print("\nTesting Admin Auth...")

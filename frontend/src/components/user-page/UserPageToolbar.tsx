@@ -1,5 +1,6 @@
 import React from 'react';
 import { Cpu, Zap, LayoutGrid, List, CheckSquare, Square } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { BatchActionBar } from '../dashboard/BatchActionBar';
 import type { SelectedItem, UserDashboardData } from '../../types/dashboard';
@@ -40,10 +41,12 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
   return (
     <div className="flex items-center justify-between gap-1 sm:gap-2 pb-1 lg:pb-0">
       <div className="flex items-center gap-1 sm:gap-2 flex-1">
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => onTabChange('files')}
           className={cn(
-            "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
+            "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-colors duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
             activeTab === 'files'
               ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
               : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
@@ -51,11 +54,13 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
         >
           <Cpu className="h-4 w-4" />
           檔案列表
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => onTabChange('urls')}
           className={cn(
-            "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-all duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
+            "flex-1 sm:flex-none px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs transition-colors duration-300 flex items-center justify-center gap-1.5 relative overflow-hidden",
             activeTab === 'urls'
               ? "bg-violet-500 text-white shadow-lg shadow-violet-500/20"
               : "text-gray-500 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/5"
@@ -63,15 +68,24 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
         >
           <Zap className="h-4 w-4" />
           筆記 / 連結
-        </button>
+        </motion.button>
       </div>
 
       {/* Desktop Toolbar - Connected with Tabs */}
-      <div className="hidden lg:flex items-center gap-3 bg-white/40 dark:bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 ml-4">
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="hidden lg:flex items-center gap-3 bg-white/40 dark:bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 ml-4"
+      >
          
          {/* Batch Actions */}
          {selectedItems.length > 0 && isAuthenticated && (
-           <div className="border-r border-gray-200 dark:border-white/10 pr-3 mr-1">
+           <motion.div
+             initial={{ width: 0, opacity: 0 }}
+             animate={{ width: "auto", opacity: 1 }}
+             exit={{ width: 0, opacity: 0 }}
+             className="border-r border-gray-200 dark:border-white/10 pr-3 mr-1"
+           >
              <BatchActionBar
                selectedCount={selectedItems.length}
                isBatchSyncing={isBatchSyncing}
@@ -80,12 +94,14 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
                allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
                mode="desktop"
              />
-           </div>
+           </motion.div>
          )}
 
          {/* Select All */}
          <div className="flex items-center gap-2 border-r border-gray-200 dark:border-white/10 pr-3">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={onSelectAll}
               className="p-1.5 rounded-lg hover:bg-white/20 transition-colors group"
               title="全選"
@@ -93,7 +109,7 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
               {allItemsSelected 
                   ? <CheckSquare className="w-4 h-4 text-cyan-600 dark:text-cyan-400" /> 
                   : <Square className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300" />}
-            </button>
+            </motion.button>
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest leading-none">
                 {itemCount} ITEMS
@@ -103,7 +119,8 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
 
          {/* View Mode */}
          <div className="flex items-center bg-gray-100 dark:bg-black/20 p-1 rounded-lg">
-            <button
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => onViewModeChange('grid')}
               className={cn(
                 "p-1.5 rounded-md transition-all",
@@ -111,8 +128,9 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
               )}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               onClick={() => onViewModeChange('list')}
               className={cn(
                 "p-1.5 rounded-md transition-all",
@@ -120,9 +138,9 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
               )}
             >
               <List className="w-3.5 h-3.5" />
-            </button>
+            </motion.button>
          </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
