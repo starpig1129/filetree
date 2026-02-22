@@ -141,7 +141,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
   // --- Handlers ---
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (uppy && e.target.files && e.target.files.length > 0) {
       Array.from(e.target.files).forEach((file) => {
         try {
@@ -151,9 +151,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       // Reset input
       e.target.value = ''; 
     }
-  };
+  }, [uppy]);
 
-  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFolderSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (uppy && e.target.files && e.target.files.length > 0) {
       Array.from(e.target.files).forEach((file) => {
         try {
@@ -170,27 +170,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       });
        e.target.value = '';
     }
-  };
+  }, [uppy]);
 
-  const handleAddNote = () => {
+  const handleAddNote = useCallback(() => {
     const trimmed = inputText.trim();
     if (trimmed) {
       setPendingNotes(prev => [...prev, trimmed]);
       setInputText('');
     }
-  };
+  }, [inputText]);
 
-  const handleRemoveNote = (index: number) => {
+  const handleRemoveNote = useCallback((index: number) => {
     setPendingNotes(prev => prev.filter((_, i) => i !== index));
-  };
+  }, []);
   
-  const handleRemoveFile = (fileId: string) => {
+  const handleRemoveFile = useCallback((fileId: string) => {
       if (uppy) {
           uppy.removeFile(fileId);
       }
-  }
+  }, [uppy]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password) {
       alert('請輸入密碼以驗證身分');
@@ -261,7 +261,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       alert(errorMessage);
       setIsSyncing(false);
     }
-  };
+  }, [password, pendingNotes, inputText, uppy, navigate]);
 
   // --- Drag & Drop ---
   const handleDragEnter = useCallback((e: React.DragEvent | DragEvent) => {
