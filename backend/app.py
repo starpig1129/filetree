@@ -139,9 +139,22 @@ async def serve_spa(request: Request, path: str):
         pass
 
     # Try to see if the file exists in static_dir
-    file_path = static_path / path
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
+    try:
+        # Normalize and resolve the path to prevent traversal
+        # We lstrip('/') to prevent joining with an absolute path
+        safe_path = path.lstrip("/")
+        # resolve() handles '..' and follows symlinks to get the real absolute path
+        file_path = (static_path / safe_path).resolve()
+        base_path = static_path.resolve()
+
+        # Security Check: Ensure the resolved path is still within the static directory
+        # This prevents '..' from escaping the intended root
+        if base_path in file_path.parents or file_path == base_path:
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(file_path)
+    except (OSError, ValueError, RuntimeError):
+        # If path resolution fails, treat as file not found
+        pass
     
     # Otherwise, return index.html for SPA routing
     # IMPORTANT: no-cache for index.html to prevent stale JS bundle references
