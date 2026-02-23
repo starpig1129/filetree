@@ -835,7 +835,7 @@ export const UserPage: React.FC<UserPageProps> = ({
               animate={{ opacity: 1, scale: 1, rotateX: 0, y: 0 }}
               exit={{ opacity: 0, scale: 1.02, rotateX: -2, y: -10 }}
               transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
-              style={{ transformPerspective: 1200 }}
+              style={{ perspective: '1200px' }}
               className="flex-1 min-w-0 h-full flex flex-col gap-4"
             >
               <BreadcrumbsBar
