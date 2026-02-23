@@ -218,6 +218,42 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+
+      // Focus Trap logic
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll(
+          'a[href], button, textarea, input[type="text"], input[type="radio"], input[type="checkbox"], select'
+        );
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Focus the modal for keyboard accessibility
+      requestAnimationFrame(() => {
+        modalRef.current?.focus();
+      });
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -229,14 +265,20 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-space-black/95 backdrop-blur-xl"
+            aria-hidden="true"
           />
 
           <motion.div
+            ref={modalRef}
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
             className={cn(
-              "relative z-10 flex flex-col bg-deep-space/50 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.1)] overflow-hidden",
+              "relative z-10 flex flex-col bg-deep-space/50 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.1)] overflow-hidden outline-none",
               isFullscreen ? "w-[98vw] h-[95vh]" : "w-full max-w-5xl h-[80vh]"
             )}
           >
@@ -246,7 +288,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                   <FileText className="w-5 h-5 text-quantum-cyan" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-white/90 font-bold truncate text-lg tracking-tight">
+                  <h3 id="modal-title" className="text-white/90 font-bold truncate text-lg tracking-tight">
                     {file.name}
                     <span className="text-[0.5rem] opacity-10 ml-2 font-mono">v2.1.5</span>
                   </h3>
@@ -260,6 +302,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                   download
                   className="p-2 text-white/40 hover:text-quantum-cyan hover:bg-quantum-cyan/10 rounded-lg transition-colors"
                   title="下載檔案"
+                  aria-label="下載檔案"
                 >
                   <Download className="w-5 h-5" />
                 </a>
@@ -267,6 +310,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors hidden sm:block"
                   title={isFullscreen ? "退出全螢幕" : "全螢幕"}
+                  aria-label={isFullscreen ? "退出全螢幕" : "全螢幕"}
                 >
                   {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                 </button>
@@ -274,6 +318,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                 <button
                   onClick={onClose}
                   className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  aria-label="關閉預覽"
                 >
                   <X className="w-6 h-6" />
                 </button>
