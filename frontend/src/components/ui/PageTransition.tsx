@@ -12,21 +12,18 @@ const variants = {
     scale: 0.98,
     rotateX: 2,
     y: 10,
-    transformPerspective: 1200,
   },
   enter: {
     opacity: 1,
     scale: 1,
     rotateX: 0,
     y: 0,
-    transformPerspective: 1200,
   },
   exit: {
     opacity: 0,
     scale: 1.02,
     rotateX: -2,
     y: -10,
-    transformPerspective: 1200,
   },
 };
 
@@ -48,6 +45,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children, classN
       className={className}
       style={{
         transformStyle: 'preserve-3d',
+        perspective: '1200px',
         backfaceVisibility: 'hidden',
         width: '100%',
         height: '100%',

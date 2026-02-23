@@ -223,6 +223,27 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+
+      // Focus Trap logic
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll(
+          'a[href], button, textarea, input[type="text"], input[type="radio"], input[type="checkbox"], select'
+        );
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement?.focus();
+          }
+        }
+      }
     };
     if (isOpen) {
       document.addEventListener('keydown', handleKeyDown);
@@ -281,6 +302,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                   download
                   className="p-2 text-white/40 hover:text-quantum-cyan hover:bg-quantum-cyan/10 rounded-lg transition-colors"
                   title="下載檔案"
+                  aria-label="下載檔案"
                 >
                   <Download className="w-5 h-5" />
                 </a>
@@ -288,6 +310,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors hidden sm:block"
                   title={isFullscreen ? "退出全螢幕" : "全螢幕"}
+                  aria-label={isFullscreen ? "退出全螢幕" : "全螢幕"}
                 >
                   {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                 </button>
@@ -295,6 +318,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                 <button
                   onClick={onClose}
                   className="p-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  aria-label="關閉預覽"
                 >
                   <X className="w-6 h-6" />
                 </button>

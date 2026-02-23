@@ -16,6 +16,7 @@ import { useSelection } from '../hooks/useSelection';
 import { UserPageHeader } from '../components/user-page/UserPageHeader';
 import { UserPageToolbar } from '../components/user-page/UserPageToolbar';
 import { BreadcrumbsBar } from '../components/user-page/BreadcrumbsBar';
+import { PageTransition } from '../components/ui/PageTransition';
 import type { Folder, UserDashboardData } from '../types/dashboard';
 
 interface UserPageProps {
@@ -752,13 +753,8 @@ export const UserPage: React.FC<UserPageProps> = ({
 
         <AnimatePresence mode="wait">
           {activeTab === 'files' ? (
-            <motion.div
+            <PageTransition
               key="files"
-              initial={{ opacity: 0, scale: 0.98, rotateX: 2, y: 10 }}
-              animate={{ opacity: 1, scale: 1, rotateX: 0, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, rotateX: -2, y: -10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
-              style={{ transformPerspective: 1200 }}
               className="flex-1 min-w-0 h-full flex flex-col gap-2 sm:gap-4"
             >
               <BreadcrumbsBar
@@ -827,15 +823,10 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onToggleFolderLock={(type, id, status) => toggleItemLock(type, id, !!status)}
                 isDesktop={isDesktop}
               />
-            </motion.div>
+            </PageTransition>
           ) : (
-            <motion.div
+            <PageTransition
               key="urls"
-              initial={{ opacity: 0, scale: 0.98, rotateX: 2, y: 10 }}
-              animate={{ opacity: 1, scale: 1, rotateX: 0, y: 0 }}
-              exit={{ opacity: 0, scale: 1.02, rotateX: -2, y: -10 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
-              style={{ perspective: '1200px' }}
               className="flex-1 min-w-0 h-full flex flex-col gap-4"
             >
               <BreadcrumbsBar
@@ -883,7 +874,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onPreview={(note) => setPreviewFile(note)}
                 isDesktop={isDesktop}
               />
-            </motion.div>
+            </PageTransition>
           )}
         </AnimatePresence>
       </main>
