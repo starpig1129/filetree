@@ -218,6 +218,21 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Focus the modal for keyboard accessibility
+      requestAnimationFrame(() => {
+        modalRef.current?.focus();
+      });
+    }
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
@@ -229,14 +244,20 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="absolute inset-0 bg-space-black/95 backdrop-blur-xl"
+            aria-hidden="true"
           />
 
           <motion.div
+            ref={modalRef}
+            tabIndex={-1}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
             className={cn(
-              "relative z-10 flex flex-col bg-deep-space/50 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.1)] overflow-hidden",
+              "relative z-10 flex flex-col bg-deep-space/50 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(34,211,238,0.1)] overflow-hidden outline-none",
               isFullscreen ? "w-[98vw] h-[95vh]" : "w-full max-w-5xl h-[80vh]"
             )}
           >
@@ -246,7 +267,7 @@ export const FilePreviewModal: React.FC<FilePreviewModalProps> = ({ isOpen, onCl
                   <FileText className="w-5 h-5 text-quantum-cyan" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-white/90 font-bold truncate text-lg tracking-tight">
+                  <h3 id="modal-title" className="text-white/90 font-bold truncate text-lg tracking-tight">
                     {file.name}
                     <span className="text-[0.5rem] opacity-10 ml-2 font-mono">v2.1.5</span>
                   </h3>

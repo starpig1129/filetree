@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useLocation, Link } from 'react-router-dom';
 import { Menu, Users } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
 const UserPage = React.lazy(() => import('./pages/UserPage').then(module => ({ default: module.UserPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -11,6 +12,7 @@ import { Starfield } from './components/Starfield';
 import { AuraField } from './components/AuraField';
 import { Sidebar } from './components/Sidebar';
 import { PublicDirectory } from './components/PublicDirectory';
+import { PageTransition } from './components/ui/PageTransition';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { apiRequest } from './services/api';
@@ -200,6 +202,60 @@ const MainLayout: React.FC<{
   );
 };
 
+const AppRoutes: React.FC<{
+  users: Array<{ username: string; folder: string }>;
+  config: { allowed_extensions?: string[] };
+  loading: boolean;
+}> = ({ users, config, loading }) => {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Admin page has its own layout */}
+        <Route path="/admin" element={
+          <PageTransition className="h-full">
+            <main className="container mx-auto px-4 py-8 relative z-10">
+              <AdminRoute />
+            </main>
+          </PageTransition>
+        } />
+
+        {/* All other routes use the main SPA layout */}
+        <Route path="/:username" element={
+          <PageTransition className="h-full">
+            <MainLayout users={users} config={config} loading={loading} />
+          </PageTransition>
+        } />
+        <Route path="/" element={
+          <PageTransition className="h-full">
+            <MainLayout users={users} config={config} loading={loading} />
+          </PageTransition>
+        } />
+
+        <Route path="/help" element={
+          <PageTransition className="h-full">
+            <MainLayout users={users} config={config} loading={loading} />
+          </PageTransition>
+        } />
+
+        <Route path="/share/:token" element={
+           <PageTransition className="h-full">
+              <SharePage />
+           </PageTransition>
+        } />
+
+        {/* Catch-all 404 route */}
+        <Route path="*" element={
+           <PageTransition className="h-full">
+              <NotFoundPage />
+           </PageTransition>
+        } />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 /**
  * Inner app component that uses theme context.
  */
@@ -263,31 +319,7 @@ const AppContent: React.FC = () => {
              </div>
            </div>
         }>
-          <Routes>
-            {/* Admin page has its own layout */}
-            <Route path="/admin" element={
-              <main className="container mx-auto px-4 py-8 relative z-10">
-                <AdminRoute />
-              </main>
-            } />
-
-            {/* All other routes use the main SPA layout */}
-            <Route path="/:username" element={
-              <MainLayout users={users} config={config} loading={loading} />
-            } />
-            <Route path="/" element={
-              <MainLayout users={users} config={config} loading={loading} />
-            } />
-            
-            <Route path="/help" element={
-              <MainLayout users={users} config={config} loading={loading} />
-            } />
-
-            <Route path="/share/:token" element={<SharePage />} />
-
-            {/* Catch-all 404 route */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+          <AppRoutes users={users} config={config} loading={loading} />
         </React.Suspense>
 
         <footer className="text-center py-0 lg:py-2 flex items-center justify-center gap-2 fixed bottom-2 w-full z-10">
@@ -310,4 +342,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
