@@ -84,12 +84,16 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-1">
                 <Zap className="w-3.5 h-3.5 text-orange-500" />
-                <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em]">
+                <label
+                  htmlFor="note-input"
+                  className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em]"
+                >
                   快速筆記 / 網址
                 </label>
               </div>
               <div className="relative group/input">
                 <textarea
+                  id="note-input"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -136,6 +140,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
               {/* Select File Button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
+                aria-label="選擇檔案"
                 className="group/btn relative flex flex-col items-center justify-center gap-2 lg:gap-[1.5vh] rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-cyan-500/50 hover:bg-cyan-500/5 active:bg-cyan-500/10 transition-all overflow-hidden"
               >
                 <div className="p-3 lg:p-[1.5vh] rounded-full bg-white dark:bg-white/10 group-hover/btn:scale-110 transition-transform shadow-sm group-active/btn:scale-95">
@@ -149,6 +154,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
               {/* Select Folder Button */}
               <button
                 onClick={() => folderInputRef.current?.click()}
+                aria-label="選擇資料夾"
                 className="group/btn relative flex flex-col items-center justify-center gap-2 lg:gap-[1.5vh] rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:border-purple-500/50 hover:bg-purple-500/5 active:bg-purple-500/10 transition-all overflow-hidden"
               >
                 <div className="p-3 lg:p-[1.5vh] rounded-full bg-white dark:bg-white/10 group-hover/btn:scale-110 transition-transform shadow-sm group-active/btn:scale-95">
@@ -163,11 +169,15 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
             {/* 3. Auth & Submit */}
             <div className="pt-4 lg:pt-[2vh] border-t border-gray-100 dark:border-white/5 space-y-4 lg:space-y-[1.5vh]">
               <div className="space-y-2">
-                <label className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] ml-2 opacity-60">
+                <label
+                  htmlFor="password-input"
+                  className="text-[0.6rem] font-black text-gray-500 dark:text-stellar-label uppercase tracking-[0.2em] ml-2 opacity-60"
+                >
                   身分驗證
                 </label>
                 <div className="relative group/auth">
                   <input
+                    id="password-input"
                     type="password"
                     required
                     value={password}

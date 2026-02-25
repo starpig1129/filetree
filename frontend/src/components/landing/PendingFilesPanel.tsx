@@ -86,6 +86,7 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
                     </p>
                     <button
                       onClick={() => onRemoveFile(file.id)}
+                      aria-label="移除檔案"
                       className="text-gray-400 hover:text-red-500 transition-colors opacity-100 p-1 shrink-0"
                     >
                       <X className="w-3.5 h-3.5" />
