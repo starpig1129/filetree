@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Cpu,
@@ -8,7 +8,8 @@ import {
   FileUp,
   FileText,
   Database,
-  ShieldCheck,
+  Eye,
+  EyeOff,
   Orbit,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -38,6 +39,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -168,7 +170,7 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
                 </label>
                 <div className="relative group/auth">
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -176,7 +178,18 @@ export const CoreTransferUnit: React.FC<CoreTransferUnitProps> = ({
                     placeholder="輸入解鎖密碼"
                     className="w-full bg-white/50 dark:bg-white/3 border border-white/30 dark:border-white/10 rounded-2xl px-5 sm:px-6 py-4 outline-none focus:border-cyan-500/50 dark:focus:border-quantum-cyan/50 focus:bg-white/80 dark:focus:bg-white/8 transition-all text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/20 min-h-25 resize-none shadow-inner"
                   />
-                  <ShieldCheck className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 dark:text-white/10 group-focus-within/auth:text-cyan-500 transition-colors" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-5 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200/50 dark:hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5 text-gray-300 dark:text-white/10 group-focus-within/auth:text-cyan-500 transition-colors" />
+                    ) : (
+                      <Eye className="w-5 h-5 text-gray-300 dark:text-white/10 group-focus-within/auth:text-cyan-500 transition-colors" />
+                    )}
+                  </button>
                 </div>
               </div>
 
