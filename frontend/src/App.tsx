@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useParams, useLocation, Link } from 'react-router-dom';
 import { Menu, Users } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
+import { Outlet } from 'react-router-dom';
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
 const UserPage = React.lazy(() => import('./pages/UserPage').then(module => ({ default: module.UserPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -119,9 +120,7 @@ const AdminRoute: React.FC = () => {
 // Layout wrapper for main SPA layout (excludes admin)
 const MainLayout: React.FC<{
   users: Array<{ username: string; folder: string }>;
-  config: { allowed_extensions?: string[] };
-  loading: boolean;
-}> = ({ users, config, loading }) => {
+}> = ({ users }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const location = useLocation();
@@ -175,7 +174,6 @@ const MainLayout: React.FC<{
           onToggle={() => setSidebarOpen(!sidebarOpen)} 
         />
 
-        {/* Center Content */}
         <main className={cn(
           "flex-1 min-w-0 flex flex-col transition-all duration-300 relative",
           location.pathname !== '/' && "p-4 lg:p-6 xl:p-8",
@@ -183,12 +181,9 @@ const MainLayout: React.FC<{
             ? "overflow-hidden" 
             : "custom-scrollbar overflow-y-auto"
         )}>
-          <MainContent 
-            users={users} 
-            config={config} 
-            loading={loading} 
-            onOpenDirectory={() => setDirectoryOpen(true)}
-          />
+          <AnimatePresence mode="wait">
+            <Outlet />
+          </AnimatePresence>
         </main>
 
         {/* Right Sidebar - Public Directory */}
@@ -210,49 +205,47 @@ const AppRoutes: React.FC<{
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* Admin page has its own layout */}
-        <Route path="/admin" element={
-          <PageTransition className="h-full">
-            <main className="container mx-auto px-4 py-8 relative z-10">
-              <AdminRoute />
-            </main>
-          </PageTransition>
-        } />
+    <Routes location={location} key="main-routes">
+      {/* Admin page has its own layout */}
+      <Route path="/admin" element={
+        <PageTransition className="h-full">
+          <main className="container mx-auto px-4 py-8 relative z-10">
+            <AdminRoute />
+          </main>
+        </PageTransition>
+      } />
 
-        {/* All other routes use the main SPA layout */}
-        <Route path="/:username" element={
-          <PageTransition className="h-full">
-            <MainLayout users={users} config={config} loading={loading} />
-          </PageTransition>
-        } />
+      <Route path="/share/:token" element={
+         <PageTransition className="h-full">
+            <SharePage />
+         </PageTransition>
+      } />
+
+      {/* All other routes use the main SPA layout */}
+      <Route element={<MainLayout users={users} />}>
         <Route path="/" element={
-          <PageTransition className="h-full">
-            <MainLayout users={users} config={config} loading={loading} />
+          <PageTransition key="landing" className="h-full">
+            <MainContent users={users} config={config} loading={loading} />
           </PageTransition>
         } />
-
         <Route path="/help" element={
-          <PageTransition className="h-full">
-            <MainLayout users={users} config={config} loading={loading} />
+          <PageTransition key="help" className="h-full">
+            <MainContent users={users} config={config} loading={loading} />
           </PageTransition>
         } />
-
-        <Route path="/share/:token" element={
-           <PageTransition className="h-full">
-              <SharePage />
-           </PageTransition>
+        <Route path="/:username" element={
+          <PageTransition key={location.pathname} className="h-full">
+            <MainContent users={users} config={config} loading={loading} />
+          </PageTransition>
         } />
-
         {/* Catch-all 404 route */}
         <Route path="*" element={
-           <PageTransition className="h-full">
+           <PageTransition key="notfound" className="h-full">
               <NotFoundPage />
            </PageTransition>
         } />
-      </Routes>
-    </AnimatePresence>
+      </Route>
+    </Routes>
   );
 };
 
