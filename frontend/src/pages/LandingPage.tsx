@@ -456,10 +456,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       <div className="w-full h-full flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 py-8 2xl:p-0 relative z-10 box-border overflow-y-auto 2xl:overflow-hidden max-w-480 mx-auto custom-scrollbar">
         
         {/* --- [LEFT WING] Pending Notes --- */}
-        {/* Mobile: Order 2. Full Width. Auto height.
+        {/* Mobile: Order 3. Full Width. Auto height.
             Desktop: Order 1. Width ~19vw (Refined). Full Height.
         */}
-        <div className="order-2 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
+        <div className="order-3 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
            <PendingNotesPanel 
               pendingNotes={pendingNotes} 
               onRemoveNote={handleRemoveNote}
@@ -486,10 +486,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
 
         {/* --- [RIGHT WING] Pending Files --- */}
-        {/* Mobile: Order 3. Full Width. Auto Height. 
+        {/* Mobile: Order 2. Full Width. Auto Height. 
             Desktop: Order 3. Width ~19vw (Refined). Full Height.
         */}
-        <div className="order-3 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink pb-10 2xl:pb-0">
+        <div className="order-2 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink pb-10 2xl:pb-0">
            <PendingFilesPanel 
               pendingFiles={pendingFiles} 
               onRemoveFile={handleRemoveFile} 
