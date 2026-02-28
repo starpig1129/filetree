@@ -9,21 +9,15 @@ interface PageTransitionProps {
 const variants = {
   initial: {
     opacity: 0,
-    scale: 0.98,
-    rotateX: 2,
-    y: 10,
+    y: 15,
   },
   enter: {
     opacity: 1,
-    scale: 1,
-    rotateX: 0,
     y: 0,
   },
   exit: {
     opacity: 0,
-    scale: 1.02,
-    rotateX: -2,
-    y: -10,
+    y: -15,
   },
 };
 
@@ -44,13 +38,11 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children, classN
       transition={transition}
       className={className}
       style={{
-        transformStyle: 'preserve-3d',
-        perspective: '1200px',
-        backfaceVisibility: 'hidden',
         width: '100%',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        willChange: 'transform, opacity'
       }}
     >
       {children}
