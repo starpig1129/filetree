@@ -57,6 +57,8 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
                   <button
                     onClick={() => onRemoveNote(idx)}
                     className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 shrink-0 p-1"
+                    aria-label="移除筆記"
+                    title="移除筆記"
                   >
                     <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
