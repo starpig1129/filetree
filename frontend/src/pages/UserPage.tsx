@@ -1112,13 +1112,16 @@ export const UserPage: React.FC<UserPageProps> = ({
         file={previewFile}
       />
 
-      {selectedItems.length > 0 && isAuthenticated && (
+      {selectedItems.length > 0 && (isAuthenticated || activeTab === 'files') && (
         <BatchActionBar
           selectedCount={selectedItems.length}
           isBatchSyncing={isBatchSyncing}
           onAction={handleBatchAction}
           folders={(dashboardData.folders || []).filter(f => f.type === (activeTab === 'files' ? 'file' : 'url'))}
-          allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
+          allowedActions={isAuthenticated 
+            ? (activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move'])
+            : ['download']
+          }
           mode="mobile"
         />
       )}

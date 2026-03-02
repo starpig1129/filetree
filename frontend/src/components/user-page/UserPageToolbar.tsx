@@ -70,14 +70,17 @@ export const UserPageToolbar: React.FC<UserPageToolbarProps> = ({
       <div className="hidden lg:flex items-center gap-3 bg-white/40 dark:bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 ml-4">
          
          {/* Batch Actions */}
-         {selectedItems.length > 0 && isAuthenticated && (
+         {selectedItems.length > 0 && (isAuthenticated || activeTab === 'files') && (
            <div className="border-r border-gray-200 dark:border-white/10 pr-3 mr-1">
              <BatchActionBar
                selectedCount={selectedItems.length}
                isBatchSyncing={isBatchSyncing}
                onAction={onBatchAction}
                folders={(folders || []).filter(f => f.type === (activeTab === 'files' ? 'file' : 'url'))}
-               allowedActions={activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move']}
+               allowedActions={isAuthenticated 
+                 ? (activeTab === 'files' ? ['lock', 'unlock', 'download', 'delete', 'move'] : ['lock', 'unlock', 'delete', 'move'])
+                 : ['download']
+               }
                mode="desktop"
              />
            </div>
