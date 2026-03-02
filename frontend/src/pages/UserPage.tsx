@@ -142,6 +142,8 @@ export const UserPage: React.FC<UserPageProps> = ({
     setActiveTab(tab);
     const folderId = tab === 'files' ? activeFileFolderId : activeUrlFolderId;
     updateUrl(tab, folderId);
+    setSelectedItems([]);
+    setIsSelectionMode(false);
   };
 
   const handleFolderNavigation = (type: 'file' | 'url', folderId: string | null) => {
@@ -152,6 +154,8 @@ export const UserPage: React.FC<UserPageProps> = ({
       setActiveUrlFolderId(folderId);
       updateUrl('urls', folderId);
     }
+    setSelectedItems([]);
+    setIsSelectionMode(false);
   };
 
   // --- Actions ---
