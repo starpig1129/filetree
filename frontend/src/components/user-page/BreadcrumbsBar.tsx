@@ -35,7 +35,7 @@ export const BreadcrumbsBar: React.FC<BreadcrumbsBarProps> = ({
   onClearSelection,
   activeTab
 }) => {
-  const currentTypeSelectedCount = selectedItems.filter(i => i.type === (activeTab === 'files' ? 'file' : 'url')).length;
+  const currentTypeSelectedCount = selectedItems.filter(i => i.type === (activeTab === 'files' ? 'file' : 'url') || i.type === 'folder').length;
   const isAllCurrentTypeSelected = currentTypeSelectedCount === filteredCount && filteredCount > 0;
 
   return (
@@ -44,7 +44,7 @@ export const BreadcrumbsBar: React.FC<BreadcrumbsBarProps> = ({
         <button
           onClick={onSidebarToggle}
           className={cn(
-            "p-1.5 rounded-lg bg-white/40 dark:bg-white/5 bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 transition-colors border border-white/20 shrink-0",
+            "p-1.5 rounded-lg bg-white/40 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10 transition-colors border border-white/20 shrink-0",
              activeTab === 'files' ? "text-gray-600 dark:text-cyan-500 hover:bg-cyan-500/10" : "text-gray-600 dark:text-violet-500 hover:bg-violet-500/10"
           )}
           aria-label="資料夾"

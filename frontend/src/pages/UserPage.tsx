@@ -84,10 +84,18 @@ export const UserPage: React.FC<UserPageProps> = ({
     return (dashboardData.files || []).filter(f => f.folder_id === activeFileFolderId);
   }, [dashboardData.files, activeFileFolderId]);
 
+  const filteredFileFolders = useMemo(() => {
+    return (dashboardData.folders || []).filter(f => f.parent_id === activeFileFolderId && f.type === 'file');
+  }, [dashboardData.folders, activeFileFolderId]);
+
   const filteredUrls = useMemo(() => {
     if (activeUrlFolderId === null) return dashboardData.urls || [];
     return (dashboardData.urls || []).filter(u => u.folder_id === activeUrlFolderId);
   }, [dashboardData.urls, activeUrlFolderId]);
+
+  const filteredUrlFolders = useMemo(() => {
+    return (dashboardData.folders || []).filter(f => f.parent_id === activeUrlFolderId && f.type === 'url');
+  }, [dashboardData.folders, activeUrlFolderId]);
 
   const getBreadcrumbs = React.useCallback((folderId: string | null) => {
     if (!folderId) return [];
@@ -637,36 +645,46 @@ export const UserPage: React.FC<UserPageProps> = ({
   };
 
   const handleSelectAllAction = () => {
-    const isAll = activeTab === 'files' 
-        ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
-        : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
-    
     if (activeTab === 'files') {
-        const selectableFiles = dashboardData.files
-          ?.filter(f => !f.is_locked || isAuthenticated)
-          .map(f => ({ type: 'file' as const, id: f.name })) || [];
+        const selectableFiles = filteredFiles
+          .filter(f => !f.is_locked || isAuthenticated)
+          .map(f => ({ type: 'file' as const, id: f.name }));
         
-        const currentFolders = dashboardData.folders
-          ?.filter(f => f.parent_id === activeFileFolderId && f.type === 'file')
-          .map(f => ({ type: 'folder' as const, id: f.id })) || [];
+        const selectableFolders = filteredFileFolders
+          .map(f => ({ type: 'folder' as const, id: f.id }));
         
-        handleSelectAll([...selectableFiles, ...currentFolders], !isAll);
+        const allSelectable = [...selectableFiles, ...selectableFolders];
+        const currentSelectedIds = new Set(selectedItems.map(i => i.id));
+        const isAll = allSelectable.length > 0 && allSelectable.every(i => currentSelectedIds.has(i.id));
+        
+        handleSelectAll(allSelectable, !isAll);
     } else {
-        const selectableUrls = dashboardData.urls
-          ?.filter(u => !u.is_locked || isAuthenticated)
-          .map(u => ({ type: 'url' as const, id: u.url })) || [];
+        const selectableUrls = filteredUrls
+          .filter(u => !u.is_locked || isAuthenticated)
+          .map(u => ({ type: 'url' as const, id: u.url }));
 
-        const currentFolders = dashboardData.folders
-            ?.filter(f => f.parent_id === activeUrlFolderId && f.type === 'url')
-            .map(f => ({ type: 'folder' as const, id: f.id })) || [];
+        const selectableFolders = filteredUrlFolders
+          .map(f => ({ type: 'folder' as const, id: f.id }));
             
-        handleSelectAll([...selectableUrls, ...currentFolders], !isAll);
+        const allSelectable = [...selectableUrls, ...selectableFolders];
+        const currentSelectedIds = new Set(selectedItems.map(i => i.id));
+        const isAll = allSelectable.length > 0 && allSelectable.every(i => currentSelectedIds.has(i.id));
+
+        handleSelectAll(allSelectable, !isAll);
     }
   };
 
   const isAllSelected = activeTab === 'files' 
-    ? (filteredFiles.length > 0 && selectedItems.filter(i => i.type === 'file').length === filteredFiles.length)
-    : (filteredUrls.length > 0 && selectedItems.filter(i => i.type === 'url').length === filteredUrls.length);
+    ? (
+        (filteredFiles.length > 0 || filteredFileFolders.length > 0) &&
+        selectedItems.filter(i => i.type === 'file').length === filteredFiles.length &&
+        selectedItems.filter(i => i.type === 'folder').length === filteredFileFolders.length
+      )
+    : (
+        (filteredUrls.length > 0 || filteredUrlFolders.length > 0) &&
+        selectedItems.filter(i => i.type === 'url').length === filteredUrls.length &&
+        selectedItems.filter(i => i.type === 'folder').length === filteredUrlFolders.length
+      );
 
   return (
     <div className="h-full flex flex-col relative text-gray-900 dark:text-gray-100 font-sans selection:bg-cyan-500/30">
@@ -700,7 +718,7 @@ export const UserPage: React.FC<UserPageProps> = ({
         isBatchSyncing={isBatchSyncing}
         onBatchAction={handleBatchAction}
         folders={dashboardData.folders}
-        itemCount={activeTab === 'files' ? filteredFiles.length : filteredUrls.length}
+        itemCount={activeTab === 'files' ? filteredFiles.length + filteredFileFolders.length : filteredUrls.length + filteredUrlFolders.length}
         allItemsSelected={isAllSelected}
         onSelectAll={handleSelectAllAction}
       />
@@ -765,8 +783,8 @@ export const UserPage: React.FC<UserPageProps> = ({
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 selectedItems={selectedItems}
-                itemCount={filteredFiles.length}
-                filteredCount={filteredFiles.length}
+                itemCount={filteredFiles.length + filteredFileFolders.length}
+                filteredCount={filteredFiles.length + filteredFileFolders.length}
                 onSelectAll={handleSelectAllAction}
                 onClearSelection={() => { setIsSelectionMode(false); setSelectedItems([]); }}
                 activeTab="files"
@@ -837,8 +855,8 @@ export const UserPage: React.FC<UserPageProps> = ({
                 isSelectionMode={isSelectionMode}
                 onSelectionModeChange={setIsSelectionMode}
                 selectedItems={selectedItems}
-                itemCount={filteredUrls.length}
-                filteredCount={filteredUrls.length}
+                itemCount={filteredUrls.length + filteredUrlFolders.length}
+                filteredCount={filteredUrls.length + filteredUrlFolders.length}
                 onSelectAll={handleSelectAllAction}
                 onClearSelection={() => { setIsSelectionMode(false); setSelectedItems([]); }}
                 activeTab="urls"
