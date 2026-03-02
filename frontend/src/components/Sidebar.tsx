@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { FileUp, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../contexts/ThemeContext';
@@ -62,16 +61,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   return (
     <>
 
-      {/* Mobile Overlay */}
-      {isOpen && !isDesktop && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onToggle}
-          className="fixed inset-0 bg-black/50 dark:bg-space-black/80 backdrop-blur-sm z-40"
-        />
-      )}
+      {/* Mobile Overlay - controlled via CSS to avoid AnimatePresence stale DOM issues */}
+      <div
+        onClick={onToggle}
+        className={cn(
+          "fixed inset-0 bg-black/50 dark:bg-space-black/80 backdrop-blur-sm z-40 transition-opacity duration-300",
+          isOpen && !isDesktop
+            ? "opacity-100 visible"
+            : "opacity-0 invisible pointer-events-none"
+        )}
+      />
 
       {/* Sidebar Container */}
       <aside
