@@ -1,0 +1,18 @@
+
+> frontend@0.0.0 dev
+> vite --host
+
+
+  VITE v7.3.1  ready in 477 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.0.2:5173/
+5:36:20 AM [vite] http proxy error: /api/init
+AggregateError [ECONNREFUSED]:
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+5:36:20 AM [vite] http proxy error: /api/init
+AggregateError [ECONNREFUSED]:
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+5:36:20 AM [vite] (client) hmr update /src/index.css
