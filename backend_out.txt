@@ -1,0 +1,15 @@
+/app/backend/app.py:273: DeprecationWarning: There is no current event loop
+  loop = asyncio.get_event_loop()
+INFO:     Started server process [5431]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:5168 (Press CTRL+C to quit)
+WARNING: ffmpeg not found. Video thumbnails will be unavailable.
+Warning: Static directory /app/static/dist not found. Build the frontend first.
+Warning: Static directory /app/static/dist not found. Build the frontend first.
+INFO:     127.0.0.1:47190 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47196 - "GET /api/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47202 - "GET /api/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55734 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55740 - "GET /api/init HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55754 - "GET /api/init HTTP/1.1" 200 OK

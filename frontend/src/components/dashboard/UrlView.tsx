@@ -431,6 +431,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 bg-white rounded-full text-gray-700 hover:text-violet-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                               title="QR Code"
+                              aria-label="顯示 QR Code"
                             >
                               <QrCode className="w-4 h-4" />
                             </button>
@@ -442,6 +443,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                               title="複製"
+                              aria-label="複製"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -458,6 +460,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                     url.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
                                   )}
                                   title={url.is_locked ? "解除鎖定" : "鎖定項目"}
+                                   aria-label={url.is_locked ? "解除鎖定" : "鎖定項目"}
                                 >
                                   {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                                 </button>
@@ -469,6 +472,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                       <button 
                                         className="p-2 bg-white rounded-full text-gray-700 hover:text-cyan-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto" 
                                         title="移動到..."
+                                        aria-label="移動到..."
                                         onMouseDown={(e) => e.stopPropagation()}
                                  onMouseUp={(e) => e.stopPropagation()}
                                  onTouchStart={(e) => e.stopPropagation()}
@@ -487,6 +491,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchEnd={(e) => e.stopPropagation()}
                                   className="p-2 bg-white rounded-full text-gray-700 hover:text-red-600 shadow-lg transition-transform hover:scale-110 pointer-events-auto"
                                   title="刪除項目"
+                                  aria-label="刪除項目"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -530,6 +535,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                      onMouseUp={(e) => e.stopPropagation()}
                                      onTouchStart={(e) => e.stopPropagation()}
                                      onTouchEnd={(e) => e.stopPropagation()}
+                                     aria-label="更多選項"
                                    >
                                      <MoreVertical className="w-4 h-4" />
                                    </button>
@@ -634,6 +640,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                               onMouseDown={(e) => e.stopPropagation()}
                                onMouseUp={(e) => e.stopPropagation()}
                               className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                              aria-label={isSelected ? "取消選取項目" : "選取項目"}
                             >
                               {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
                             </button>
@@ -687,6 +694,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-violet-500 hover:bg-violet-500/5 rounded-lg transition-colors"
                               title="QR Code"
+                              aria-label="顯示 QR Code"
                             >
                               <QrCode className="w-4 h-4" />
                             </button>
@@ -698,6 +706,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                onTouchEnd={(e) => e.stopPropagation()}
                               className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
                               title="複製"
+                              aria-label="複製"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
@@ -715,6 +724,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                        ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20 shadow-md" 
                                        : "text-cyan-600 bg-cyan-600/10 hover:bg-cyan-600/20 shadow-sm"
                                    )}
+                                   aria-label={url.is_locked ? "解除鎖定" : "鎖定項目"}
                                  >
                                    {url.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                                 </button>
@@ -726,6 +736,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                        <button
                                          className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
                                          title="移動到..."
+                                         aria-label="移動到..."
                                          onMouseDown={(e) => e.stopPropagation()}
                                          onMouseUp={(e) => e.stopPropagation()}
                                          onTouchStart={(e) => e.stopPropagation()}
@@ -743,6 +754,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                    onTouchStart={(e) => e.stopPropagation()}
                                    onTouchEnd={(e) => e.stopPropagation()}
                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
+                                   aria-label="刪除項目"
                                  >
                                    <Trash2 className="w-4 h-4" />
                                  </button>
@@ -766,6 +778,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                    onMouseUp={(e) => e.stopPropagation()}
                                    onTouchStart={(e) => e.stopPropagation()}
                                    onTouchEnd={(e) => e.stopPropagation()}
+                                   aria-label="更多選項"
                                  >
                                    <MoreVertical className="w-5 h-5" />
                                  </button>
