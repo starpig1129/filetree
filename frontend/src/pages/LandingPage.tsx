@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, Terminal, Database } from 'lucide-react';
 import { SecurityInitializationModal } from '../components/SecurityInitializationModal';
 import { PendingNotesPanel } from '../components/landing/PendingNotesPanel';
 import { PendingFilesPanel } from '../components/landing/PendingFilesPanel';
@@ -30,6 +30,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
   
   // Pending lists
   const [pendingNotes, setPendingNotes] = useState<string[]>([]);
+  const [activeMobileSheet, setActiveMobileSheet] = useState<'none' | 'notes' | 'files'>('none');
+
   // eslint-disable-next-line
   const [pendingFiles, setPendingFiles] = useState<import('@uppy/core').UppyFile<any, any>[]>([]); 
   
@@ -457,10 +459,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       <div className="w-full h-full flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 py-8 2xl:p-0 relative z-10 box-border overflow-y-auto 2xl:overflow-hidden max-w-480 mx-auto custom-scrollbar">
         
         {/* --- [LEFT WING] Pending Notes --- */}
-        {/* Mobile: Order 3. Full Width. Auto height.
-            Desktop: Order 1. Width ~19vw (Refined). Full Height.
-        */}
-        <div className="order-3 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
+        {/* Mobile: Hidden. Desktop: Order 1. Width ~19vw (Refined). Full Height. */}
+        <div className="hidden lg:flex order-3 2xl:order-1 w-full 2xl:w-[22vw] xl:w-[20vw] 2xl:min-w-55 2xl:max-w-112.5 flex-col h-auto 2xl:min-h-50 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink">
            <PendingNotesPanel 
               pendingNotes={pendingNotes} 
               onRemoveNote={handleRemoveNote}
@@ -487,10 +487,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
 
 
         {/* --- [RIGHT WING] Pending Files --- */}
-        {/* Mobile: Order 2. Full Width. Auto Height. 
-            Desktop: Order 3. Width ~19vw (Refined). Full Height.
-        */}
-        <div className="order-2 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-55 2xl:max-w-112.5 flex flex-col h-auto min-h-50 max-h-[50vh] 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink pb-10 2xl:pb-0">
+        {/* Mobile: Hidden. Desktop: Order 3. Width ~19vw (Refined). Full Height. */}
+        <div className="hidden lg:flex order-2 2xl:order-3 w-full 2xl:w-[22vw] xl:w-[19vw] 2xl:min-w-55 2xl:max-w-112.5 flex-col h-auto 2xl:min-h-50 2xl:h-[80vh] 2xl:max-h-212.5 transition-opacity duration-300 2xl:opacity-60 2xl:hover:opacity-100 min-w-0 shrink pb-10 2xl:pb-0">
            <PendingFilesPanel 
               pendingFiles={pendingFiles} 
               onRemoveFile={handleRemoveFile} 
@@ -498,6 +496,76 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
         </div>
 
       </div>
+
+      {/* --- [MOBILE ONLY] Bottom Navigation & Sheets --- */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 pb-safe">
+        <div className="flex items-center justify-around p-3 gap-3">
+          <button 
+            onClick={() => setActiveMobileSheet('notes')}
+            className={`cursor-pointer flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${activeMobileSheet === 'notes' ? 'bg-orange-500/10 text-orange-500' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'}`}
+          >
+            <div className="relative">
+              <Terminal className="w-5 h-5 mb-1" />
+              {pendingNotes.length > 0 && (
+                <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full">
+                  {pendingNotes.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[0.65rem] font-bold tracking-widest uppercase">待定筆記</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveMobileSheet('files')}
+            className={`cursor-pointer flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-colors ${activeMobileSheet === 'files' ? 'bg-purple-500/10 text-purple-500' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'}`}
+          >
+            <div className="relative">
+              <Database className="w-5 h-5 mb-1" />
+              {pendingFiles.length > 0 && (
+                <span className="absolute -top-1 -right-2 bg-purple-500 text-white text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full">
+                  {pendingFiles.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[0.65rem] font-bold tracking-widest uppercase">待傳檔案</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Sheet Overlay */}
+      <AnimatePresence>
+        {activeMobileSheet !== 'none' && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveMobileSheet('none')}
+              className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed bottom-18 left-0 right-0 z-50 bg-white/90 dark:bg-[#070a1a]/90 backdrop-blur-xl rounded-t-3xl shadow-2xl flex flex-col pt-3 pb-4 max-h-[85vh] border-t border-gray-200 dark:border-white/10"
+            >
+              <div 
+                 className="w-16 h-1.5 bg-gray-300 dark:bg-white/20 rounded-full mx-auto mb-4 shrink-0 cursor-pointer" 
+                 onClick={() => setActiveMobileSheet('none')}
+              />
+              <div className="flex-1 overflow-y-auto px-4 w-full self-center" style={{ maxWidth: '440px' }}>
+                {activeMobileSheet === 'notes' ? (
+                  <PendingNotesPanel pendingNotes={pendingNotes} onRemoveNote={handleRemoveNote} />
+                ) : (
+                  <PendingFilesPanel pendingFiles={pendingFiles} onRemoveFile={handleRemoveFile} />
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
 
       <SecurityInitializationModal
         isOpen={!!firstLoginUserInfo}

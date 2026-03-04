@@ -47,7 +47,7 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
         </h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pl-1 relative z-10">
+      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pl-1 relative z-10 min-h-25">
         <AnimatePresence mode="popLayout">
           {pendingFiles.length === 0 ? (
             <motion.div
@@ -55,26 +55,24 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-3 lg:space-y-4 min-h-25"
+              className="h-full w-full shrink-0 flex flex-col items-center justify-center text-gray-400 dark:text-white/10 space-y-3 lg:space-y-4 min-h-25"
             >
-              <div className="p-4 rounded-full bg-linear-to-br from-cyan-500/10 to-violet-500/10 dark:from-quantum-cyan/20 dark:to-digital-violet/20 group-hover:scale-110 transition-transform duration-500 max-w-16 max-h-16 flex items-center justify-center">
+              <div className="p-4 rounded-full bg-linear-to-br from-cyan-500/10 to-violet-500/10 dark:from-quantum-cyan/20 dark:to-digital-violet/20 group-hover:scale-110 transition-transform duration-500 max-w-16 max-h-16 flex items-center justify-center shrink-0">
                 <FileUp className="w-8 h-8 text-cyan-600 dark:text-quantum-cyan" />
               </div>
               <p className="text-[0.6rem] lg:text-[0.65rem] uppercase tracking-widest text-center font-bold">
-                拖放檔案
-                <br />
-                至任意處
+                拖放檔案<br />至任意處
               </p>
             </motion.div>
           ) : (
             pendingFiles.map((file) => (
               <motion.div
                 key={file.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 layout
-                className="group/item relative p-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/20 dark:border-white/5 hover:border-purple-500/30 transition-all shadow-sm backdrop-blur-sm flex items-center gap-3 cursor-default"
+                className="group/item relative p-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/20 dark:border-white/5 hover:border-purple-500/30 transition-all shadow-sm backdrop-blur-sm flex items-center gap-3 cursor-default shrink-0 w-[85vw] sm:w-[60vw] md:w-72 lg:w-full snap-center"
               >
                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
                   <FileText className="w-5 h-5 text-gray-500 dark:text-gray-300" />
@@ -86,26 +84,26 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
                     </p>
                     <button
                       onClick={() => onRemoveFile(file.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors opacity-100 p-1 shrink-0"
+                      className="text-gray-400 hover:text-red-500 transition-colors opacity-100 p-2 -mr-2 lg:p-1 lg:mr-0 shrink-0"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-5 h-5 lg:w-3.5 lg:h-3.5" />
                     </button>
                   </div>
 
                   {/* Progress Info */}
                   {file.progress && file.progress.percentage !== undefined && file.progress.percentage > 0 && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 w-full">
                       {/* Bar */}
-                      <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden shrink-0">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${file.progress.percentage}%` }}
-                          className="h-full bg-linear-to-r from-purple-500 to-cyan-500"
+                          className="h-full bg-linear-to-r from-purple-500 to-cyan-500 shrink-0"
                         />
                       </div>
                       
                       {/* Stats Grid */}
-                      <div className="grid grid-cols-2 gap-y-1 text-[0.6rem] font-mono uppercase tracking-tight">
+                      <div className="grid grid-cols-2 gap-y-1 text-[0.6rem] font-mono uppercase tracking-tight shrink-0">
                         <div className="text-purple-600 dark:text-purple-400 font-bold">
                           {file.progress.percentage.toFixed(1)}%
                         </div>
@@ -115,11 +113,11 @@ export const PendingFilesPanel: React.FC<PendingFilesPanelProps> = ({
                         
                         {file.progress.percentage < 100 && (
                           <>
-                            <div className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
+                            <div className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 shrink-0">
                               <TrendingUp className="w-2.5 h-2.5" />
                               {formatBytes(Number(file.meta?.uploadSpeed) || 0)}/s
                             </div>
-                            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 justify-self-end">
+                            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 justify-self-end shrink-0">
                               <Clock className="w-2.5 h-2.5" />
                               {formatDuration(Number(file.meta?.eta) || 0)}
                             </div>

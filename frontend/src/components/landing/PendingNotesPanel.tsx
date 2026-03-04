@@ -28,26 +28,24 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col items-center justify-center text-center space-y-4 min-h-25"
+              className="flex-1 flex flex-col items-center justify-center text-center space-y-4 min-h-25 w-full shrink-0"
             >
-              <div className="w-10 h-10 lg:w-[8vh] lg:h-[8vh] max-w-16 max-h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50">
+              <div className="w-10 h-10 lg:w-[8vh] lg:h-[8vh] max-w-16 max-h-16 rounded-full border-2 border-dashed border-current flex items-center justify-center opacity-50 shrink-0">
                 <Zap className="w-1/2 h-1/2" />
               </div>
               <p className="text-[0.6rem] lg:text-[0.65rem] uppercase tracking-widest text-center font-bold">
-                請在中欄輸入
-                <br />
-                並按 Enter
+                請在中欄輸入<br />並按 Enter
               </p>
             </motion.div>
           ) : (
             pendingNotes.map((note, idx) => (
               <motion.div
                 key={`${idx}-${note.substring(0, 10)}`}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 layout
-                className="group/item relative p-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/20 dark:border-white/5 hover:border-orange-500/30 transition-all cursor-default shadow-sm backdrop-blur-sm"
+                className="group/item relative p-3 bg-white/60 dark:bg-white/10 rounded-xl border border-white/20 dark:border-white/5 hover:border-orange-500/30 transition-all cursor-default shadow-sm backdrop-blur-sm shrink-0 w-full"
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm text-gray-700 dark:text-gray-200 break-all font-mono leading-relaxed">
@@ -56,9 +54,9 @@ export const PendingNotesPanel: React.FC<PendingNotesPanelProps> = ({
                   {/* Make close button always visible on mobile/touch, hover only on desktop */}
                   <button
                     onClick={() => onRemoveNote(idx)}
-                    className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 shrink-0 p-1"
+                    className="text-gray-400 hover:text-red-500 transition-colors opacity-100 lg:opacity-0 lg:group-hover/item:opacity-100 shrink-0 p-2 -mr-2 lg:p-1 lg:mr-0"
                   >
-                    <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+                    <X className="w-5 h-5 lg:w-3.5 lg:h-3.5" />
                   </button>
                 </div>
               </motion.div>
