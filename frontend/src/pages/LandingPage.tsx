@@ -244,11 +244,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
       
       if (res.ok) {
         const user = await res.json();
+        const targetParams = finalNotes.length > 0 ? '?tab=url' : '';
         if (user.first_login) {
           setFirstLoginUserInfo({ username: user.username, oldPwd: password });
-          setRedirectPath(`/${user.username}`);
+          setRedirectPath(`/${user.username}${targetParams}`);
         } else {
-          navigate(`/${user.username}`);
+          navigate(`/${user.username}${targetParams}`);
         }
       } else {
         alert('資料已提交，但自動登入失敗 (密碼可能錯誤？)');
