@@ -364,6 +364,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                             ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20 shadow-md" 
                             : "text-cyan-600 bg-cyan-600/10 hover:bg-cyan-600/20 shadow-sm"
                         )}
+                        aria-label={folder.is_locked ? "解除鎖定" : "鎖定資料夾"}
                       >
                          {folder.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                       </button>
@@ -374,6 +375,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                         onMouseDown={(e) => e.stopPropagation()}
                         onMouseUp={(e) => e.stopPropagation()}
                         className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                        aria-label="分享"
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
@@ -384,6 +386,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                         onMouseDown={(e) => e.stopPropagation()}
                         onMouseUp={(e) => e.stopPropagation()}
                         className="p-2 text-gray-400 hover:text-violet-600 hover:bg-violet-500/5 rounded-lg transition-colors"
+                        aria-label="顯示 QR Code"
                       >
                         <QrCode className="w-4 h-4" />
                       </button>
@@ -394,6 +397,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                         onMouseDown={(e) => e.stopPropagation()}
                         onMouseUp={(e) => e.stopPropagation()}
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-500/5 rounded-lg transition-colors"
+                        aria-label="下載"
                       >
                         <Download className="w-4 h-4" />
                       </button>
@@ -409,6 +413,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                              onMouseUp={(e) => e.stopPropagation()}
                              onTouchStart={(e) => e.stopPropagation()}
                              onTouchEnd={(e) => e.stopPropagation()}
+                             aria-label="移動"
                           >
                             <FolderIcon className="w-4 h-4" />
                           </button>
@@ -422,6 +427,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                            onMouseDown={(e) => e.stopPropagation()}
                            onMouseUp={(e) => e.stopPropagation()}
                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
+                           aria-label="重命名"
                          >
                            <Edit3 className="w-4 h-4" />
                          </button>
@@ -436,6 +442,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                              onMouseDown={(e) => e.stopPropagation()}
                              onMouseUp={(e) => e.stopPropagation()}
                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
+                             aria-label="刪除"
                            >
                              <Trash2 className="w-4 h-4" />
                            </button>
@@ -639,6 +646,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   onMouseUp={(e) => e.stopPropagation()}
                   className="p-1.5 bg-white rounded-full text-blue-500 hover:text-blue-600 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                   title="分享"
+                  aria-label="分享"
                 >
                   <Share2 className="w-3.5 h-3.5" />
                 </button>
@@ -650,6 +658,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   onMouseUp={(e) => e.stopPropagation()}
                   className="p-1.5 bg-white rounded-full text-violet-500 hover:text-violet-600 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                   title="QR Code"
+                  aria-label="顯示 QR Code"
                 >
                   <QrCode className="w-3.5 h-3.5" />
                 </button>
@@ -661,6 +670,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   onMouseUp={(e) => e.stopPropagation()}
                   className="p-1.5 bg-white rounded-full text-green-500 hover:text-green-600 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                   title="下載資料夾"
+                  aria-label="下載"
                 >
                   <Download className="w-3.5 h-3.5" />
                 </button>
@@ -678,6 +688,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                     onMouseUp={(e) => e.stopPropagation()}
                     className="p-1.5 bg-white rounded-full text-cyan-500 hover:text-cyan-600 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                     title="重命名"
+                    aria-label="重命名"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
@@ -693,6 +704,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                             onMouseUp={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}
                             onTouchEnd={(e) => e.stopPropagation()}
+                            aria-label="移動"
                           >
                             <FolderIcon className="w-3.5 h-3.5" />
                           </button>
@@ -714,6 +726,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                       : "bg-white text-gray-400 hover:text-violet-600"
                   )}
                   title={folder.is_locked ? '解除鎖定' : '鎖定'}
+                  aria-label={folder.is_locked ? "解除鎖定" : "鎖定資料夾"}
                 >
                   {folder.is_locked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                 </button>
@@ -731,6 +744,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   onMouseUp={(e) => e.stopPropagation()}
                   className="p-1.5 bg-white rounded-full text-gray-400 hover:text-red-500 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                   title="刪除"
+                  aria-label="刪除"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
