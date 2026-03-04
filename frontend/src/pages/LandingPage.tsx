@@ -456,7 +456,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ data }) => {
           Desktop (lg+): flex-row, h-full, centered, no scrollbars on body.
           Breakpoint changed from 'xl' to 'lg' to support 13" laptops/iPad Pros.
       */}
-      <div className="w-full h-full flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 py-8 2xl:p-0 relative z-10 box-border overflow-y-auto 2xl:overflow-hidden max-w-480 mx-auto custom-scrollbar">
+      <div className="w-full h-full flex flex-col 2xl:flex-row items-center justify-start 2xl:justify-center gap-6 2xl:gap-[1.5vw] px-4 pt-8 pb-32 lg:py-8 2xl:p-0 relative z-10 box-border overflow-y-auto 2xl:overflow-hidden max-w-480 mx-auto custom-scrollbar">
         
         {/* --- [LEFT WING] Pending Notes --- */}
         {/* Mobile: Hidden. Desktop: Order 1. Width ~19vw (Refined). Full Height. */}
