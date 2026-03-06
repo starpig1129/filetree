@@ -34,6 +34,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('lock') && (
           <ActionButton
             icon={<Lock className="w-4 h-4" />}
+            label="鎖定"
             onClick={() => onAction('lock')}
             disabled={isBatchSyncing}
             color="violet"
@@ -42,6 +43,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('unlock') && (
           <ActionButton
             icon={<Unlock className="w-4 h-4" />}
+            label="解鎖"
             onClick={() => onAction('unlock')}
             disabled={isBatchSyncing}
             color="cyan"
@@ -52,6 +54,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('download') && (
           <ActionButton
             icon={<Download className="w-4 h-4" />}
+            label="下載"
             onClick={() => onAction('download')}
             disabled={isBatchSyncing}
             color="green"
@@ -60,6 +63,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('delete') && (
           <ActionButton
             icon={<Trash2 className="w-4 h-4" />}
+            label="刪除"
             onClick={() => onAction('delete')}
             disabled={isBatchSyncing}
             color="red"
@@ -160,34 +164,43 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
   );
 };
 
-const ActionButton = ({ icon, onClick, disabled, color }: { icon: React.ReactNode, onClick: () => void, disabled: boolean, color: string }) => {
+const ActionButton = ({ icon, label, onClick, disabled, color }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean, color: string }) => {
   const colorClasses: Record<string, string> = {
-    violet: "text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10",
-    cyan: "text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10",
-    green: "text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10",
-    red: "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10",
+    violet: "text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10 focus-visible:ring-violet-500",
+    cyan: "text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 focus-visible:ring-cyan-500",
+    green: "text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 focus-visible:ring-green-500",
+    red: "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 focus-visible:ring-red-500",
   };
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-2 rounded-md transition-colors ${colorClasses[color] || ""}`}
+      aria-label={label}
+      title={label}
+      className={`p-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 ${colorClasses[color] || ""}`}
     >
       {icon}
     </button>
   );
 };
 
-const MobileActionButton = ({ icon, label, onClick, disabled, color }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean, color: string }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`flex flex-col items-center gap-1 min-w-[3rem] ${color}`}
-  >
-    <div className="p-2 rounded-full active:bg-gray-100 dark:active:bg-white/10 transition-colors">
-      {icon}
-    </div>
-    <span className="text-[10px] font-medium opacity-80">{label}</span>
-  </button>
-);
+const MobileActionButton = ({ icon, label, onClick, disabled, color }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean, color: string }) => {
+  // Extracting color for focus ring (assuming color like "text-violet-500")
+  const ringColor = color.replace('text-', 'focus-visible:ring-');
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`flex flex-col items-center gap-1 min-w-[3rem] rounded-md focus-visible:outline-none focus-visible:ring-2 ${ringColor} ${color}`}
+    >
+      <div className="p-2 rounded-full active:bg-gray-100 dark:active:bg-white/10 transition-colors">
+        {icon}
+      </div>
+      <span className="text-[10px] font-medium opacity-80">{label}</span>
+    </button>
+  );
+};
