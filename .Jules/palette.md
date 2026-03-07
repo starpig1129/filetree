@@ -1,3 +1,7 @@
 ## 2024-05-24 - FileItem Action Buttons Accessibility
 **Learning:** Found that the primary grid and list views of the FileNexus dashboard (`FileItem.tsx`) were heavily relying on icon-only buttons for critical actions (Share, Download, Delete, Lock, QR Code) without `aria-label`s, presenting a significant barrier for screen reader users. The app uses Traditional Chinese for UI labels, so all `aria-label` additions needed to match this localization.
 **Action:** Always verify icon-only buttons in new components for `aria-label`s, ensuring the text matches the application's localized language (Traditional Chinese) rather than defaulting to English.
+
+## 2024-05-25 - BatchActionBar Icon-Only Buttons Accessibility
+**Learning:** Found that the `BatchActionBar.tsx` component used icon-only buttons (`ActionButton`, `MobileActionButton`) without `aria-label`, `title` (tooltips), and `focus-visible` styling, causing accessibility and keyboard navigation issues. Furthermore, mobile views had visible labels but screen-readers would read them twice if `aria-label` was added without `aria-hidden="true"` on the visible text span.
+**Action:** When adding `aria-label`s to custom button components that might contain visible text spans, always ensure the inner visible text span has `aria-hidden="true"` to prevent double-reading by screen readers. Always add `focus-visible` outline or ring classes (`focus-visible:ring-2`, `focus-visible:outline-none`) to improve keyboard navigation accessibility.
