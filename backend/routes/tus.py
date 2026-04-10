@@ -6,7 +6,7 @@ Enables refresh-resume and efficient direct-to-disk uploads.
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from starlette.requests import ClientDisconnect
 from fastapi import HTTPException, Header, status
 from typing import Optional
@@ -23,7 +23,6 @@ from backend.config import settings
 from backend.services.token_service import token_service
 from backend.core.rate_limit import limiter 
 
-from starlette.concurrency import run_in_threadpool
 from fastapi import BackgroundTasks
 import os
 import aiofiles

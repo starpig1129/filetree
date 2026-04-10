@@ -784,10 +784,54 @@ async def batch_download(
         if p_user and p_user["username"] == username:
             auth_success = True
 
-    # Check if any file is locked — require authentication if so
+    if not filenames:
+        raise HTTPException(status_code=400, detail="請提供要下載的檔案名稱")
+
+    from backend.services.database import get_files_db
+    db = await get_files_db()
+
+    # Bulk fetch file metadata (folder_id, is_locked)
+    placeholders = ",".join("?" for _ in filenames)
+    query = f"SELECT filename, folder_id, is_locked FROM files WHERE username = ? AND filename IN ({placeholders})"
+    cursor = await db.execute(query, (user["folder"], *filenames))
+    rows = await cursor.fetchall()
+    file_metadata = {row["filename"]: dict(row) for row in rows}
+
+    # Fetch all folders once for path resolution and lock inheritance check
+    all_folders = await user_service.get_folders_by_username(username)
+    folder_map = {f["id"]: f for f in all_folders}
+
+    def is_item_locked_in_memory(fid, item_locked_bit):
+        if item_locked_bit:
+            return True
+        curr = fid
+        for _ in range(50):
+            if not curr or curr not in folder_map:
+                break
+            f = folder_map[curr]
+            if f.get("is_locked"):
+                return True
+            curr = f.get("parent_id")
+        return False
+
+    def get_path_names_in_memory(fid):
+        path = []
+        curr = fid
+        for _ in range(50):
+            if not curr or curr not in folder_map:
+                break
+            f = folder_map[curr]
+            path.insert(0, f["name"])
+            curr = f["parent_id"]
+        return path
+
+    # Check if any file is locked (including inherited locks)
     has_locked = False
-    for f in filenames:
-        if await file_service.is_file_locked(user["folder"], f):
+    for fname in filenames:
+        meta = file_metadata.get(fname)
+        fid = meta["folder_id"] if meta else None
+        item_locked = bool(meta["is_locked"]) if meta else False
+        if is_item_locked_in_memory(fid, item_locked):
             has_locked = True
             break
 
@@ -802,18 +846,11 @@ async def batch_download(
     temp_zip_path = temp_zip.name
     temp_zip.close()
 
-    from backend.services.database import get_files_db
-    db = await get_files_db()
-
     with zipfile.ZipFile(temp_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for fname in filenames:
-            cursor = await db.execute(
-                "SELECT folder_id FROM files WHERE username = ? AND filename = ?",
-                (user["folder"], fname),
-            )
-            row = await cursor.fetchone()
-            fid = row["folder_id"] if row else None
-            path_names = await user_service.get_folder_path_names(username, fid)
+            meta = file_metadata.get(fname)
+            fid = meta["folder_id"] if meta else None
+            path_names = get_path_names_in_memory(fid)
             folder_path = file_service._get_folder_path(user["folder"], path_names)
             file_path = folder_path / fname
 
