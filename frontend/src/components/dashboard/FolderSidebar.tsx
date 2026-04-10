@@ -207,6 +207,8 @@ const FolderTreeItem: React.FC<{
                 setEditName(folder.name);
               }}
               className="p-1 hover:bg-white/20 rounded-md"
+              aria-label="編輯資料夾"
+              title="編輯資料夾"
             >
               <Edit3 className="w-3 h-3" />
             </button>
@@ -216,6 +218,8 @@ const FolderTreeItem: React.FC<{
                 if (confirm(`確定刪除資料夾「${folder.name}」及其所有內容？`)) onDeleteFolder(folder.id);
               }}
               className="p-1 hover:bg-red-500/20 text-red-500 rounded-md"
+              aria-label="刪除資料夾"
+              title="刪除資料夾"
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -308,6 +312,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             <button 
               onClick={onClose}
               className="p-1.5 lg:hidden hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg text-gray-500 transition-colors"
+              aria-label="關閉側邊欄"
+              title="關閉側邊欄"
             >
               <X className="w-5 h-5" />
             </button>

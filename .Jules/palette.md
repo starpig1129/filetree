@@ -1,3 +1,3 @@
-## 2024-05-24 - FileItem Action Buttons Accessibility
-**Learning:** Found that the primary grid and list views of the FileNexus dashboard (`FileItem.tsx`) were heavily relying on icon-only buttons for critical actions (Share, Download, Delete, Lock, QR Code) without `aria-label`s, presenting a significant barrier for screen reader users. The app uses Traditional Chinese for UI labels, so all `aria-label` additions needed to match this localization.
-**Action:** Always verify icon-only buttons in new components for `aria-label`s, ensuring the text matches the application's localized language (Traditional Chinese) rather than defaulting to English.
+## 2026-03-01 - Add ARIA Labels to Icon-Only Buttons
+**Learning:** Icon-only buttons without proper ARIA labels and titles create a confusing experience for screen reader users, as they are left without context for the button's action. This is a crucial accessibility gap, especially for frequent actions like 'Remove file' or 'Remove note' which can negatively impact usability.
+**Action:** Always add `aria-label` and `title` attributes to icon-only buttons across the application to ensure that all users can understand and interact with these controls efficiently.
