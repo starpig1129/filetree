@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FileNexus Upload — iPhone 捷徑</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #07070f;
+      --surface: #0f0f1a;
+      --border: #1e1e30;
+      --cyan: #22d3ee;
+      --cyan-dim: #0e7490;
+      --amber: #f59e0b;
+      --green: #10b981;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 18px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, "SF Pro Display", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+      overflow-x: hidden;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30vh;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80vw;
+      height: 60vh;
+      background: radial-gradient(ellipse, rgba(34,211,238,.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 440px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 20px rgba(34,211,238,.3);
+    }
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .logo-text span { color: var(--cyan); }
+    .tagline {
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* Download button */
+    .dl-wrap { margin-bottom: 28px; }
+    .dl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 18px 24px;
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+      border: none;
+      border-radius: var(--radius);
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      box-shadow: 0 6px 32px rgba(34,211,238,.35);
+      -webkit-user-select: none;
+    }
+    .dl-btn:active { transform: scale(.97); box-shadow: 0 2px 12px rgba(34,211,238,.2); }
+    .dl-btn svg { flex-shrink: 0; }
+    .dl-hint {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      color: var(--amber);
+    }
+    .card-title.green { color: var(--green); }
+
+    /* Steps */
+    .steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 16px; }
+    .steps li {
+      counter-increment: s;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .steps li::before {
+      content: counter(s);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(34,211,238,.12);
+      border: 1px solid rgba(34,211,238,.25);
+      color: var(--cyan);
+      font-weight: 700;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .steps li p { font-size: 0.88rem; color: #cbd5e1; line-height: 1.6; }
+    .steps li p strong { color: #f1f5f9; font-weight: 600; }
+    .steps li p code {
+      background: rgba(34,211,238,.08);
+      border: 1px solid rgba(34,211,238,.15);
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-size: 0.83em;
+      color: var(--cyan);
+      font-family: "SF Mono", monospace;
+    }
+
+    /* Usage flow */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+    }
+    .flow-step:not(:last-child) {
+      border-bottom: 1px solid var(--border);
+    }
+    .flow-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(34,211,238,.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .flow-text { font-size: 0.88rem; color: #cbd5e1; line-height: 1.4; }
+    .flow-text strong { color: #f1f5f9; display: block; font-size: 0.82rem; }
+
+    /* Security card */
+    .security { background: rgba(16,185,129,.04); border-color: rgba(16,185,129,.2); }
+    .security-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .security-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .security-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 36px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--cyan-dim); text-decoration: none; }
+
+    /* Inline iOS-style icons */
+    .ios-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: middle;
+      margin: 0 2px;
+    }
+    .ios-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 7px;
+      padding: 2px 8px;
+      font-size: 0.8em;
+      color: #f1f5f9;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .ios-btn.green { background: rgba(52,199,89,.15); border-color: rgba(52,199,89,.4); color: #34c759; }
+    .ios-btn.blue  { background: rgba(0,122,255,.15);  border-color: rgba(0,122,255,.4);  color: #007aff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <img src="/favicon.png" style="width:44px;height:44px;border-radius:12px;box-shadow:0 4px 20px rgba(34,211,238,.3);">
+        <div class="logo-text">File<span>Nexus</span></div>
+      </div>
+      <p class="tagline">iPhone 一鍵上傳捷徑</p>
+    </header>
+
+    <!-- Download Button -->
+    <div class="dl-wrap">
+      <a href="https://www.icloud.com/shortcuts/e3eefe10992b4d0182e0ebe20bcd43d4" class="dl-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 2v10M6 8l4 4 4-4M3 14v2a1 1 0 001 1h12a1 1 0 001-1v-2" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        下載捷徑（點擊安裝）
+      </a>
+      <p class="dl-hint">iOS 官方簽署 · 點擊直接安裝，無需額外設定</p>
+    </div>
+
+    <!-- Install + Favorites Steps -->
+    <div class="card">
+      <div class="card-title">安裝與設定步驟</div>
+      <ol class="steps">
+        <li><p>點擊上方「下載捷徑」按鈕，iPhone 跳出<strong>「加入捷徑」</strong>頁面，點選加入</p></li>
+        <li><p>在任何 App 點
+          <span class="ios-btn">
+            <svg class="ios-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13M8 6l4-4 4 4"/><path d="M5 11H4a1 1 0 00-1 1v8a1 1 0 001 1h16a1 1 0 001-1v-8a1 1 0 00-1-1h-1"/></svg>
+            分享
+          </span>
+          → 滑到最底部點
+          <span class="ios-btn blue">編輯動作⋯</span>
+        </p></li>
+        <li><p>找到「<strong>FileNexus Upload</strong>」→ 點左側
+          <span class="ios-btn green">
+            <svg class="ios-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </span>
+          ，它會出現在喜好項目區塊，可拖曳調整順序
+        </p></li>
+        <li><p>點右上角
+          <span class="ios-btn blue">完成</span>
+          → 捷徑固定在分享選單最上方
+        </p></li>
+        <li><p>之後使用時，長按或點
+          <span class="ios-btn">
+            <svg class="ios-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13M8 6l4-4 4 4"/><path d="M5 11H4a1 1 0 00-1 1v8a1 1 0 001 1h16a1 1 0 001-1v-8a1 1 0 00-1-1h-1"/></svg>
+            分享鍵
+          </span>
+          → 點「<strong>FileNexus Upload</strong>」→ 輸入密碼 → 上傳完成收到通知
+        </p></li>
+      </ol>
+    </div>
+
+    <!-- Rename -->
+    <div class="card">
+      <div class="card-title">✏️ 重新命名捷徑</div>
+      <ol class="steps">
+        <li><p>開啟「<strong>捷徑</strong>」App，找到「FileNexus Upload」</p></li>
+        <li><p><strong>長按</strong>捷徑圖示 → 選「<strong>重新命名</strong>」</p></li>
+        <li><p>輸入你想要的名稱 → 點
+          <span class="ios-btn blue">完成</span>
+        </p></li>
+      </ol>
+      <p style="margin-top:12px;font-size:0.8rem;color:#64748b;">重新命名後，分享選單中顯示的名稱也會一併更新</p>
+    </div>
+
+    <!-- Security -->
+    <div class="card security">
+      <div class="card-title green">安全說明</div>
+      <ul class="security-list">
+        <li>密碼透過 HTTPS 加密傳輸，不以明文記錄</li>
+        <li>捷徑不儲存密碼，每次上傳都需重新輸入</li>
+        <li>檔案直接上傳至你的 FileNexus 帳號</li>
+      </ul>
+    </div>
+
+    <footer>
+      <p>FileNexus · Secure File Bridge Hub</p>
+      <p style="margin-top:4px"><a href="https://99.spkuan.cc">前往 FileNexus →</a></p>
+    </footer>
+
+  </div>
+</body>
+</html>
