@@ -147,12 +147,12 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
                     aria-label="移動"
                     title="移動"
                     className={cn(
-                        "flex flex-col items-center gap-1 min-w-[3rem] rounded-md text-gray-600 dark:text-gray-400 transition-opacity focus-visible:ring-2 focus-visible:outline-none",
+                        "flex flex-col items-center gap-1 min-w-[3rem] text-gray-600 dark:text-gray-400 transition-opacity rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 dark:focus-visible:ring-gray-600",
                         isBatchSyncing ? "opacity-50 cursor-not-allowed" : "opacity-100 cursor-pointer"
                     )}
                    >
                       <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-full hover:bg-gray-200 dark:hover:bg-white/20 active:scale-95 transition-all">
-                           <span className="text-xs font-bold">移動</span>
+                           <span aria-hidden="true" className="text-xs font-bold">移動</span>
                       </div>
                    </div>
                 }
@@ -168,19 +168,19 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
 
 const ActionButton = ({ icon, label, onClick, disabled, color }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean, color: string }) => {
   const colorClasses: Record<string, string> = {
-    violet: "text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10",
-    cyan: "text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10",
-    green: "text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10",
-    red: "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10",
+    violet: "text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10 focus-visible:ring-violet-500",
+    cyan: "text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 focus-visible:ring-cyan-500",
+    green: "text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10 focus-visible:ring-green-500",
+    red: "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 focus-visible:ring-red-500",
   };
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      aria-label={label}
       title={label}
-      className={`p-2 rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none ${colorClasses[color] || ""}`}
+      aria-label={label}
+      className={`p-2 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 ${colorClasses[color] || ""}`}
     >
       {icon}
     </button>
@@ -191,13 +191,13 @@ const MobileActionButton = ({ icon, label, onClick, disabled, color }: { icon: R
   <button
     onClick={onClick}
     disabled={disabled}
-    aria-label={label}
     title={label}
-    className={`flex flex-col items-center gap-1 min-w-[3rem] rounded-md focus-visible:ring-2 focus-visible:outline-none ${color}`}
+    aria-label={label}
+    className={`flex flex-col items-center gap-1 min-w-[3rem] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 dark:focus-visible:ring-gray-600 ${color}`}
   >
     <div className="p-2 rounded-full active:bg-gray-100 dark:active:bg-white/10 transition-colors">
       {icon}
     </div>
-    <span className="text-[10px] font-medium opacity-80">{label}</span>
+    <span aria-hidden="true" className="text-[10px] font-medium opacity-80">{label}</span>
   </button>
 );
