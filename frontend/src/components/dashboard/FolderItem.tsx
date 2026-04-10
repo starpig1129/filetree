@@ -277,7 +277,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
               onTouchStart={(e) => e.stopPropagation()}
               onTouchEnd={(e) => e.stopPropagation()}
               className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-              aria-label={isSelected ? "取消選取" : "選取資料夾"}
+              aria-label={isSelected ? "取消選取資料夾" : "選取資料夾"}
             >
                {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
             </button>
@@ -367,7 +367,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                             ? "text-violet-600 bg-violet-600/10 hover:bg-violet-600/20 shadow-md" 
                             : "text-cyan-600 bg-cyan-600/10 hover:bg-cyan-600/20 shadow-sm"
                         )}
-                        aria-label={folder.is_locked ? '解除鎖定' : '鎖定資料夾'}
+                        aria-label={folder.is_locked ? "解除鎖定" : "鎖定資料夾"}
                       >
                          {folder.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                       </button>
@@ -416,7 +416,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                              onMouseUp={(e) => e.stopPropagation()}
                              onTouchStart={(e) => e.stopPropagation()}
                              onTouchEnd={(e) => e.stopPropagation()}
-                             aria-label="移動到..."
+                            aria-label="移動到..."
                           >
                             <FolderIcon className="w-4 h-4" />
                           </button>
@@ -430,7 +430,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                            onMouseDown={(e) => e.stopPropagation()}
                            onMouseUp={(e) => e.stopPropagation()}
                            className="p-2 text-gray-400 hover:text-cyan-600 hover:bg-cyan-500/5 rounded-lg transition-colors"
-                           aria-label="重命名"
+                           aria-label="重命名資料夾"
                          >
                            <Edit3 className="w-4 h-4" />
                          </button>
@@ -445,7 +445,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                              onMouseDown={(e) => e.stopPropagation()}
                              onMouseUp={(e) => e.stopPropagation()}
                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-colors"
-                             aria-label="刪除"
+                             aria-label="刪除資料夾"
                            >
                              <Trash2 className="w-4 h-4" />
                            </button>
@@ -544,7 +544,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
           onTouchStart={(e) => e.stopPropagation()}
           onTouchEnd={(e) => e.stopPropagation()}
           className="p-1.5 rounded-lg bg-white/90 dark:bg-black/80 shadow-sm hover:bg-white dark:hover:bg-black flex items-center justify-center"
-          aria-label={isSelected ? "取消選取" : "選取資料夾"}
+          aria-label={isSelected ? "取消選取資料夾" : "選取資料夾"}
         >
            {isSelected ? <CheckSquare className="w-4 h-4 text-cyan-600" /> : <Square className="w-4 h-4 text-gray-400" />}
         </button>
@@ -696,7 +696,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                     onMouseUp={(e) => e.stopPropagation()}
                     className="p-1.5 bg-white rounded-full text-cyan-500 hover:text-cyan-600 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                     title="重命名"
-                    aria-label="重命名"
+                    aria-label="重命名資料夾"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
@@ -752,7 +752,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                   onMouseUp={(e) => e.stopPropagation()}
                   className="p-1.5 bg-white rounded-full text-gray-400 hover:text-red-500 shadow-md transition-transform hover:scale-110 pointer-events-auto"
                   title="刪除"
-                  aria-label="刪除"
+                  aria-label="刪除資料夾"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

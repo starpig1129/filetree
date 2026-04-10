@@ -415,7 +415,6 @@ export const UrlView: React.FC<UrlViewProps> = ({
                               onMouseDown={(e) => e.stopPropagation()}
                                onMouseUp={(e) => e.stopPropagation()}
                               className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors bg-white/50 dark:bg-white/10 backdrop-blur-sm flex items-center justify-center"
-                              aria-label={isSelected ? "取消選取" : "選取項目"}
                             >
                               {isSelected ? <CheckSquare className="w-5 h-5 text-violet-600" /> : <Square className="w-5 h-5 text-gray-400" />}
                             </button>
@@ -461,7 +460,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                                     url.is_locked ? "text-violet-600" : "text-gray-700 hover:text-violet-600"
                                   )}
                                   title={url.is_locked ? "解除鎖定" : "鎖定項目"}
-                                  aria-label={url.is_locked ? "解除鎖定" : "鎖定項目"}
+                                   aria-label={url.is_locked ? "解除鎖定" : "鎖定項目"}
                                 >
                                   {url.is_locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                                 </button>
@@ -641,7 +640,7 @@ export const UrlView: React.FC<UrlViewProps> = ({
                               onMouseDown={(e) => e.stopPropagation()}
                                onMouseUp={(e) => e.stopPropagation()}
                               className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                              aria-label={isSelected ? "取消選取" : "選取項目"}
+                              aria-label={isSelected ? "取消選取項目" : "選取項目"}
                             >
                               {isSelected ? <CheckSquare className="w-4 h-4 text-violet-600" /> : <Square className="w-4 h-4 text-gray-400" />}
                             </button>
