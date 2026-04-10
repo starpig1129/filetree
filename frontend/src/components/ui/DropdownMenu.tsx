@@ -26,6 +26,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
 
   const updateCoords = () => {
@@ -43,6 +44,38 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     e.stopPropagation();
     updateCoords();
     setIsOpen(!isOpen);
+  };
+
+  useEffect(() => {
+    if (isOpen && menuRef.current) {
+      requestAnimationFrame(() => {
+        const firstItem = menuRef.current?.querySelector('[role="menuitem"]') as HTMLElement;
+        firstItem?.focus();
+      });
+    }
+  }, [isOpen]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      const triggerButton = triggerRef.current?.querySelector('button');
+      triggerButton?.focus();
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+      e.preventDefault();
+      const items = Array.from(menuRef.current?.querySelectorAll('[role="menuitem"]') || []) as HTMLElement[];
+      if (!items.length) return;
+
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+      let nextIndex = 0;
+
+      if (e.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+      else if (e.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+      else if (e.key === 'Home') nextIndex = 0;
+      else if (e.key === 'End') nextIndex = items.length - 1;
+
+      items[nextIndex]?.focus();
+    }
   };
 
   useEffect(() => {
@@ -76,6 +109,10 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          ref={menuRef}
+          role="menu"
+          tabIndex={-1}
+          onKeyDown={handleKeyDown}
           initial={{ opacity: 0, scale: 0.95, y: -10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -105,6 +142,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                   <div className="h-px bg-gray-100 dark:bg-white/5 my-1" />
                 ) : (
                   <button
+                    role="menuitem"
                     onClick={(e) => {
                       e.stopPropagation();
                       item.onClick();
@@ -115,7 +153,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                     onTouchStart={(e) => e.stopPropagation()}
                     onTouchEnd={(e) => e.stopPropagation()}
                     className={cn(
-                      "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all text-left",
+                      "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all text-left focus:outline-none focus:bg-gray-100 dark:focus:bg-white/10 focus:ring-2 focus:ring-inset focus:ring-cyan-500/50",
                       item.variant === 'danger' 
                         ? "text-red-500 hover:bg-red-500/10" 
                         : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10"
@@ -135,7 +173,24 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
 
   return (
     <div className="inline-block" ref={triggerRef}>
-      <div onClick={toggleMenu} className="cursor-pointer">
+      <div
+        onClick={toggleMenu}
+        className="cursor-pointer"
+        role="button"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            // Need to simulate mouse event or just call toggleMenu?
+            // toggleMenu expects MouseEvent. We can mock it or adjust toggleMenu signature.
+            // Simpler: just call setIsOpen
+            updateCoords();
+            setIsOpen(!isOpen);
+          }
+        }}
+      >
         {trigger}
       </div>
       {createPortal(menuContent, document.body)}
