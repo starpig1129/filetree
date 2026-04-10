@@ -34,6 +34,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('lock') && (
           <ActionButton
             icon={<Lock className="w-4 h-4" />}
+            label="鎖定"
             onClick={() => onAction('lock')}
             disabled={isBatchSyncing}
             color="violet"
@@ -42,6 +43,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('unlock') && (
           <ActionButton
             icon={<Unlock className="w-4 h-4" />}
+            label="解鎖"
             onClick={() => onAction('unlock')}
             disabled={isBatchSyncing}
             color="cyan"
@@ -52,6 +54,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('download') && (
           <ActionButton
             icon={<Download className="w-4 h-4" />}
+            label="下載"
             onClick={() => onAction('download')}
             disabled={isBatchSyncing}
             color="green"
@@ -60,6 +63,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
         {showAction('delete') && (
           <ActionButton
             icon={<Trash2 className="w-4 h-4" />}
+            label="刪除"
             onClick={() => onAction('delete')}
             disabled={isBatchSyncing}
             color="red"
@@ -140,8 +144,10 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
                    <div 
                     role="button"
                     tabIndex={0}
+                    aria-label="移動"
+                    title="移動"
                     className={cn(
-                        "flex flex-col items-center gap-1 min-w-[3rem] text-gray-600 dark:text-gray-400 transition-opacity",
+                        "flex flex-col items-center gap-1 min-w-[3rem] rounded-md text-gray-600 dark:text-gray-400 transition-opacity focus-visible:ring-2 focus-visible:outline-none",
                         isBatchSyncing ? "opacity-50 cursor-not-allowed" : "opacity-100 cursor-pointer"
                     )}
                    >
@@ -160,7 +166,7 @@ export const BatchActionBar: React.FC<BatchActionBarProps> = ({
   );
 };
 
-const ActionButton = ({ icon, onClick, disabled, color }: { icon: React.ReactNode, onClick: () => void, disabled: boolean, color: string }) => {
+const ActionButton = ({ icon, label, onClick, disabled, color }: { icon: React.ReactNode, label: string, onClick: () => void, disabled: boolean, color: string }) => {
   const colorClasses: Record<string, string> = {
     violet: "text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-500/10",
     cyan: "text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-500/10",
@@ -172,7 +178,9 @@ const ActionButton = ({ icon, onClick, disabled, color }: { icon: React.ReactNod
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-2 rounded-md transition-colors ${colorClasses[color] || ""}`}
+      aria-label={label}
+      title={label}
+      className={`p-2 rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none ${colorClasses[color] || ""}`}
     >
       {icon}
     </button>
@@ -183,7 +191,9 @@ const MobileActionButton = ({ icon, label, onClick, disabled, color }: { icon: R
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`flex flex-col items-center gap-1 min-w-[3rem] ${color}`}
+    aria-label={label}
+    title={label}
+    className={`flex flex-col items-center gap-1 min-w-[3rem] rounded-md focus-visible:ring-2 focus-visible:outline-none ${color}`}
   >
     <div className="p-2 rounded-full active:bg-gray-100 dark:active:bg-white/10 transition-colors">
       {icon}
