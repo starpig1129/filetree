@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileUp, ShieldCheck, HelpCircle, Sun, Moon } from 'lucide-react';
+import { FileUp, ShieldCheck, HelpCircle, Sun, Moon, Smartphone } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -119,6 +119,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
               </button>
             );
           })}
+
+          {/* iPhone Shortcut Button */}
+          <button
+            onClick={() => window.open('/shortcut.html', '_blank')}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 cursor-pointer group",
+              "text-left text-sm font-medium tracking-tight",
+              "text-gray-600 dark:text-white/40 hover:text-gray-900 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent"
+            )}
+          >
+            <Smartphone className="w-4 h-4 shrink-0 text-gray-400 dark:text-white/20 group-hover:text-gray-600 dark:group-hover:text-white/40 transition-colors" />
+            <span>iPhone 捷徑</span>
+          </button>
         </nav>
 
         {/* Theme Toggle */}
