@@ -220,8 +220,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
       label: 'QR Code',
       icon: <QrCode className="w-4 h-4 text-violet-500" />,
       onClick: () => {
-        const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
-        onQrCode(url);
+        onQrCode(file.name);
       },
       hidden: isLocked
     },
@@ -413,8 +412,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
-                    onQrCode(url);
+                    onQrCode(file.name);
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
@@ -623,8 +621,7 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              const url = `${window.location.origin}/api/download/${username}/${encodeURIComponent(file.name)}${token ? `?token=${token}` : ''}`;
-              onQrCode(url);
+              onQrCode(file.name);
             }}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}

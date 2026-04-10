@@ -648,6 +648,21 @@ export const UserPage: React.FC<UserPageProps> = ({
     }
   };
 
+  const handleQrCode = async (filename: string) => {
+    try {
+      const formData = new FormData();
+      if (token) formData.append('token', token);
+      else if (password) formData.append('password', password);
+
+      const result = await apiPostForm(`/share/${dashboardData.user?.username}/${encodeURIComponent(filename)}`, formData);
+      const shareUrlResult = `${window.location.origin}/share/${result.token}`;
+      setQrUrl(shareUrlResult);
+    } catch (err) {
+      console.error(err);
+      alert('產生 QR Code 發生錯誤，請稍後再試。');
+    }
+  };
+
   const handleSelectAllAction = () => {
     if (activeTab === 'files') {
         const selectableFiles = filteredFiles
@@ -804,10 +819,7 @@ export const UserPage: React.FC<UserPageProps> = ({
                 onRename={handleRename}
                 onDelete={handleDelete}
                 onShare={handleShare}
-                onQrCode={(filename) => {
-                  const url = `${window.location.origin}/${dashboardData.user?.username}/file/${encodeURIComponent(filename)}`;
-                  setQrUrl(url);
-                }}
+                onQrCode={handleQrCode}
                 onPreview={(file) => setPreviewFile(file)}
                 username={dashboardData.user?.username || ""}
                 token={token}
